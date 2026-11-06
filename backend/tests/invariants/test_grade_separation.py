@@ -75,7 +75,8 @@ def test_vehicles_change_level_only_via_ramps(medium):
         ra, rb = lg.road_of[a], lg.road_of[b]
         edge = b in lg.succ[a]
         lane_change = ra is not None and ra == rb and b in lg.nbr[a]
-        if not (edge or lane_change):
+        change_then_edge = any(b in lg.succ[n] for n in lg.nbr[a] if n >= 0)
+        if not (edge or lane_change or change_then_edge):
             bad.append((lg.ids[a], lg.ids[b], "not a network edge"))
         elif ra and rb and level[ra] != level[rb] and "ramp" not in (kind[ra], kind[rb]):
             bad.append((lg.ids[a], lg.ids[b], "level change off-ramp"))

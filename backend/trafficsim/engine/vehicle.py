@@ -1,8 +1,12 @@
 """Vehicle classes (IDM + power parameters) and the struct-of-arrays vehicle state.
 
-IDM values are literature defaults (Treiber & Kesting, "Traffic Flow Dynamics", 2013,
-urban ranges); the CAV's shorter time gap follows ACC/CACC field studies (e.g. Milanés &
-Shladover 2014, T ≈ 0.6–1.1 s). Power-to-mass ratios [W/kg]:
+IDM values: the car uses Treiber & Kesting's published city-traffic set ("Traffic Flow
+Dynamics", 2013, Table 11.2: T = 1.0 s, s0 = 2 m, a = 1.0 m/s², b = 1.5 m/s²), chosen
+after validation: the earlier a = 1.5 / T = 1.2 / b = 2.0 set was string-stable at all
+densities (no stop-and-go on a ring) and discharged queues slower (see
+tests/validation). v0 is set above urban limits so speed limits govern. Other classes
+are literature-range defaults; the CAV's shorter time gap follows ACC/CACC field
+studies (e.g. Milanés & Shladover 2014, T ≈ 0.6–1.1 s). Power-to-mass ratios [W/kg]:
   * car 48: compact car ~60 kW / ~1250 kg incl. occupants;
   * truck/bus 6: loaded goods vehicle — between the HCM US "typical truck" 200 lb/hp
     (≈ 8.2 W/kg) and loaded Indian trucks (often cited ≈ 4–5 W/kg);
@@ -37,7 +41,7 @@ class VehicleClass:
 
 
 VEHICLE_CLASSES: Final[tuple[VehicleClass, ...]] = (
-    VehicleClass("car", 4.5, 1.8, 16.7, 1.2, 1.5, 2.0, 2.0, 48.0),
+    VehicleClass("car", 4.5, 1.8, 16.7, 1.0, 1.0, 1.5, 2.0, 48.0),
     VehicleClass("truck_bus", 12.0, 2.5, 13.9, 1.8, 0.7, 1.5, 3.0, 6.0),
     VehicleClass("two_wheeler", 2.0, 0.8, 16.7, 0.9, 2.0, 2.5, 1.0, 33.0),
     VehicleClass("cav", 4.5, 1.8, 16.7, 0.8, 1.5, 2.0, 2.0, 48.0),

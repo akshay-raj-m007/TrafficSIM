@@ -37,14 +37,22 @@ def test_free_flow_slowdown_on_upgrade(net):
 
 
 def _speed_after(sim, vid, dist_m):
+    """Speed after travelling dist_m along the path (lane changes keep s; transfers add
+    the remainder of the segment left)."""
+    lg = sim.lg
     i = sim.row_of(vid)
-    start_seg, start_s = sim.vehicles.seg[i], sim.vehicles.s[i]
+    seg, s_old = int(sim.vehicles.seg[i]), float(sim.vehicles.s[i])
     travelled = 0.0
     while travelled < dist_m:
         sim.step()
         i = sim.row_of(vid)
-        seg, s = sim.vehicles.seg[i], sim.vehicles.s[i]
-        travelled = s - start_s if seg == start_seg else s + (sim.lg.length[start_seg] - start_s)
+        new_seg, s_new = int(sim.vehicles.seg[i]), float(sim.vehicles.s[i])
+        same_road = lg.road_of[new_seg] is not None and lg.road_of[new_seg] == lg.road_of[seg]
+        if new_seg == seg or same_road:
+            travelled += s_new - s_old
+        else:
+            travelled += float(lg.length[seg]) - s_old + s_new
+        seg, s_old = new_seg, s_new
     return float(sim.vehicles.v[i])
 
 
@@ -58,7 +66,7 @@ def test_standing_start_up_the_ramp_vs_flat(net):
     ratio = v_up / v_flat
     print(f"\n[upgrade, standing start] truck after {RAMP_LEN_M:.0f} m: up-ramp "
           f"{v_up * 3.6:.1f} km/h vs flat {v_flat * 3.6:.1f} km/h ({ratio:.1%})")  # fmt: skip
-    assert v_up < 0.9 * v_flat
+    assert 0.5 * v_flat < v_up < 0.9 * v_flat  # two-sided: catches measurement errors too
 
 
 def test_narrow_lane_lowers_free_speed(net):
