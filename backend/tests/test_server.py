@@ -45,13 +45,15 @@ def test_network_endpoint_is_gzipped_json(client):
     assert len(gzip.compress(r.content)) < len(r.content)
 
 
-def test_ws_hello_then_ticks_advance_one_step_per_frame(client):
+def test_ws_hello_then_ticks_at_real_time_rate(client):
     with client.websocket_connect("/ws/sim") as ws:
         hello = ws.receive_json()
         assert hello["type"] == "hello" and hello["dt"] == 0.1
-        ticks = [_next_tick(ws) for _ in range(5)]
+        ticks = [_next_tick(ws) for _ in range(26)]
         ns = [t["tick"] for t in ticks]
-        assert ns == list(range(ns[0], ns[0] + 5))
+        assert all(b >= a for a, b in zip(ns, ns[1:], strict=False))
+        # 1x at 50 Hz = 0.2 steps per frame: exactly 5 steps over 25 frames
+        assert ns[-1] - ns[0] == 5
         for t in ticks:
             assert t["t"] == t["tick"] / 10
             assert t["speed"] == 1 and t["step_ms"] >= 0
@@ -60,11 +62,11 @@ def test_ws_hello_then_ticks_advance_one_step_per_frame(client):
 def test_ws_speed_control_and_pause(client):
     with client.websocket_connect("/ws/sim") as ws:
         ws.receive_json()
-        ws.send_text(json.dumps({"type": "set_speed", "speed": 5}))
-        while _next_tick(ws)["speed"] != 5:
+        ws.send_text(json.dumps({"type": "set_speed", "speed": 10}))
+        while _next_tick(ws)["speed"] != 10:
             pass
         a, b = _next_tick(ws), _next_tick(ws)
-        assert b["tick"] - a["tick"] == 5
+        assert b["tick"] - a["tick"] == 2  # 10x at 50 Hz = 10 * 10 / 50 steps per frame
         ws.send_text(json.dumps({"type": "set_speed", "speed": 0}))
         while _next_tick(ws)["speed"] != 0:
             pass

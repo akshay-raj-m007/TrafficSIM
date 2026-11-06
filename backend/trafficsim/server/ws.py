@@ -1,10 +1,11 @@
 """One live simulation bound to one WebSocket connection.
 
 Two concurrent tasks share the session:
-  * ``_ticker`` — every 1/tick_hz s of wall time advances ``speed`` sim steps and sends a
-    frame. Scheduling is drift-free (absolute deadlines from the loop clock); if the
-    server falls more than one frame behind, it resynchronises instead of trying to
-    catch up (frames are dropped, the sim never runs faster than requested).
+  * ``_ticker`` — every 1/tick_hz s of wall time advances the sim by ``speed`` × the frame
+    period (see ``pacing.StepPacer``; exact at any frame rate) and sends a frame.
+    Scheduling is drift-free (absolute deadlines from the loop clock); if the server
+    falls more than one frame behind, it resynchronises instead of trying to catch up
+    (frames are dropped, the sim never runs faster than requested).
   * ``_reader`` — applies client messages (speed, reset, ping).
 Sends are serialised by a lock because both tasks write to the socket.
 """
@@ -23,6 +24,7 @@ from trafficsim.engine.scenario import Scenario
 from trafficsim.network.types import Network
 from trafficsim.server import protocol
 from trafficsim.server.config import Settings
+from trafficsim.server.pacing import StepPacer
 
 DEFAULT_SEED = 42
 
@@ -62,10 +64,11 @@ class LiveSession:
         loop = asyncio.get_running_loop()
         period = 1.0 / self.settings.tick_hz
         deadline = loop.time()
+        pacer = StepPacer(self.settings.tick_hz)
         while True:
             lag_ms = max(0.0, (loop.time() - deadline) * 1000.0)
             t0 = time.perf_counter()
-            self.sim.step_n(self.speed)
+            self.sim.step_n(pacer.steps_for_frame(self.speed))
             step_ms = (time.perf_counter() - t0) * 1000.0
             sim = self.sim
             await self._send(
