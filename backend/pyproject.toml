@@ -1,0 +1,19 @@
+[project]
+name = "trafficsim"
+version = "0.1.0"
+description = "Agent-based traffic simulator (IDM + MOBIL) with a FastAPI streaming backend"
+requires-python = ">=3.11,<3.13"
+
+[tool.setuptools.packages.find]
+include = ["trafficsim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "NPY"]

@@ -1,0 +1,82 @@
+# TrafficSIM — project rules for Claude
+
+## Goal
+An agent-based traffic simulator that feels like a small **research workbench**, not a toy.
+A Python/NumPy engine (IDM car-following + MOBIL lane changes) runs a hand-built road
+network (two junctions, a flyover with ramps, 1/2/3/4-lane roads, a 3→2 lane drop,
+turning movements). It is served by FastAPI: each browser session gets its own simulation
+streamed over a WebSocket at 10 Hz, and headless A/B comparisons run over REST. The frontend
+(Vite + React + Three.js) shows a true metric 3D view with scenario controls and measured
+telemetry. Built for the QUEST Lab pre-doctoral application.
+
+## Module boundaries (enforced by `backend/tests/test_boundaries.py`)
+| Package | May import | Must never import |
+|---|---|---|
+| `backend/trafficsim/engine/` | stdlib, `numpy`, `trafficsim.engine`, `trafficsim.network` | fastapi, pydantic, server code |
+| `backend/trafficsim/network/` | stdlib, `numpy`, `trafficsim.network`, `trafficsim.engine` | fastapi, pydantic, server code |
+| `backend/trafficsim/server/` | anything above + fastapi/pydantic/uvicorn | — (adapter layer only) |
+| `frontend/src/` | talks to the backend only via HTTP/WS JSON | — |
+
+- The **backend is the single source of truth for the network geometry** (`GET /api/network`).
+  The frontend never keeps its own copy of the roads.
+- Engine/network code must stay usable from plain Python (pytest, offline parameter sweeps).
+
+## Units, axes, time
+- **1 unit = 1 metre everywhere.** No visual scaling factors on road widths, lane offsets or
+  vehicle sizes. Ribbons are built from exact `width_m`; tests enforce this
+  (`frontend/src/scene/ribbon.test.ts`, `backend/tests/test_network_demo.py`).
+- Engine axes: **x east, y north, z up**. Three.js axes: y up. The *only* conversion is
+  `frontend/src/scene/coords.ts`: three(x, y, z) = (sim.x, sim.z, −sim.y), scale 1.
+- **Left-hand traffic (India).** Lane index 0 = kerb lane (leftmost in direction of travel);
+  higher indices go toward the median. Flyover diverges from the median-side lanes.
+- **Fixed time step `DT = 0.1 s`** (`engine/constants.py`), never configurable per scenario.
+  The clock is an integer `tick`; `t = tick / STEPS_PER_SECOND` (no accumulated floats).
+  Sim stepping is decoupled from rendering; the renderer interpolates between sim states.
+
+## Hard invariants (each has an automated test; never break them)
+1. **Determinism** — same seed + scenario ⇒ identical trajectories and KPIs.
+   `tests/invariants/test_determinism.py`. Use named `SeedSequence.spawn` streams
+   (`engine/rng.py`); never iterate over `set`s; avoid transcendental ufuncs in hot paths
+   (write `x*x*x*x`, not `np.power(x, 4)`); no wall-clock time inside the engine.
+2. **No collisions, no negative speeds** — gap > 0 and v ≥ 0 at every step.
+   `tests/invariants/test_no_collision.py`. Never "fix" a collision by teleporting.
+3. **Spillback guard** — no vehicle enters a junction unless the exit lane has room for it.
+   `tests/invariants/test_spillback.py`.
+4. **Conservation** — spawned = active + exited; blocked spawns are counted as unserved
+   demand, never silently dropped. `tests/invariants/test_conservation.py`.
+5. **Grade separation** — a flyover vehicle can never interact with or turn onto the road
+   below except via the defined ramps. `tests/invariants/test_grade_separation.py`.
+
+## Modelling honesty
+- KPIs are **measured, not estimated**: flow from detector lines, queue length from actual
+  vehicle positions, delay = actual − free-flow travel time (per class, per route).
+  If something can't be measured properly, leave it out. No fudge factors.
+- Approximations are labelled honestly (e.g. the lane-width speed model is not called "HCM"
+  unless the real HCM adjustment is implemented). Two-wheelers do not filter between lanes.
+
+## Code rules
+- Each source file stays under **~200 lines** (ESLint `max-lines`; `tests/test_file_length.py`).
+- Tests: **pytest** for the engine/server, **Vitest** for the frontend.
+- Commit after each working step with a clear message.
+
+## Commands
+```bash
+# Backend (from backend/)
+py -3.12 -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt
+.venv/Scripts/python -m pytest              # all tests
+.venv/Scripts/python -m ruff check . && .venv/Scripts/python -m ruff format --check .
+.venv/Scripts/python -m uvicorn trafficsim.server.app:app --reload --port 8000
+
+# Frontend (from frontend/)
+npm ci
+npm run dev        # Vite on :5173, proxies /api and /ws to :8000
+npm run lint && npm test && npm run build
+
+# Single-origin Docker image (from repo root)
+docker build -t trafficsim . && docker run --rm -p 8000:8000 trafficsim
+```
+
+## Deployment
+Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 15 min idle,
+5 GB/month egress. Hence: single uvicorn worker, `MAX_SESSIONS` cap (default 2) with a
+"server busy" message, and compact binary WS frames once vehicles are streamed.
