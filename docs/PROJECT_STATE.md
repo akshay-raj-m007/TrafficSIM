@@ -1,6 +1,6 @@
 # TrafficSIM — project state and decision log (handoff for later sessions)
 
-Last updated: Fri 6 Nov 2026, 23:40 IST (step 2b added at the end). **Deadline: Mon 9 Nov 2026, 18:08 IST** (72 h from
+Last updated: Fri 6 Nov 2026, 21:40 IST. **Deadline: Mon 9 Nov 2026, 18:08 IST** (72 h from
 start, 18:08 IST Fri 6 Nov). Report the time remaining after every result. Never suggest
 /clear; use /compact. Commit after each working step (co-author line in system prompt).
 Repo: https://github.com/akshay-raj-m007/TrafficSIM (branch `main`, pushes via plain git;
@@ -9,9 +9,10 @@ Repo: https://github.com/akshay-raj-m007/TrafficSIM (branch `main`, pushes via p
 ## Status
 - **Step 1 (baseline): done.** Repo, CLAUDE.md, CI, FastAPI skeleton, static 3D network.
 - **Step 2a (vehicles and physics, backend only): done.** 212 tests pass (~4.5 min).
-- **Step 2b (vehicles in the 3D view, measured KPIs): done** (see the end of this file).
-- **Next: step 3**, not yet specified: scenario controls in the UI, headless A/B runs over
-  REST, multi-seed comparison of Webster vs pure vs thresholded max-pressure.
+- **Next: step 2b**, not yet specified by the user. Likely: KPIs (flow from detector
+  lines, queues from positions, delay = actual − free-flow per class/route), streaming
+  vehicles to the frontend (compact binary frames, renderer interpolation), and scenario
+  controls in the UI.
 - **Deployment is parked by the user.** No Render or Docker work until the user decides.
   Keep CI green. render.yaml and the Dockerfile already exist; Render free was the chosen
   host (0.1 CPU, 512 MB, 5 GB/month egress, sleeps after 15 min). HF Docker Spaces now
@@ -156,41 +157,3 @@ Windows notes:
 - Use scratchpad patch scripts instead of complex inline heredocs.
 - Headless browser screenshots: playwright-core + local Chrome (script in the session
   scratchpad).
-
-## Step 2b (done 6 Nov 2026 evening)
-- **Workflow rule from the user:** push after work is built and tested; rebuild the frontend
-  and restart localhost so the user can analyse it. Deployment still parked.
-- **Part A:** `slow` pytest marker (strict markers); fast subset `pytest -m "not slow"`
-  (~40 s, 243 tests), full suite ~7 min (CI). README has ring-road waves (−14.4 km/h), the J2
-  platoon finding (156 vs HCM 287 veh/h), and the corrected discharge explanation: the 1,644
-  veh/h stop-line flow is NOT a capacity drop; steady maximum at J1's 39 km/h desired speed is
-  1,766 (start-up transient −7 %), the rest of the gap to HCM is the 40 km/h desired-speed
-  ceiling. Measured start-up loss at J1 is 3.8–5.5 s (HCM default l1 = 2 s used in Webster).
-- **Part B:** `max_pressure_threshold` (G_MIN 15 s, threshold derived = lost time per switch
-  10.9 s ≈ 4.1 veh forfeited, in pressure units 5,498). Pre-registered, not tuned.
-- **Part C (engine/):** `pose.py`, `detectors.py` (12 detector lines, 60 s window),
-  `queues.py` (chain gap ≤ 7.0 m derived), `freeflow.py` (+ committed table, 80 values),
-  `kpi.py` (`Simulation.kpi_snapshot()`), `presets.DEMO_KPI_LAYOUT`. Delay = (t_exit − t_ins)
-  − free-flow(route, class); entry-queue wait reported separately. A lone vehicle has delay 0
-  exactly (test).
-- **Part D (server/):** `frames.py` (binary frame), `session_config.py` (query params
-  seed/signal/demand_scale), `stats.py`, `protocol.py`, `ws.py`. Frames only when the sim
-  advanced. Calibration table committed (`data/calibration_demo.json`).
-- **Part E (frontend/):** `api/frame.ts`, `scene/interpolator.ts` (tick-domain clock, delay
-  2 frame intervals, 250 ms hiccup cap), `scene/vehicles.ts` (InstancedMesh per class + lamp
-  mesh), `scene/instanceMatrix.ts`, `scene/speedColor.ts`, `ui/KpiPanel.tsx`, `ui/Legend.tsx`.
-  48 Vitest tests. Debug hook `window.__trafficDebug.probe(n)` returns render tick + car poses.
-- **Measured:** frame 12 + 13 n bytes; on the wire (permessage-deflate negotiated) 736 B/frame
-  at 178 vehicles (7.4 KB/s, 187 h per 5 GB) and 4,564 B at 676 vehicles (46 KB/s, 30 h per
-  5 GB); uncompressed 2,540 / 8,982 B. Wire compression is only ~2x (no shared context between
-  frames); offline what-if (not implemented): delta frames 1,640 B vs 2,687 B per frame alone
-  at ~370 vehicles. Step cost 1.8 ms (160 veh) / 4.3 ms (640 veh); encode 0.3–0.8 ms.
-- **Smoothness (headless Chrome, software GL ~27 fps):** no stalls; median frame-to-frame change
-  of apparent speed vs render tick 0.01–0.02 %, p95 1.7–3.5 %. Real 60 fps not measurable here.
-- **Known visual limits:** plain boxes (no wheels/windows); chord cutting at 5–10×; lane
-  changes are instantaneous in the model (3 s display blend only); vehicles in a blend can
-  overlap neighbours slightly.
-- **Pitfall:** uvicorn on Windows: stop old servers with the task tool (killing by PID is
-  blocked). Default demo demand overloads the J2 minor road (queue grows) — a legit result of
-  the J2 finding, not a bug.
-
