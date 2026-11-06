@@ -1,0 +1,18 @@
+# Render Blueprint — free web service built from the repo's Dockerfile.
+# Free tier: 0.1 CPU, 512 MB RAM, sleeps after 15 min without traffic (~1 min wake-up),
+# 5 GB/month outbound bandwidth. Keep MAX_SESSIONS low until the load test says otherwise.
+services:
+  - type: web
+    name: trafficsim
+    runtime: docker
+    plan: free
+    region: singapore  # closest Render region to India
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: MAX_SESSIONS
+        value: "2"
+      - key: SESSION_IDLE_TIMEOUT_S
+        value: "900"
