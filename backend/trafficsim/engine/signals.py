@@ -8,7 +8,15 @@ change keep their reservation (engine/gates.py), which is the amber dilemma-zone
   MaxPressure       Varaiya (2013): pressure of a phase = Σ over its movements of
                     (queued upstream − queued downstream) × measured saturation flow;
                     after G_MIN the highest-pressure phase gets the green, a switch is
-                    forced at G_MAX if another phase has queued vehicles.
+                    forced at G_MAX if another phase has queued vehicles. The textbook
+                    rule, unchanged.
+  MaxPressureThreshold  the same rule with (i) a longer minimum green and (ii) a switching
+                    threshold: the best alternative must beat the current phase by the
+                    capacity a switch forfeits. A switch costs a lost time
+                    Ls = mean(amber + all-red) + mean measured start-up loss, during which
+                    the junction could have discharged n = Ls · s_ref / 3600 vehicles
+                    (s_ref = mean measured saturation flow of its movements). In pressure
+                    units (vehicles × veh/h) that is threshold = n · s_ref. No free knob.
 Durations are kept in whole ticks so the controller is exact and deterministic.
 """
 
@@ -17,7 +25,12 @@ from __future__ import annotations
 import numpy as np
 
 from trafficsim.engine.constants import STEPS_PER_SECOND
-from trafficsim.engine.params.control import G_MAX_S, G_MIN_S, V_QUEUED_MPS
+from trafficsim.engine.params.control import (
+    G_MAX_S,
+    G_MIN_S,
+    G_MIN_THRESHOLD_S,
+    V_QUEUED_MPS,
+)
 from trafficsim.engine.webster import Phase, WebsterPlan
 
 
@@ -62,6 +75,8 @@ class SignalController:
 
 
 class FixedTimeWebster(SignalController):
+    name = "fixed_webster"
+
     def __init__(self, junction_id: str, phases: list[Phase], lg, plan: WebsterPlan) -> None:
         super().__init__(junction_id, phases, lg)
         self.plan = plan
@@ -74,9 +89,13 @@ class FixedTimeWebster(SignalController):
 
 
 class MaxPressure(SignalController):
-    def __init__(self, junction_id: str, phases: list[Phase], lg, sat: dict[str, float]):
+    name = "max_pressure"
+
+    def __init__(self, junction_id: str, phases: list[Phase], lg, sat: dict[str, float],
+                 g_min_s: float = G_MIN_S, threshold: float = 0.0):  # fmt: skip
         super().__init__(junction_id, phases, lg)
-        self.g_min, self.g_max = _ticks(G_MIN_S), _ticks(G_MAX_S)
+        self.g_min, self.g_max = _ticks(g_min_s), _ticks(G_MAX_S)
+        self.threshold = threshold  # pressure units: vehicles x veh/h
         self.movements = [
             [(lg.seg_of[c], int(lg.conn_to[lg.seg_of[c]]), sat[c]) for c in ph.connector_ids]
             for ph in phases
@@ -100,16 +119,32 @@ class MaxPressure(SignalController):
         n = len(self.phases)
         others = [(self.phase + k) % n for k in range(1, n)]  # cyclic order breaks ties
         best = max(others, key=lambda k: p[k])
-        if p[best] > p[self.phase]:
+        if p[best] > p[self.phase] + self.threshold:
             return best
         if self.elapsed >= self.g_max and any(waiting[k] > 0 for k in others):
             return max((k for k in others if waiting[k] > 0), key=lambda k: p[k])
         return None
 
 
+class MaxPressureThreshold(MaxPressure):
+    name = "max_pressure_threshold"
+
+    def __init__(self, junction_id: str, phases: list[Phase], lg, sat, startup_lost) -> None:
+        s_ref = float(np.mean(list(sat.values())))  # veh/h
+        lost = float(np.mean([ph.intergreen_s for ph in phases])) + float(
+            np.mean(list(startup_lost.values()))
+        )  # s per switch
+        self.lost_per_switch_s = lost
+        self.forfeited_veh = lost * s_ref / 3600.0
+        super().__init__(
+            junction_id, phases, lg, sat, g_min_s=G_MIN_THRESHOLD_S,
+            threshold=self.forfeited_veh * s_ref,
+        )  # fmt: skip
+
+
 def make_controllers(net, lg, routes, scenario) -> list[SignalController]:
     """One controller per signalised junction, as chosen by the scenario."""
-    from trafficsim.engine.calibration import saturation_flows
+    from trafficsim.engine.calibration import saturation_flows, startup_lost_times
     from trafficsim.engine.webster import build_phases, movement_flows, webster_plan
 
     if scenario.signal_control == "uncontrolled":
@@ -124,6 +159,9 @@ def make_controllers(net, lg, routes, scenario) -> list[SignalController]:
             flows = movement_flows(net, routes, lg, scenario.demand, j)
             plan = webster_plan(phases, flows, sat, net)
             out.append(FixedTimeWebster(j.id, phases, lg, plan))
-        else:
+        elif scenario.signal_control == "max_pressure":
             out.append(MaxPressure(j.id, phases, lg, sat))
+        else:
+            lost = startup_lost_times(net, scenario.vehicle_mix, j.id)
+            out.append(MaxPressureThreshold(j.id, phases, lg, sat, lost))
     return out

@@ -124,18 +124,30 @@ effect and appears on the ring road, not here. (An earlier commit message and te
 called the J1 discharge a "capacity drop"; that was wrong: it compared two different desired
 speeds.)
 
-Related: the measured start-up loss at J1 is about 4 s over the first four vehicles,
-roughly twice the HCM default l1 = 2 s that the Webster calculation currently uses.
-
 ### Signal controllers
 
 `fixed_webster` (cycle from Webster's formula, inputs derived: ITE intergreens, measured
 saturation flow) and `max_pressure` (Varaiya, the textbook rule). On the demo demand the
 pure max-pressure controller switches every 8 s on average (62 greens in 15 minutes against
 29 for Webster) and served slightly fewer vehicles (620 against 640): the textbook rule
-ignores switching losses. It is kept as the baseline. A second variant with a switching
-threshold and a longer minimum green is selectable and is to be compared with the other two
-over several seeds, with its parameters fixed in advance (see below).
+ignores switching losses. It is kept as the baseline.
+
+A second variant, `max_pressure_threshold`, is selectable beside it. Its two parameters were
+**fixed before any controller comparison** (they are not tuned on results):
+
+- minimum green 15 s (7 s for the textbook rule), the upper end of the 5–15 s range in the
+  FHWA Signal Timing Manual;
+- a switching threshold **derived from measured quantities**: a switch is made only if the
+  best alternative phase beats the current one by the capacity a switch forfeits. At J1 a
+  switch costs 6.4 s of intergreen plus 4.5 s of measured start-up loss (10.9 s), i.e. about
+  4.1 vehicles of discharge at the mean measured saturation flow (1,346 veh/h).
+
+Webster, pure max-pressure and thresholded max-pressure are to be compared over several
+seeds and reported as a result. (One seed, 600 s, demo demand, for orientation only: 20, 40
+and 23 greens; 375, 366 and 381 vehicles served.)
+
+Note: the measured start-up loss at J1 is 3.8–5.5 s per movement against the HCM default
+l1 = 2 s used in the Webster lost-time sum.
 
 ## Project rules
 

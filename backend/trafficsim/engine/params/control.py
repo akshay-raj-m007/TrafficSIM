@@ -59,6 +59,10 @@ GREEN_EXTENSION_S: Final[float] = 2.0
 # Maximum green for max-pressure, and maximum Webster cycle (IRC:93-1985 recommends
 # keeping cycles at or below 120 s).
 G_MIN_S: Final[float] = 7.0
+# Second max-pressure variant ("max_pressure_threshold"): minimum green at the upper end
+# of the same 5-15 s range. Its other parameter (the switching threshold) is DERIVED,
+# not chosen: see engine/signals.py. Both were fixed before any controller comparison.
+G_MIN_THRESHOLD_S: Final[float] = 15.0
 G_MAX_S: Final[float] = 60.0
 C_MAX_S: Final[float] = 120.0
 
