@@ -148,7 +148,8 @@ def _apply(vs, lg, rt, rows, tgts, mand, gain, s_t, accept, info, log, t_now) ->
         log.lane_changes.append(
             LaneChangeEvent(
                 t_now, int(vs.vid[i]), int(vs.seg[i]), tg, bool(mand[k]), float(gap_lead[k]),
-                float(gap_lag[k]), float(a_fol[k]), float(b_safe[k]),
+                float(gap_lag[k]), float(a_fol[k]), float(b_safe[k]), float(vs.s[i]),
+                float(s_t[k]),
             )
         )  # fmt: skip
         vs.seg[i], vs.s[i], vs.lc_timer[i] = tg, s_t[k], 0.0

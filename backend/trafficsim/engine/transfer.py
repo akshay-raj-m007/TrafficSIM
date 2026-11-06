@@ -43,6 +43,8 @@ class LaneChangeEvent:
     gap_lag: float  # accepted gap of the new follower [m] (inf: none)
     a_follower: float  # new follower's IDM acceleration right after the change [m/s²]
     b_safe: float  # acceptance threshold that applied [m/s²]
+    s_from: float = 0.0  # front position on the old lane at the change [m]
+    s_to: float = 0.0  # front position on the new lane at the change [m]
 
 
 @dataclass(frozen=True, slots=True)

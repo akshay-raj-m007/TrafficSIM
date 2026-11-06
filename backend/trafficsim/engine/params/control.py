@@ -72,3 +72,16 @@ C_MAX_S: Final[float] = 120.0
 SAT_QUEUE_VEHICLES: Final[int] = 24
 SAT_SKIP_VEHICLES: Final[int] = 4
 CALIBRATION_SEED: Final[int] = 0
+
+# ------------------------------------------------------------------- KPIs --------------
+# Detector flow is the crossing count over this window scaled to veh/h [s]; one vehicle
+# in the window is 3600 / 60 = 60 veh/h, which the UI states.
+DETECTOR_WINDOW_S: Final[float] = 60.0
+# Detectors stay this far from road ends [m]: a step moves a vehicle at most
+# v_max * DT = 1.7 m, so no step can carry a vehicle across a boundary and the line at once.
+DETECTOR_MIN_END_CLEARANCE_M: Final[float] = 20.0
+# "Recent" window for mean delay [s]: the 5-minute analysis interval conventional for
+# flow rates (HCM uses 15-minute analysis periods with 5-minute peak flow rates).
+KPI_RECENT_WINDOW_S: Final[float] = 300.0
+# Queues are sampled at this interval and their maximum is kept over the detector window [s].
+QUEUE_SAMPLE_PERIOD_S: Final[float] = 1.0

@@ -17,16 +17,21 @@ from __future__ import annotations
 
 import numpy as np
 
-from trafficsim.engine.constants import DT, time_of
+from trafficsim.engine.constants import DT, STEPS_PER_SECOND, time_of
 from trafficsim.engine.demand import Demand
 from trafficsim.engine.dynamics import accelerations
 from trafficsim.engine.gates import JunctionGates
 from trafficsim.engine.idm import ballistic_update
+from trafficsim.engine.kpi import KpiHub, KpiLayout
 from trafficsim.engine.lanegraph import compile_network
 from trafficsim.engine.lc_sync import mandatory_offsets, sync_accel
 from trafficsim.engine.leaders import build_occupancy, find_leaders, stop_gaps
 from trafficsim.engine.mobil import lane_changes
-from trafficsim.engine.params.control import INCIDENT_LENGTH_M, V_QUEUED_MPS
+from trafficsim.engine.params.control import (
+    INCIDENT_LENGTH_M,
+    QUEUE_SAMPLE_PERIOD_S,
+    V_QUEUED_MPS,
+)
 from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
@@ -36,11 +41,15 @@ from trafficsim.engine.transfer import TransferLog, advance_segments
 from trafficsim.engine.vehicle import CLASS_INDEX, VehicleState
 from trafficsim.network.types import Network
 
+SAMPLE_EVERY_STEPS = round(QUEUE_SAMPLE_PERIOD_S * STEPS_PER_SECOND)
+
 
 class Simulation:
     dt: float = DT
 
-    def __init__(self, network: Network, scenario: Scenario) -> None:
+    def __init__(
+        self, network: Network, scenario: Scenario, kpi_layout: KpiLayout | None = None
+    ) -> None:
         self.network = network
         self.scenario = scenario
         self.rng = RngStreams(scenario.seed)
@@ -59,6 +68,7 @@ class Simulation:
         self.allow_lane_changes = True  # experiments (calibration) may switch this off
         self.box_stopped_vehicle_s = 0.0
         self.mandatory_lane_changes = 0
+        self.kpis = KpiHub(self, kpi_layout)
         self.tick: int = 0
         self._total_ticks = scenario.total_ticks
 
@@ -102,6 +112,10 @@ class Simulation:
         segs = np.array([a for a, _ in act], dtype=np.int64)
         return segs, np.array([b for _, b in act]), np.full(len(act), INCIDENT_LENGTH_M)
 
+    def kpi_snapshot(self) -> dict:
+        """Measured KPIs as a plain dict (see engine/kpi.py for every definition)."""
+        return self.kpis.snapshot()
+
     def row_of(self, vid: int) -> int | None:
         rows = np.flatnonzero(self.vehicles.vid == vid)
         return int(rows[0]) if rows.size else None
@@ -138,7 +152,7 @@ class Simulation:
         acc = accelerations(vs, lg, gap, v_lead, stop_gaps(vs, lg, self.gates))
         rows, a_sync = sync_accel(vs, lg, occ, mandatory_offsets(vs))
         acc[rows] = np.minimum(acc[rows], a_sync)
-        v_before = vs.v
+        v_before, s_before = vs.v, vs.s
         vs.s, vs.v = ballistic_update(vs.s, vs.v, acc)
         # Diagnostic on the deceleration actually realised (a standing vehicle's IDM
         # command can be very negative without any physical braking happening).
@@ -146,6 +160,7 @@ class Simulation:
         self.emergency_brakings += int(np.count_nonzero(vs.acc < -B_EMERGENCY_MPS2))
         vs.lc_timer = vs.lc_timer + DT
         self.tick += 1
+        self.kpis.observe(vs, s_before, self.time_s)  # detector lines: before transfers
         advance_segments(
             vs, lg, self.routes, self.time_s, self.log, self.gates.room_seen,
             self.gates.may_enter, self.gates.commit_room,
@@ -154,6 +169,8 @@ class Simulation:
         # than the queued-state speed AND not accelerating away from a standing start).
         in_box = lg.is_conn[vs.seg] & (vs.v < V_QUEUED_MPS) & (vs.acc <= 0.0)
         self.box_stopped_vehicle_s += float(np.count_nonzero(in_box)) * DT
+        if self.tick % SAMPLE_EVERY_STEPS == 0:
+            self.kpis.sample(self.time_s)
         return True
 
     def step_n(self, n: int) -> int:

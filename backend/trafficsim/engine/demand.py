@@ -63,6 +63,11 @@ class Demand:
         self.inserted = 0
         self.next_vid = 0
 
+    def class_indices(self) -> list[int]:
+        """Indices of the vehicle classes that can occur (positive share in the mix)."""
+        shares = np.diff(np.concatenate([[0.0], self.cls_cum]))
+        return [int(c) for c, s in zip(self.cls_idx, shares, strict=True) if s > 0]
+
     @property
     def queued(self) -> int:
         return sum(len(z.queue) for z in self.zones)
@@ -129,6 +134,19 @@ class Demand:
         self.next_vid += 1
         self.inserted += 1
         return self.next_vid - 1
+
+    def insert_now(self, vs, route: int, cls: int, t_now: float) -> int | None:
+        """Insert one vehicle on the route's entry road with the regular insertion rule
+        (lane choice, gap, insertion speed), bypassing the arrival process and entry queue.
+        Returns the vehicle id, or None if the rule does not allow it right now."""
+        q = Queued(t_now, cls, route)
+        segs = self.lg.road_segs[self.rt.roads[route][0]]
+        choice = self._best_lane(vs, segs, q, set())
+        if choice is None:
+            return None
+        k, s_front, v_ins = choice
+        self.generated += 1
+        return self._append(vs, q, segs[k], s_front, v_ins, t_now)
 
     def place(self, vs, route: int, cls: int, seg: int, s: float, v: float, t_now: float,
               rpos: int = 0):  # fmt: skip
