@@ -6,7 +6,8 @@ acc = min(a_IDM, a_power, a_anticipation) where
   * a_power is the tractive limit on the local grade (idm.power_limited_accel);
   * a_anticipation is the constant deceleration that brings the vehicle down to the
     desired speed of its next segment exactly at the segment boundary,
-    (v_next² − v²) / (2·d), applied only when v exceeds that next desired speed.
+    (v_next² − v²) / (2·d), applied only when v exceeds that next desired speed and
+    never stronger than the comfortable deceleration b.
 """
 
 from __future__ import annotations
@@ -53,5 +54,8 @@ def accelerations(
     if np.any(anticipate):
         d_a = d[anticipate]
         a_ant = (v_next[anticipate] ** 2 - v[anticipate] ** 2) / (2.0 * d_a)
+        # Anticipation is comfort behaviour: never brake harder than b for it (a small
+        # excess just before the boundary is then handled by IDM's free-road term).
+        a_ant = np.maximum(a_ant, -B[c[anticipate]])
         acc[anticipate] = np.minimum(acc[anticipate], a_ant)
     return acc

@@ -17,9 +17,10 @@ from dataclasses import dataclass
 import numpy as np
 
 from trafficsim.engine.lanegraph import LaneGraph
+from trafficsim.engine.params.control import STOP_LINE_STANDOFF_M
 from trafficsim.engine.params.driving import LOOKAHEAD_M
 from trafficsim.engine.routes import NEXT_EXIT, NEXT_NONE, RouteTable, next_seg
-from trafficsim.engine.vehicle import LEN, VehicleState
+from trafficsim.engine.vehicle import LEN, S0, VehicleState
 
 # Stride for the combined sort key seg * KEY_STRIDE + s; must exceed any occupant
 # position (segment length + a ghost's overhang) so keys of different segments never mix.
@@ -43,12 +44,18 @@ class Occupancy:
     key: np.ndarray  # seg * KEY_STRIDE + s, sorted (for searchsorted queries)
 
 
-def build_occupancy(vs: VehicleState, lg: LaneGraph) -> Occupancy:
+def build_occupancy(vs: VehicleState, lg: LaneGraph, static=None) -> Occupancy:
+    """``static``: (segments, front positions, lengths) of stationary obstacles (incidents),
+    added as non-vehicle occupants (ghost=True, row=-1, v=0)."""
     n = vs.n
     lens = LEN[vs.cls]
     g = np.flatnonzero(vs.tail >= 0)
-    seg = np.concatenate([vs.seg, vs.tail[g]])
-    s = np.concatenate([vs.s, lg.length[vs.tail[g]] + vs.s[g]])
+    if static is None:
+        static = (np.zeros(0, np.int64), np.zeros(0), np.zeros(0))
+    st_seg, st_s, st_len = static
+    k = st_seg.size
+    seg = np.concatenate([vs.seg, vs.tail[g], st_seg])
+    s = np.concatenate([vs.s, lg.length[vs.tail[g]] + vs.s[g], st_s])
     order = np.lexsort((s, seg))
     seg_o = seg[order]
     change = np.r_[True, seg_o[1:] != seg_o[:-1]] if seg_o.size else np.zeros(0, bool)
@@ -61,9 +68,9 @@ def build_occupancy(vs: VehicleState, lg: LaneGraph) -> Occupancy:
     return Occupancy(
         seg=seg_o,
         s=s_o,
-        length=np.concatenate([lens, lens[g]])[order],
-        v=np.concatenate([vs.v, vs.v[g]])[order],
-        row=np.concatenate([np.arange(n), g])[order],
+        length=np.concatenate([lens, lens[g], st_len])[order],
+        v=np.concatenate([vs.v, vs.v[g], np.zeros(k)])[order],
+        row=np.concatenate([np.arange(n), g, np.full(k, -1)])[order],
         ghost=~real,
         first={int(seg_o[p]): int(p) for p in starts},
         last={int(seg_o[p]): int(p) for p in ends},
@@ -100,34 +107,43 @@ def stop_gaps(vs: VehicleState, lg: LaneGraph, gate: Gate | None = None) -> np.n
     of their own lane even while following a leader that legitimately continues.
     """
     d = lg.length[vs.seg] - vs.s
-    out = np.where(vs.nxt == NEXT_NONE, d, np.inf)
+    # The virtual obstacle sits (s0 - standoff) beyond the line, so IDM brings every
+    # class to rest STOP_LINE_STANDOFF_M before the line (s0 is a gap to a vehicle).
+    s0 = S0[vs.cls] - STOP_LINE_STANDOFF_M
+    out = np.where(vs.nxt == NEXT_NONE, d + s0, np.inf)
     if gate is not None:
         nx = vs.nxt
         approaching = (nx >= 0) & (d < LOOKAHEAD_M)
         approaching[approaching] &= lg.is_conn[nx[approaching]]
         for i in np.flatnonzero(approaching):
             if not gate(int(i), int(nx[i])):
-                out[i] = d[i]
+                out[i] = d[i] + s0[i]
     return out
 
 
 def _walk(i, vs, lg, rt, occ, gate) -> tuple[float, float]:
     return walk_ahead(
         lg, rt, occ, int(vs.seg[i]), float(vs.s[i]), int(vs.nxt[i]), int(vs.rpos[i]),
-        int(vs.route[i]), gate, i,
+        int(vs.route[i]), gate, i, float(S0[vs.cls[i]] - STOP_LINE_STANDOFF_M),
     )  # fmt: skip
 
 
-def walk_ahead(lg, rt, occ, seg, s, nx, rpos, route, gate=None, i=-1) -> tuple[float, float]:
-    """Gap and speed of whatever lies ahead of position s on seg along a route's path."""
+def walk_ahead(
+    lg, rt, occ, seg, s, nx, rpos, route, gate=None, i=-1, line_offset=0.0
+) -> tuple[float, float]:
+    """Gap and speed of whatever lies ahead of position s on seg along a route's path.
+
+    Lane ends / closed entries are returned as stationary obstacles ``line_offset``
+    beyond the line (callers pass the vehicle's s0, see ``stop_gaps``).
+    """
     d = float(lg.length[seg] - s)
     while d < LOOKAHEAD_M:
         if nx == NEXT_EXIT:
             return np.inf, 0.0
         if nx == NEXT_NONE:
-            return d, 0.0  # lane ends with no way onward: stationary obstacle at the end
+            return d + line_offset, 0.0  # lane ends with no way onward
         if lg.is_conn[nx] and gate is not None and not gate(i, nx):
-            return d, 0.0  # junction entry not permitted: stop at the line
+            return d + line_offset, 0.0  # junction entry not permitted
         j = occ.first.get(nx)
         if j is not None:
             return d + float(occ.s[j] - occ.length[j]), float(occ.v[j])

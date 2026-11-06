@@ -45,17 +45,29 @@ class LaneChangeEvent:
     b_safe: float  # acceptance threshold that applied [m/s²]
 
 
+@dataclass(frozen=True, slots=True)
+class JunctionEntry:
+    vid: int
+    conn: int  # connector segment entered
+    t: float
+    room: float  # guaranteed exit-lane room when the vehicle committed (decided) [m]
+    need: float  # the vehicle's own length + s0 [m]
+    room_at_entry: float  # same measure at the step it crossed the line (diagnostic) [m]
+
+
 @dataclass
 class TransferLog:
     exits: list[ExitRecord] = field(default_factory=list)
-    # (vid, connector segment, time) for every junction entry, for the spillback tests
-    junction_entries: list[tuple[int, int, float]] = field(default_factory=list)
+    junction_entries: list[JunctionEntry] = field(default_factory=list)
     lane_changes: list[LaneChangeEvent] = field(default_factory=list)
 
 
 def advance_segments(
-    vs: VehicleState, lg: LaneGraph, rt: RouteTable, t_now: float, log: TransferLog
-) -> list[int]:
+    vs: VehicleState, lg: LaneGraph, rt: RouteTable, t_now: float, log: TransferLog,
+    room_seen: dict[int, tuple[float, float]] | None = None,
+    may_enter=None,
+    commit_room: dict[int, tuple[float, float]] | None = None,
+) -> list[int]:  # fmt: skip
     """Apply segment transitions in place; returns rows that entered a junction connector."""
     over = vs.s > lg.length[vs.seg]
     leaving = over & (vs.nxt == NEXT_EXIT)
@@ -80,8 +92,15 @@ def advance_segments(
             vs.tail[i] = vs.seg[i]
             vs.seg[i] = nx
             if lg.is_conn[nx]:
+                if may_enter is not None and not may_enter(int(vs.vid[i]), int(i), nx):
+                    raise EngineInvariantError(
+                        f"vehicle {vs.vid[i]} crossed a closed line into {lg.ids[nx]}"
+                    )
                 entered.append(int(i))
-                log.junction_entries.append((int(vs.vid[i]), nx, t_now))
+                vid = int(vs.vid[i])
+                room_now, need = (room_seen or {}).get(vid, (np.nan, np.nan))
+                room, _ = (commit_room or {}).pop(vid, (np.nan, np.nan))
+                log.junction_entries.append(JunctionEntry(vid, nx, t_now, room, need, room_now))
             else:
                 vs.rpos[i] += 1
             vs.nxt[i] = next_seg(lg, rt, int(vs.route[i]), int(vs.rpos[i]), nx)

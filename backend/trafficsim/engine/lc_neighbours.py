@@ -13,8 +13,9 @@ import numpy as np
 
 from trafficsim.engine.lanegraph import LaneGraph
 from trafficsim.engine.leaders import KEY_STRIDE, Occupancy, walk_ahead
+from trafficsim.engine.params.control import STOP_LINE_STANDOFF_M
 from trafficsim.engine.routes import RouteTable, next_seg
-from trafficsim.engine.vehicle import LEN, VehicleState
+from trafficsim.engine.vehicle import LEN, S0, VehicleState
 
 
 @dataclass
@@ -69,7 +70,15 @@ def target_neighbours(
         i, tg = int(rows[k]), int(targets[k])
         nx = next_seg(lg, rt, int(vs.route[i]), int(vs.rpos[i]), tg)
         gap_lead[k], v_lead[k] = walk_ahead(
-            lg, rt, occ, tg, float(s_t[k]), nx, int(vs.rpos[i]), int(vs.route[i])
+            lg,
+            rt,
+            occ,
+            tg,
+            float(s_t[k]),
+            nx,
+            int(vs.rpos[i]),
+            int(vs.route[i]),
+            line_offset=float(S0[vs.cls[i]] - STOP_LINE_STANDOFF_M),
         )
 
     fol_row = np.full(m, -1, dtype=np.int64)

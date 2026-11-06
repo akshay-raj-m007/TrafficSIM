@@ -46,6 +46,12 @@ def _idm(vs, lg, rows, segs, gap, v_lead):
 def _candidates(vs: VehicleState, lg: LaneGraph, tick: int):
     """Vectorised (rows, targets, mandatory, direction, urgency) of possible changes."""
     eligible = (~lg.is_conn[vs.seg]) & (vs.tail < 0) & (vs.lc_timer >= LC_COOLDOWN_S)
+    # No lane changes within the comfortable stopping distance (+ s0) of a junction
+    # stop line: the vehicle may already be committed there (solid lines before stop
+    # lines). Uses each class's own b and s0; no new parameter.
+    c = vs.cls
+    to_line = lg.length[vs.seg] - vs.s
+    eligible &= ~(lg.ends_at_junction[vs.seg] & (to_line < vs.v * vs.v / (2 * B[c]) + S0[c]))
     decides_now = (vs.vid + tick) % DECISION_EVERY_STEPS == 0
     eligible &= (vs.off != 0) | decides_now
     base = np.flatnonzero(eligible)

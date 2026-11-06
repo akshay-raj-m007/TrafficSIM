@@ -62,6 +62,7 @@ class LaneGraph:
     v0_eff: np.ndarray  # (n_seg, n_class) effective desired speed [m/s]
     seg_of: dict[str, int]
     nbr: np.ndarray  # (n_seg, 2): adjacent lane segment [lower index, higher index] or -1
+    ends_at_junction: np.ndarray  # bool: lane whose successors are junction connectors
     pred: list[list[int]]  # predecessor segments
 
     @property
@@ -146,7 +147,10 @@ def compile_network(net: Network) -> LaneGraph:
     for a in range(n):
         for b in succ[a]:
             pred[b].append(a)
+    is_c = [r is None for r in road_of]
+    ends_at_junction = np.array([any(is_c[b] for b in succ[a]) for a in range(n)])
     return LaneGraph(
+        ends_at_junction=ends_at_junction,
         nbr=nbr,
         pred=pred,
         ids=ids,

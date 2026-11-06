@@ -30,6 +30,23 @@ class OdFlow:
             raise ValueError("origin and destination must differ")
 
 
+@dataclass(frozen=True, slots=True)
+class Incident:
+    """A stationary vehicle (breakdown) at a lane position for a time window."""
+
+    lane_id: str
+    s_m: float  # front position of the stopped vehicle along the lane [m]
+    t_start_s: float
+    duration_s: float
+
+    def __post_init__(self) -> None:
+        if self.s_m <= 0 or self.duration_s <= 0 or self.t_start_s < 0:
+            raise ValueError("incident needs s > 0, duration > 0, start >= 0")
+
+    def active(self, t: float) -> bool:
+        return self.t_start_s <= t < self.t_start_s + self.duration_s
+
+
 DEFAULT_MIX: tuple[tuple[str, float], ...] = (
     ("car", 0.55),
     ("truck_bus", 0.10),
@@ -45,6 +62,7 @@ class Scenario:
     demand: tuple[OdFlow, ...] = ()
     vehicle_mix: tuple[tuple[str, float], ...] = field(default=DEFAULT_MIX)
     signal_control: SignalControl = "fixed_webster"
+    incidents: tuple[Incident, ...] = ()
 
     def __post_init__(self) -> None:
         ticks_for(self.duration_s)  # validates multiple of DT

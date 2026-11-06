@@ -41,7 +41,11 @@ telemetry. Built for the QUEST Lab pre-doctoral application.
 2. **No collisions, no negative speeds** — gap > 0 and v ≥ 0 at every step.
    `tests/invariants/test_no_collision.py`. Never "fix" a collision by teleporting.
 3. **Spillback guard** — no vehicle enters a junction unless the exit lane has room for it.
-   `tests/invariants/test_spillback.py`.
+   `tests/invariants/test_spillback.py`. Precisely: at the moment a vehicle commits to
+   entering (its last chance to stop comfortably, `engine/gates.py`), the *guaranteed*
+   room on its exit lane — up to where the last vehicle there would stop at its
+   comfortable deceleration, minus space of vehicles that enter first — is at least its
+   length + s0. Outcome check: zero vehicle-seconds held up inside junction boxes.
 4. **Conservation** — spawned = active + exited; blocked spawns are counted as unserved
    demand, never silently dropped. `tests/invariants/test_conservation.py`.
 5. **Grade separation** — a flyover vehicle can never interact with or turn onto the road

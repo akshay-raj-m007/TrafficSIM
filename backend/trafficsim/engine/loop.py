@@ -20,11 +20,13 @@ import numpy as np
 from trafficsim.engine.constants import DT, time_of
 from trafficsim.engine.demand import Demand
 from trafficsim.engine.dynamics import accelerations
+from trafficsim.engine.gates import JunctionGates
 from trafficsim.engine.idm import ballistic_update
 from trafficsim.engine.lanegraph import compile_network
 from trafficsim.engine.lc_sync import mandatory_offsets, sync_accel
 from trafficsim.engine.leaders import build_occupancy, find_leaders, stop_gaps
 from trafficsim.engine.mobil import lane_changes
+from trafficsim.engine.params.control import INCIDENT_LENGTH_M, V_QUEUED_MPS
 from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
@@ -45,9 +47,12 @@ class Simulation:
         self.routes = RouteTable()
         self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
+        self.gates = JunctionGates(network, self.lg)
+        self._incidents = [(self.lg.seg_of[x.lane_id], x.s_m, x) for x in scenario.incidents]
         self.log = TransferLog()
         self.emergency_brakings = 0
         self.lane_changes = 0
+        self.box_stopped_vehicle_s = 0.0
         self.mandatory_lane_changes = 0
         self.tick: int = 0
         self._total_ticks = scenario.total_ticks
@@ -85,6 +90,13 @@ class Simulation:
             self.vehicles, route, CLASS_INDEX[cls_name], seg, s, v, self.time_s
         )
 
+    def _incident_obstacles(self, t: float):
+        act = [(seg, s) for seg, s, x in self._incidents if x.active(t)]
+        if not act:
+            return None
+        segs = np.array([a for a, _ in act], dtype=np.int64)
+        return segs, np.array([b for _, b in act]), np.full(len(act), INCIDENT_LENGTH_M)
+
     def row_of(self, vid: int) -> int | None:
         rows = np.flatnonzero(self.vehicles.vid == vid)
         return int(rows[0]) if rows.size else None
@@ -98,17 +110,23 @@ class Simulation:
         vs, lg = self.vehicles, self.lg
         self.demand.generate(t)
         self.demand.insert(vs, t)
-        occ = build_occupancy(vs, lg)
-        gap, v_lead = find_leaders(vs, lg, self.routes, occ)
+        if vs.n == 0:  # nothing on the network: only the clock advances
+            self.tick += 1
+            return True
+        static = self._incident_obstacles(t)
+        occ = build_occupancy(vs, lg, static)
+        self.gates.update(vs, occ)
+        gap, v_lead = find_leaders(vs, lg, self.routes, occ, self.gates)
         changes, mandatory = lane_changes(
             vs, lg, self.routes, occ, gap, v_lead, self.tick, self.log, t
         )
         if changes:
             self.lane_changes += changes
             self.mandatory_lane_changes += mandatory
-            occ = build_occupancy(vs, lg)
-            gap, v_lead = find_leaders(vs, lg, self.routes, occ)
-        acc = accelerations(vs, lg, gap, v_lead, stop_gaps(vs, lg))
+            occ = build_occupancy(vs, lg, static)
+            self.gates.update(vs, occ)
+            gap, v_lead = find_leaders(vs, lg, self.routes, occ, self.gates)
+        acc = accelerations(vs, lg, gap, v_lead, stop_gaps(vs, lg, self.gates))
         rows, a_sync = sync_accel(vs, lg, occ, mandatory_offsets(vs))
         acc[rows] = np.minimum(acc[rows], a_sync)
         v_before = vs.v
@@ -119,7 +137,14 @@ class Simulation:
         self.emergency_brakings += int(np.count_nonzero(vs.acc < -B_EMERGENCY_MPS2))
         vs.lc_timer = vs.lc_timer + DT
         self.tick += 1
-        advance_segments(vs, lg, self.routes, self.time_s, self.log)
+        advance_segments(
+            vs, lg, self.routes, self.time_s, self.log, self.gates.room_seen,
+            self.gates.may_enter, self.gates.commit_room,
+        )  # fmt: skip
+        # Physical outcome of spillback: vehicles held up inside a junction box (slower
+        # than the queued-state speed AND not accelerating away from a standing start).
+        in_box = lg.is_conn[vs.seg] & (vs.v < V_QUEUED_MPS) & (vs.acc <= 0.0)
+        self.box_stopped_vehicle_s += float(np.count_nonzero(in_box)) * DT
         return True
 
     def step_n(self, n: int) -> int:
