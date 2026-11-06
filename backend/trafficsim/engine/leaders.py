@@ -21,6 +21,10 @@ from trafficsim.engine.params.driving import LOOKAHEAD_M
 from trafficsim.engine.routes import NEXT_EXIT, NEXT_NONE, RouteTable, next_seg
 from trafficsim.engine.vehicle import LEN, VehicleState
 
+# Stride for the combined sort key seg * KEY_STRIDE + s; must exceed any occupant
+# position (segment length + a ghost's overhang) so keys of different segments never mix.
+KEY_STRIDE = 1.0e6
+
 # gate(i, conn_seg) -> True if vehicle i may enter junction connector conn_seg now.
 Gate = Callable[[int, int], bool]
 
@@ -31,8 +35,12 @@ class Occupancy:
     s: np.ndarray  # occupant front position in that segment's coordinates
     length: np.ndarray
     v: np.ndarray
+    row: np.ndarray  # vehicle row of each occupant (ghosts point at their vehicle)
+    ghost: np.ndarray  # bool: occupant is a tail ghost
     first: dict[int, int]  # segment -> position (in sorted arrays) of its rearmost occupant
+    last: dict[int, int]  # segment -> position of its frontmost occupant
     pos_of: np.ndarray  # vehicle row -> its position in the sorted arrays
+    key: np.ndarray  # seg * KEY_STRIDE + s, sorted (for searchsorted queries)
 
 
 def build_occupancy(vs: VehicleState, lg: LaneGraph) -> Occupancy:
@@ -43,17 +51,24 @@ def build_occupancy(vs: VehicleState, lg: LaneGraph) -> Occupancy:
     s = np.concatenate([vs.s, lg.length[vs.tail[g]] + vs.s[g]])
     order = np.lexsort((s, seg))
     seg_o = seg[order]
-    starts = np.flatnonzero(np.r_[True, seg_o[1:] != seg_o[:-1]]) if seg_o.size else []
+    change = np.r_[True, seg_o[1:] != seg_o[:-1]] if seg_o.size else np.zeros(0, bool)
+    starts = np.flatnonzero(change)
+    ends = np.r_[starts[1:] - 1, seg_o.size - 1] if starts.size else starts
     pos_of = np.empty(n, dtype=np.int64)
     real = order < n
     pos_of[order[real]] = np.flatnonzero(real)
+    s_o = s[order]
     return Occupancy(
         seg=seg_o,
-        s=s[order],
+        s=s_o,
         length=np.concatenate([lens, lens[g]])[order],
         v=np.concatenate([vs.v, vs.v[g]])[order],
+        row=np.concatenate([np.arange(n), g])[order],
+        ghost=~real,
         first={int(seg_o[p]): int(p) for p in starts},
+        last={int(seg_o[p]): int(p) for p in ends},
         pos_of=pos_of,
+        key=seg_o * KEY_STRIDE + s_o,
     )
 
 
@@ -76,9 +91,36 @@ def find_leaders(
     return gap, v_lead
 
 
+def stop_gaps(vs: VehicleState, lg: LaneGraph, gate: Gate | None = None) -> np.ndarray:
+    """Distance to the vehicle's own stopping point at the end of its segment [m].
+
+    A stopping point is the end of a lane with no way onward on the route (wrong lane,
+    dropped lane), or a junction entry the gate does not currently permit. It applies
+    to *every* vehicle approaching it, not only the front one: a driver respects the end
+    of their own lane even while following a leader that legitimately continues.
+    """
+    d = lg.length[vs.seg] - vs.s
+    out = np.where(vs.nxt == NEXT_NONE, d, np.inf)
+    if gate is not None:
+        nx = vs.nxt
+        approaching = (nx >= 0) & (d < LOOKAHEAD_M)
+        approaching[approaching] &= lg.is_conn[nx[approaching]]
+        for i in np.flatnonzero(approaching):
+            if not gate(int(i), int(nx[i])):
+                out[i] = d[i]
+    return out
+
+
 def _walk(i, vs, lg, rt, occ, gate) -> tuple[float, float]:
-    seg, nx, rpos, route = int(vs.seg[i]), int(vs.nxt[i]), int(vs.rpos[i]), int(vs.route[i])
-    d = float(lg.length[seg] - vs.s[i])
+    return walk_ahead(
+        lg, rt, occ, int(vs.seg[i]), float(vs.s[i]), int(vs.nxt[i]), int(vs.rpos[i]),
+        int(vs.route[i]), gate, i,
+    )  # fmt: skip
+
+
+def walk_ahead(lg, rt, occ, seg, s, nx, rpos, route, gate=None, i=-1) -> tuple[float, float]:
+    """Gap and speed of whatever lies ahead of position s on seg along a route's path."""
+    d = float(lg.length[seg] - s)
     while d < LOOKAHEAD_M:
         if nx == NEXT_EXIT:
             return np.inf, 0.0

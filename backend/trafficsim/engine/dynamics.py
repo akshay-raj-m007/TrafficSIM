@@ -29,12 +29,21 @@ def sin_theta(vs: VehicleState, lg: LaneGraph) -> np.ndarray:
 
 
 def accelerations(
-    vs: VehicleState, lg: LaneGraph, gap: np.ndarray, v_lead: np.ndarray
+    vs: VehicleState, lg: LaneGraph, gap: np.ndarray, v_lead: np.ndarray, stop_gap: np.ndarray
 ) -> np.ndarray:
     c = vs.cls
     v = vs.v
     v0 = lg.v0_eff[vs.seg, c]
     acc = idm_accel(v, v0, T[c], A[c], B[c], S0[c], gap, v - v_lead)
+    # Own stopping point (lane end / closed junction entry): IDM against a standing
+    # obstacle there, combined with the leader constraint by taking the minimum.
+    stops = np.isfinite(stop_gap)
+    if np.any(stops):
+        cs = c[stops]
+        a_stop = idm_accel(
+            v[stops], v0[stops], T[cs], A[cs], B[cs], S0[cs], stop_gap[stops], v[stops]
+        )
+        acc[stops] = np.minimum(acc[stops], a_stop)
     acc = np.minimum(acc, power_limited_accel(v, P2M[c], sin_theta(vs, lg)))
 
     has_next = vs.nxt >= 0

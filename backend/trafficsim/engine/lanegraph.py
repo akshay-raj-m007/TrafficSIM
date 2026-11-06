@@ -61,6 +61,8 @@ class LaneGraph:
     profiles: dict[int, tuple[np.ndarray, np.ndarray]]  # graded segments
     v0_eff: np.ndarray  # (n_seg, n_class) effective desired speed [m/s]
     seg_of: dict[str, int]
+    nbr: np.ndarray  # (n_seg, 2): adjacent lane segment [lower index, higher index] or -1
+    pred: list[list[int]]  # predecessor segments
 
     @property
     def n(self) -> int:
@@ -135,7 +137,18 @@ def compile_network(net: Network) -> LaneGraph:
     v0_eff = np.minimum(V0[None, :], vlimit[:, None]) * factor[:, None]
     if np.any(v0_eff <= 0):
         raise ValueError("lane-width model gives a non-positive desired speed")
+    nbr = np.full((n, 2), -1, dtype=np.int32)
+    for segs in road_segs.values():
+        for k, sg in enumerate(segs):
+            nbr[sg, 0] = segs[k - 1] if k > 0 else -1
+            nbr[sg, 1] = segs[k + 1] if k + 1 < len(segs) else -1
+    pred: list[list[int]] = [[] for _ in range(n)]
+    for a in range(n):
+        for b in succ[a]:
+            pred[b].append(a)
     return LaneGraph(
+        nbr=nbr,
+        pred=pred,
         ids=ids,
         length=length,
         vlimit=vlimit,

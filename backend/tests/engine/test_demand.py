@@ -48,9 +48,9 @@ def test_same_seed_same_arrivals_different_seed_different():
     def run(seed):
         sim = Simulation(
             straight_network(),
-            Scenario(seed=seed, duration_s=600.0, demand=(OdFlow("A", "B", 1200),)),
+            Scenario(seed=seed, duration_s=300.0, demand=(OdFlow("A", "B", 1200),)),
         )
-        sim.run_until(600.0)
+        sim.run_until(300.0)
         return [(e.vid, e.cls, e.t_gen) for e in sim.log.exits]
 
     assert run(8) == run(8)

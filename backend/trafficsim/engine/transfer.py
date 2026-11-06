@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from trafficsim.engine.lanegraph import LaneGraph
-from trafficsim.engine.routes import NEXT_EXIT, RouteTable, next_seg
+from trafficsim.engine.routes import NEXT_EXIT, RouteTable, next_seg, refresh_lane_cache
 from trafficsim.engine.vehicle import LEN, VehicleState
 
 
@@ -32,11 +32,25 @@ class ExitRecord:
     t_exit: float
 
 
+@dataclass(frozen=True, slots=True)
+class LaneChangeEvent:
+    t: float
+    vid: int
+    from_seg: int
+    to_seg: int
+    mandatory: bool
+    gap_lead: float  # accepted gap to the new leader [m]
+    gap_lag: float  # accepted gap of the new follower [m] (inf: none)
+    a_follower: float  # new follower's IDM acceleration right after the change [m/s²]
+    b_safe: float  # acceptance threshold that applied [m/s²]
+
+
 @dataclass
 class TransferLog:
     exits: list[ExitRecord] = field(default_factory=list)
     # (vid, connector segment, time) for every junction entry, for the spillback tests
     junction_entries: list[tuple[int, int, float]] = field(default_factory=list)
+    lane_changes: list[LaneChangeEvent] = field(default_factory=list)
 
 
 def advance_segments(
@@ -71,6 +85,7 @@ def advance_segments(
             else:
                 vs.rpos[i] += 1
             vs.nxt[i] = next_seg(lg, rt, int(vs.route[i]), int(vs.rpos[i]), nx)
+            refresh_lane_cache(vs, lg, rt, int(i))
     cleared = vs.s >= LEN[vs.cls]
     vs.tail[cleared] = -1
     return entered

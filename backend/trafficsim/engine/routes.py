@@ -74,3 +74,14 @@ def lane_offset_to_good(rt: RouteTable, route: int, rpos: int, lane_index: int) 
     idx = np.flatnonzero(good)
     d = idx - lane_index
     return int(d[np.lexsort((d, np.abs(d)))[0]])
+
+
+def refresh_lane_cache(vs, lg: LaneGraph, rt: RouteTable, i: int) -> None:
+    """Update a vehicle's cached ``off``/``goodbits`` after insertion, transfer or change."""
+    seg = int(vs.seg[i])
+    if lg.is_conn[seg]:
+        vs.off[i], vs.goodbits[i] = 0, 0
+        return
+    route, rpos = int(vs.route[i]), int(vs.rpos[i])
+    vs.off[i] = lane_offset_to_good(rt, route, rpos, int(lg.lane_index[seg]))
+    vs.goodbits[i] = int(sum(1 << k for k, g in enumerate(rt.good[route][rpos]) if g))

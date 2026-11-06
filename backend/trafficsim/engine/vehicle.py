@@ -74,6 +74,8 @@ FIELDS: Final[dict[str, type]] = {
     "rpos": np.int16,  # index of the current road within the route
     "nxt": np.int32,  # next segment on the path (cached), or a NEXT_* code
     "tail": np.int32,  # previous segment while the rear still overlaps it, else -1
+    "off": np.int8,  # signed lanes to the nearest lane leading onward (0: fine) [cached]
+    "goodbits": np.int32,  # bit k set if lane k of the current road leads onward [cached]
     "lc_timer": np.float64,  # time since the last lane change [s]
     "t_gen": np.float64,  # time the demand arrived (entered the entry queue) [s]
     "t_ins": np.float64,  # time the vehicle was inserted into the network [s]
@@ -97,6 +99,8 @@ class VehicleState:
     rpos: np.ndarray
     nxt: np.ndarray
     tail: np.ndarray
+    off: np.ndarray
+    goodbits: np.ndarray
     lc_timer: np.ndarray
     t_gen: np.ndarray
     t_ins: np.ndarray

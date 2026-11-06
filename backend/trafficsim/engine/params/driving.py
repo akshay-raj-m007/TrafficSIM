@@ -56,3 +56,33 @@ LANE_WIDTH_SPEED_FRACTION_PER_M: Final[float] = (
 # with v_ins = min(v0_eff, v_leader, (gap − s0)/T). If even v_ins = 0 does not fit
 # (gap < s0) the vehicle stays in the entry queue as unserved demand.
 # (No extra constant needed: the rule uses each class's own s0 and T.)
+
+# ------------------------------------------------------------ MOBIL --------------------
+# Lane changing: MOBIL (Kesting, Treiber & Helbing 2007, Transp. Res. Rec. 1999:86-94).
+# Politeness factor p [-]: weight of the gains/losses of affected followers.
+MOBIL_POLITENESS: Final[float] = 0.2
+# Changing threshold Δa_th [m/s²]: minimum net advantage for a discretionary change.
+MOBIL_THRESHOLD_MPS2: Final[float] = 0.1
+# Safe deceleration b_safe [m/s²]: the new follower may not be forced to brake harder.
+MOBIL_B_SAFE_MPS2: Final[float] = 4.0
+# Keep-left bias [m/s²] (left-hand traffic: keep to the kerb lane unless overtaking).
+# Mirror of the "keep-right" asymmetry bias, typical 0.2–0.3 (Treiber & Kesting 2013).
+KEEP_LEFT_BIAS_MPS2: Final[float] = 0.2
+# Minimum time between two lane changes of one vehicle [s]; empirical lane-change
+# durations are ~3–6 s (e.g. Toledo & Zohar 2007), we take the short end.
+LC_COOLDOWN_S: Final[float] = 3.0
+
+# Mandatory changes (wrong lane for the route: diverge, turn lane, lane drop / merge).
+# Gap acceptance uses MOBIL's safety criterion only (no incentive test). As the end of
+# the lane approaches, the acceptable follower deceleration rises linearly from
+# MOBIL_B_SAFE_MPS2 (at D_URGENT_M or more per lane still to cross) to
+# B_SAFE_URGENT_MPS2 (at the lane end) — drivers accept tighter gaps when they must.
+# The urgent value stays well below the emergency-braking threshold above.
+D_URGENT_M: Final[float] = 200.0
+B_SAFE_URGENT_MPS2: Final[float] = 6.0
+# Discretionary lane choice is reassessed once per this interval per vehicle (staggered
+# by vehicle id so the work is spread over steps) [s]. Drivers do not re-decide every
+# 0.1 s; ~1 s is the order of the perception–reaction time (e.g. Green 2000, "How long
+# does it take to stop?", Transp. Human Factors 2:195-216). Mandatory changes (wrong
+# lane for the route) are evaluated every step.
+LC_DECISION_INTERVAL_S: Final[float] = 1.0

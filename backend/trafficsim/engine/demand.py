@@ -17,7 +17,7 @@ import numpy as np
 
 from trafficsim.engine.lanegraph import LaneGraph
 from trafficsim.engine.rng import RngStreams
-from trafficsim.engine.routes import RouteTable, next_seg
+from trafficsim.engine.routes import RouteTable, next_seg, refresh_lane_cache
 from trafficsim.engine.scenario import Scenario
 from trafficsim.engine.vehicle import CLASS_INDEX, LEN, S0, T, VehicleState
 from trafficsim.network.types import Network
@@ -122,8 +122,9 @@ class Demand:
         nxt = next_seg(self.lg, self.rt, q.route, 0, seg)
         vs.append(
             vid=self.next_vid, cls=q.cls, seg=seg, s=s_front, v=v, acc=0.0, route=q.route,
-            rpos=0, nxt=nxt, tail=-1, lc_timer=0.0, t_gen=q.t_gen, t_ins=t_now,
+            rpos=0, nxt=nxt, tail=-1, off=0, goodbits=0, lc_timer=0.0, t_gen=q.t_gen, t_ins=t_now,
         )  # fmt: skip
+        refresh_lane_cache(vs, self.lg, self.rt, vs.n - 1)
         self.next_vid += 1
         self.inserted += 1
         return self.next_vid - 1

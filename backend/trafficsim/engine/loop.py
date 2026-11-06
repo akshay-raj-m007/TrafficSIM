@@ -5,7 +5,7 @@ Phase order inside ``step`` (fixed; later phases slot in without changing it):
     1. signals     update controller states            (part 4)
     2. demand      arrivals → entry queues → insertion
     3. leaders     occupancy, leaders, stop lines / lane ends, junction gates
-    4. decisions   MOBIL lane changes                  (part 2)
+    4. decisions   MOBIL lane changes (mandatory first), then leaders are refreshed
     5. dynamics    IDM + power/grade + anticipation, ballistic update
     6. transfer    move across segment ends, exits
     7. clock       tick += 1
@@ -22,7 +22,9 @@ from trafficsim.engine.demand import Demand
 from trafficsim.engine.dynamics import accelerations
 from trafficsim.engine.idm import ballistic_update
 from trafficsim.engine.lanegraph import compile_network
-from trafficsim.engine.leaders import build_occupancy, find_leaders
+from trafficsim.engine.lc_sync import mandatory_offsets, sync_accel
+from trafficsim.engine.leaders import build_occupancy, find_leaders, stop_gaps
+from trafficsim.engine.mobil import lane_changes
 from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
@@ -45,6 +47,8 @@ class Simulation:
         self.vehicles = VehicleState.empty()
         self.log = TransferLog()
         self.emergency_brakings = 0
+        self.lane_changes = 0
+        self.mandatory_lane_changes = 0
         self.tick: int = 0
         self._total_ticks = scenario.total_ticks
 
@@ -96,10 +100,23 @@ class Simulation:
         self.demand.insert(vs, t)
         occ = build_occupancy(vs, lg)
         gap, v_lead = find_leaders(vs, lg, self.routes, occ)
-        acc = accelerations(vs, lg, gap, v_lead)
-        self.emergency_brakings += int(np.count_nonzero(acc < -B_EMERGENCY_MPS2))
-        vs.acc = acc
+        changes, mandatory = lane_changes(
+            vs, lg, self.routes, occ, gap, v_lead, self.tick, self.log, t
+        )
+        if changes:
+            self.lane_changes += changes
+            self.mandatory_lane_changes += mandatory
+            occ = build_occupancy(vs, lg)
+            gap, v_lead = find_leaders(vs, lg, self.routes, occ)
+        acc = accelerations(vs, lg, gap, v_lead, stop_gaps(vs, lg))
+        rows, a_sync = sync_accel(vs, lg, occ, mandatory_offsets(vs))
+        acc[rows] = np.minimum(acc[rows], a_sync)
+        v_before = vs.v
         vs.s, vs.v = ballistic_update(vs.s, vs.v, acc)
+        # Diagnostic on the deceleration actually realised (a standing vehicle's IDM
+        # command can be very negative without any physical braking happening).
+        vs.acc = (vs.v - v_before) / DT
+        self.emergency_brakings += int(np.count_nonzero(vs.acc < -B_EMERGENCY_MPS2))
         vs.lc_timer = vs.lc_timer + DT
         self.tick += 1
         advance_segments(vs, lg, self.routes, self.time_s, self.log)
