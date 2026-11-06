@@ -36,7 +36,9 @@ function giveWayMarking(lane: LaneData, out: MeshArrays[]) {
   writeSimPoint(tri, 0, half[0]!, LIFT.marking);
   writeSimPoint(tri, 1, half[1]!, LIFT.marking);
   writeSimPoint(tri, 2, apex, LIFT.marking);
-  out.push({ positions: tri, indices: new Uint32Array([0, 2, 1, 0, 1, 2]) });
+  // One up-facing triangle (CCW seen from above). Adding both windings made the shared
+  // vertex normals cancel, which rendered the marking black.
+  out.push({ positions: tri, indices: new Uint32Array([0, 2, 1]) });
 }
 
 export function buildJunctions(net: NetworkData, mats: Materials): THREE.Group {

@@ -245,6 +245,8 @@ tested; the browser smoothness at real 60 fps is unverified.
   (64 %), min accepted gap 7.51 s ≥ 7.5 s; default demo 900 s: 17 N2-origin trips completed (7
   before), N2 queue peak 142 m (238 m), right-turn lane still queues (18 standing) because its
   100 veh/h demand exceeds the crossing capacity (a scenario input, left as is).
+- **Visual bug fixed on the way:** the give-way triangles were drawn black (both windings in one
+  triangle made the vertex normals cancel); now one up-facing triangle per lane, white.
 - **Docs:** the user renamed `PROJECT_STATE.md` to `project_state_1.md` (untracked/uncommitted
   rename at the time of this change).
 
