@@ -11,7 +11,7 @@ import contextlib
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI, Response, WebSocket
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -91,7 +91,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await LiveSession(ws, sid, network, settings, params).run()
         finally:
             sessions.release(sid)
-            with contextlib.suppress(RuntimeError):  # already closed by the client
+            # the client may already be gone (abrupt disconnect): nothing left to close
+            with contextlib.suppress(RuntimeError, WebSocketDisconnect):
                 await ws.close()
 
     if settings.static_dir is not None and settings.static_dir.is_dir():

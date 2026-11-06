@@ -11,9 +11,9 @@ It is meant to be used as a small research workbench.
 - **Frontend:** Vite + React + Three.js. A true metric 3D view (1 unit = 1 m) with scenario
   controls and measured telemetry.
 
-> Status: **step 2a done** (vehicle physics, junction control, signals and validation in the
-> engine); **step 2b in progress** (vehicles and KPIs in the browser). Scenario controls come in
-> step 3. Deployment is parked: this runs on localhost.
+> Status: **step 2b done**: vehicles are drawn in the 3D view with smooth motion, and the
+> right panel shows KPIs measured in the backend. Scenario controls come in step 3.
+> Deployment is parked: this runs on localhost.
 
 ## Run locally
 
@@ -46,7 +46,48 @@ docker run --rm -p 8000:8000 trafficsim   # http://localhost:8000
 |---|---|
 | `GET /api/health` | status, `dt`, active / max / rejected sessions |
 | `GET /api/network` | the network geometry (metres; x east, y north, z up) |
-| `WS /ws/sim` | live session: `hello`, then `tick` frames; accepts `set_speed`, `reset`, `ping`. Returns `busy` and close code 1013 when full |
+| `WS /ws/sim` | live session. Server to client: `hello` (class sizes, frame format, KPI definitions), binary vehicle frames (only when the simulation advanced), `kpi` and `stats` (once per second), `busy`. Client to server: `set_speed` (0, 0.25, 0.5, 1, 2, 5, 10), `reset`, `ping`. Close code 1013 when full. Optional query parameters `seed`, `signal` (`fixed_webster`, `max_pressure`, `max_pressure_threshold`, `uncontrolled`) and `demand_scale` (0.25 to 3) are an experiment seam; there is no UI for them yet |
+
+### Vehicle frames
+
+Little-endian, struct-of-arrays, `12 + 13 n` bytes for `n` vehicles: a 12-byte header (type,
+J1 phase and state, epoch, tick, count, speed index) and the columns `u16 id`, `u16 x`,
+`u16 y`, `u16 z`, `u16 heading`, `i8 pitch`, `u8 speed`, `u8 flags` (brake light, class).
+Positions are the centre of the vehicle's footprint on the road surface, quantised to 5 cm;
+the quantisation steps are sent in `hello`. The model changes lanes instantaneously; the
+encoder blends the lateral offset over 3 s for display only. The frontend renders 2 frame
+intervals behind the newest frame and interpolates in simulation ticks, so motion is smooth
+at any display rate and at 0.25x. At 5-10x consecutive frames are 0.5-1 s of simulated time
+apart, so a vehicle crossing a junction turn is interpolated along a chord.
+
+### Streaming cost (measured on the wire)
+
+`backend/tools/measure_wire.py` runs the real server, counts the bytes server to client
+through a TCP proxy, and connects two clients with identical parameters at once, one with
+permessage-deflate negotiated (what browsers do) and one without. Frames are sent at 10 Hz
+at every speed of 1x or more. Totals include the KPI and stats messages (about 2.3 KB/s).
+
+| vehicles | speed | compression | bytes per frame | bandwidth | per session-hour | hours per 5 GB |
+|---|---|---|---|---|---|---|
+| 178 | 1x | none | 2,540 | 25.5 KB/s | 92 MB | 54 |
+| 178 | 1x | deflate | 736 | 7.4 KB/s | 27 MB | 187 |
+| 676 | 1x | none | 8,982 | 90.3 KB/s | 325 MB | 15 |
+| 676 | 1x | deflate | 4,564 | 46.0 KB/s | 165 MB | 30 |
+
+Compression on the wire is only about 2x at 676 vehicles, much less than a stream that shares
+compression context between frames would give. Offline analysis (not implemented, not
+measured on the wire) at about 370 vehicles: each frame compressed alone 2,687 B (matches the
+wire), compressed with shared context 1,147 B, delta-coded frames compressed alone 1,640 B and
+with shared context 455 B. Server cost per session on the development machine: a simulation
+step takes 1.8 ms at about 160 vehicles and 4.3 ms at about 640; encoding a frame takes
+0.3 to 0.8 ms; a KPI snapshot takes 0.6 to 2.6 ms (once per second).
+
+### Test commands
+
+`pytest -m "not slow"` is the fast subset (about 40 s); `pytest` runs everything (about 7 min)
+and is what CI runs. `backend/tools/` has the generators for the committed reference tables
+(free-flow times, saturation flows) and the golden frame; the tests fail when a table is
+stale and name the tool to run.
 
 ## Validation results
 

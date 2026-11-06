@@ -86,3 +86,22 @@ docker build -t trafficsim . && docker run --rm -p 8000:8000 trafficsim
 Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 15 min idle,
 5 GB/month egress. Hence: single uvicorn worker, `MAX_SESSIONS` cap (default 2) with a
 "server busy" message, and compact binary WS frames once vehicles are streamed.
+
+## Step 2b additions
+- **Workflow:** after a part is built and tested, commit and push, then rebuild the
+  frontend (`npm run build` in `frontend/`) and restart uvicorn so localhost shows it.
+- **Committed reference tables** (digest of every input; tests fail when stale):
+  `backend/trafficsim/data/freeflow_demo.json` (`python tools/gen_freeflow.py`, ~80 s) and
+  `calibration_demo.json` (`python tools/gen_calibration.py`, ~8 s). Any change to the lane
+  graph, vehicle classes or a model constant makes both stale: regenerate and commit.
+- **Golden frame:** `python tools/gen_golden_frame.py` rewrites the fixtures in
+  `frontend/src/api/fixtures/`; the Python and TypeScript decoders must both read them.
+- **Measurement tools:** `tools/measure_stream.py` (frame size/CPU), `tools/measure_wire.py`
+  (real bytes on the wire, with and without compression).
+- **Wire protocol:** binary vehicle frames (`server/frames.py`, `12 + 13 n` bytes) plus JSON
+  `hello` / `kpi` / `stats`. Speeds 0, 0.25, 0.5, 1, 2, 5, 10. The renderer interpolates in
+  simulation ticks (`frontend/src/scene/interpolator.ts`), 2 frame intervals behind.
+- **Signal controllers:** `fixed_webster`, `max_pressure` (textbook), `max_pressure_threshold`
+  (15 s minimum green, switching threshold derived from the lost time of a switch; fixed
+  before any comparison, not tunable on results).
+
