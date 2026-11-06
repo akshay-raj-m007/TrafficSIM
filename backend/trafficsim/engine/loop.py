@@ -1,14 +1,13 @@
 """The simulation loop: advances a fixed time step DT = 0.1 s.
 
-Step 1 (baseline) only advances the clock. The phase order inside ``step`` is fixed
-now so later phases slot in without changing the loop contract:
+Phase order inside ``step`` (fixed; later phases slot in without changing it):
 
-    1. signals     update controller states            (step 2)
-    2. demand      spawn vehicles / count unserved      (step 2)
-    3. decisions   MOBIL lane changes, junction entry   (step 2)
-    4. dynamics    IDM accelerations, ballistic update  (step 2)
-    5. transfer    move vehicles across lane ends       (step 2)
-    6. measure     detectors, queues, travel times      (step 2)
+    1. signals     update controller states            (part 4)
+    2. demand      arrivals → entry queues → insertion
+    3. leaders     occupancy, leaders, stop lines / lane ends, junction gates
+    4. decisions   MOBIL lane changes                  (part 2)
+    5. dynamics    IDM + power/grade + anticipation, ballistic update
+    6. transfer    move across segment ends, exits
     7. clock       tick += 1
 
 The engine has no notion of wall-clock time: real-time pacing is the server's job.
@@ -16,10 +15,20 @@ The engine has no notion of wall-clock time: real-time pacing is the server's jo
 
 from __future__ import annotations
 
+import numpy as np
+
 from trafficsim.engine.constants import DT, time_of
+from trafficsim.engine.demand import Demand
+from trafficsim.engine.dynamics import accelerations
+from trafficsim.engine.idm import ballistic_update
+from trafficsim.engine.lanegraph import compile_network
+from trafficsim.engine.leaders import build_occupancy, find_leaders
+from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
+from trafficsim.engine.routes import RouteTable
 from trafficsim.engine.scenario import Scenario
-from trafficsim.engine.vehicle import VehicleState
+from trafficsim.engine.transfer import TransferLog, advance_segments
+from trafficsim.engine.vehicle import CLASS_INDEX, VehicleState
 from trafficsim.network.types import Network
 
 
@@ -30,7 +39,12 @@ class Simulation:
         self.network = network
         self.scenario = scenario
         self.rng = RngStreams(scenario.seed)
+        self.lg = compile_network(network)
+        self.routes = RouteTable()
+        self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
+        self.log = TransferLog()
+        self.emergency_brakings = 0
         self.tick: int = 0
         self._total_ticks = scenario.total_ticks
 
@@ -44,13 +58,51 @@ class Simulation:
     def done(self) -> bool:
         return self.tick >= self._total_ticks
 
+    # ------------------------------------------------------------- counters
+    @property
+    def exited(self) -> int:
+        return len(self.log.exits)
+
+    @property
+    def active(self) -> int:
+        return self.vehicles.n
+
+    def place_vehicle(
+        self, origin: str, dest: str, cls_name: str, lane_index: int, s: float, v: float
+    ) -> int:
+        """Put a scripted vehicle on the origin's entry road (controlled experiments).
+
+        Bypasses the arrival process but not the bookkeeping: it is counted as generated
+        and inserted, so conservation still holds. Returns its vehicle id.
+        """
+        route = self.routes.add(self.network, self.lg, origin, dest)
+        seg = self.lg.road_segs[self.routes.roads[route][0]][lane_index]
+        return self.demand.place(
+            self.vehicles, route, CLASS_INDEX[cls_name], seg, s, v, self.time_s
+        )
+
+    def row_of(self, vid: int) -> int | None:
+        rows = np.flatnonzero(self.vehicles.vid == vid)
+        return int(rows[0]) if rows.size else None
+
     # ------------------------------------------------------------- stepping
     def step(self) -> bool:
         """Advance one DT. Returns False (and does nothing) once the scenario has ended."""
         if self.done:
             return False
-        # Phases 1-6 are added in step 2 (see module docstring).
+        t = self.time_s
+        vs, lg = self.vehicles, self.lg
+        self.demand.generate(t)
+        self.demand.insert(vs, t)
+        occ = build_occupancy(vs, lg)
+        gap, v_lead = find_leaders(vs, lg, self.routes, occ)
+        acc = accelerations(vs, lg, gap, v_lead)
+        self.emergency_brakings += int(np.count_nonzero(acc < -B_EMERGENCY_MPS2))
+        vs.acc = acc
+        vs.s, vs.v = ballistic_update(vs.s, vs.v, acc)
+        vs.lc_timer = vs.lc_timer + DT
         self.tick += 1
+        advance_segments(vs, lg, self.routes, self.time_s, self.log)
         return True
 
     def step_n(self, n: int) -> int:
