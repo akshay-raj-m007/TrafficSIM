@@ -1,30 +1,37 @@
 /**
  * WebSocket client for one live simulation session.
  *
+ * - Binary messages are vehicle frames (decoded with the format from `hello`); text
+ *   messages are JSON (hello, kpi, stats, busy, pong, error).
  * - Reconnects with exponential backoff (1 s → 15 s) after unexpected closes.
  * - "Server busy" (close 1013) is surfaced to the UI and retried every 15 s.
  * - Measures, client-side: frame rate (Hz) over a sliding window and ping RTT.
  * - Disconnects when the tab has been hidden for 60 s (frees the server slot and
  *   metered egress) and reconnects when it becomes visible again.
  */
+import { decodeFrame, type Frame } from './frame';
 import { parseServerMessage, wsUrl } from './protocol';
-import type { HelloMsg, TickMsg } from './types';
+import type { FrameFormat, HelloMsg, KpiMsg, StatsMsg } from './types';
 
 export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed';
 
 export interface SimSocketEvents {
   onStatus(status: ConnStatus, detail?: string): void;
   onHello(msg: HelloMsg): void;
-  onTick(msg: TickMsg, rateHz: number): void;
+  onFrame(frame: Frame, nowMs: number, rateHz: number): void;
+  onKpi(msg: KpiMsg): void;
+  onStats(msg: StatsMsg): void;
   onRtt(ms: number): void;
 }
 
 const BUSY_RETRY_MS = 15000;
 const HIDDEN_DISCONNECT_MS = 60000;
 const PING_MS = 2000;
+const RATE_WINDOW_MS = 2000;
 
 export class SimSocket {
   private ws: WebSocket | null = null;
+  private fmt: FrameFormat | null = null;
   private backoff = 1000;
   private retryTimer: number | undefined;
   private pingTimer: number | undefined;
@@ -43,19 +50,26 @@ export class SimSocket {
     window.clearTimeout(this.retryTimer);
     this.ev.onStatus('connecting');
     const ws = new WebSocket(wsUrl('/ws/sim', window.location));
+    ws.binaryType = 'arraybuffer';
     this.ws = ws;
     let busy = false;
     ws.onopen = () => {
       this.backoff = 1000;
       this.pingTimer = window.setInterval(() => this.ping(), PING_MS);
     };
-    ws.onmessage = (e: MessageEvent<string>) => {
+    ws.onmessage = (e: MessageEvent<string | ArrayBuffer>) => {
+      if (typeof e.data !== 'string') {
+        if (this.fmt) this.onBinary(e.data);
+        return;
+      }
       const msg = parseServerMessage(e.data);
       if (!msg) return;
       if (msg.type === 'hello') {
+        this.fmt = msg.frame;
         this.ev.onStatus('open');
         this.ev.onHello(msg);
-      } else if (msg.type === 'tick') this.ev.onTick(msg, this.measureRate());
+      } else if (msg.type === 'kpi') this.ev.onKpi(msg);
+      else if (msg.type === 'stats') this.ev.onStats(msg);
       else if (msg.type === 'pong') this.onPong(msg.id);
       else if (msg.type === 'busy') {
         busy = true;
@@ -74,6 +88,15 @@ export class SimSocket {
       this.retryTimer = window.setTimeout(() => this.connect(), this.backoff);
       this.backoff = Math.min(this.backoff * 2, 15000);
     };
+  }
+
+  private onBinary(buf: ArrayBuffer): void {
+    try {
+      const now = performance.now();
+      this.ev.onFrame(decodeFrame(buf, this.fmt!), now, this.measureRate(now));
+    } catch {
+      /* a malformed frame is dropped; the next one resynchronises */
+    }
   }
 
   send(msg: object): void {
@@ -114,10 +137,11 @@ export class SimSocket {
     if (t0 !== undefined) this.ev.onRtt(performance.now() - t0);
   }
 
-  private measureRate(): number {
-    const now = performance.now();
+  private measureRate(now: number): number {
     this.frameTimes.push(now);
-    while (this.frameTimes.length > 0 && now - this.frameTimes[0]! > 2000) this.frameTimes.shift();
+    while (this.frameTimes.length > 0 && now - this.frameTimes[0]! > RATE_WINDOW_MS) {
+      this.frameTimes.shift();
+    }
     const n = this.frameTimes.length;
     return n > 1 ? ((n - 1) * 1000) / (now - this.frameTimes[0]!) : 0;
   }

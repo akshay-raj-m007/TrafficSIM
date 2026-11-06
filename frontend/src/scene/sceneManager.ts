@@ -1,19 +1,22 @@
 /**
  * Owns the Three.js renderer, camera and render loop, outside React's render cycle.
- * Rendering runs at display rate; simulation state (step 2) arrives at 10 Hz and will be
- * interpolated here between the two most recent sim frames.
+ * Rendering runs at display rate; vehicle frames arrive at up to 10 Hz and are
+ * interpolated between (scene/interpolator.ts) so motion is smooth at any frame rate.
  */
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
-import type { NetworkData } from '../api/types';
+import type { Frame } from '../api/frame';
+import type { HelloMsg, NetworkData } from '../api/types';
 import { simToThree, type Vec3 } from './coords';
 import { buildFlyover } from './flyover';
 import { buildJunctions } from './junctions';
 import { buildLabels, buildScaleBar } from './labels';
 import { createMaterials, LIFT } from './materials';
+import { FrameInterpolator } from './interpolator';
 import { disposeTree } from './meshUtil';
 import { buildLanes, buildMarkings } from './roads';
+import { VehicleLayer } from './vehicles';
 
 /** Camera presets: [target, camera position], both in SIM coordinates (metres). */
 export const VIEWS = {
@@ -33,6 +36,9 @@ export class SceneManager {
   private controls: OrbitControls;
   private mats = createMaterials();
   private networkRoot = new THREE.Group();
+  private vehicles = new VehicleLayer();
+  private interp: FrameInterpolator | null = null;
+  private renderTick = 0; // fractional simulation tick last drawn (diagnostics)
   private raf = 0;
   private resizeObs: ResizeObserver;
 
@@ -55,7 +61,13 @@ export class SceneManager {
     this.scene.add(new THREE.HemisphereLight(0xc8d8ff, 0x1a1a1a, 1.1));
     const sun = new THREE.DirectionalLight(0xffffff, 1.8);
     sun.position.set(-600, 900, 500);
-    this.scene.add(sun, this.networkRoot, ...this.groundAndGrid());
+    this.scene.add(sun, this.networkRoot, this.vehicles.group, ...this.groundAndGrid());
+    // Diagnostics for the smoothness measurement (headless browser): rendered positions.
+    (window as unknown as { __trafficDebug: unknown }).__trafficDebug = {
+      probe: (n: number) => ({ tick: this.renderTick, cars: this.vehicles.probe(n) }),
+      drawn: () => [...this.vehicles.drawn],
+      overflow: () => this.vehicles.overflow,
+    };
 
     this.view('overview');
     this.resizeObs = new ResizeObserver(() => this.resize());
@@ -86,6 +98,16 @@ export class SceneManager {
     );
   }
 
+  /** A (re)started session: vehicle class dimensions and the interpolation clock. */
+  setSession(hello: HelloMsg): void {
+    this.vehicles.setClasses(hello.classes);
+    this.interp = new FrameInterpolator(hello.steps_per_second, hello.speeds);
+  }
+
+  pushFrame(frame: Frame): void {
+    this.interp?.push(frame);
+  }
+
   view(name: ViewName): void {
     const v = VIEWS[name];
     this.controls.target.set(...simToThree(v.target));
@@ -105,6 +127,9 @@ export class SceneManager {
   private loop = (): void => {
     this.raf = requestAnimationFrame(this.loop);
     this.controls.update();
+    const state = this.interp?.sample(performance.now()) ?? null;
+    if (state) this.renderTick = state.tick;
+    this.vehicles.update(state);
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
   };
@@ -113,6 +138,7 @@ export class SceneManager {
     cancelAnimationFrame(this.raf);
     this.resizeObs.disconnect();
     this.controls.dispose();
+    this.vehicles.dispose();
     disposeTree(this.scene, true);
     Object.values(this.mats.guide).forEach((m) => m.dispose());
     this.renderer.dispose();

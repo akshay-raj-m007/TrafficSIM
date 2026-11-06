@@ -86,3 +86,33 @@ input { background: var(--bg); color: var(--text); border: 1px solid var(--borde
 .banner { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); padding: 10px 16px; border-radius: 6px; max-width: 80%; z-index: 5; }
 .banner--busy { background: #3b2a12; border: 1px solid var(--amber); color: #fbd38d; }
 .banner--error { background: #3b1414; border: 1px solid var(--danger); color: #feb2b2; }
+
+/* ---- step 2b: vehicles, legend, KPI panel ------------------------------------------- */
+.agents { display: flex; flex-direction: column; align-items: flex-end; min-width: 64px; }
+.speed { flex-wrap: wrap; }
+.speed button { min-width: 38px; padding: 4px 7px; }
+
+.viewport__legend { flex-wrap: wrap; max-width: calc(100% - 20px); gap: 6px 18px; align-items: flex-end; }
+.legend__block { display: flex; align-items: center; gap: 6px; position: relative; }
+.legend__title { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+.legend__ramp { width: 120px; height: 8px; border-radius: 2px; }
+.legend__ticks { position: absolute; left: 44px; top: 12px; width: 120px; height: 12px; font-size: 9px; font-family: var(--mono); }
+.legend__ticks span { position: absolute; transform: translateX(-50%); }
+.legend__ticks .legend__unit { left: 100%; transform: none; padding-left: 6px; }
+.legend__classes { gap: 12px; }
+.legend__block:first-child { padding-bottom: 12px; padding-right: 44px; }
+.lamp-swatch { width: 14px; height: 5px; background: #ff2a2a; display: inline-block; border-radius: 1px; }
+
+.panel section h3 { cursor: help; }
+.kpi { width: 100%; border-collapse: collapse; font-size: 11px; }
+.kpi th { text-align: right; font-weight: 500; color: var(--muted); padding: 2px 0; }
+.kpi th:first-child, .kpi td:first-child { text-align: left; }
+.kpi td { padding: 2px 0; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.kpi td:first-child { font-family: inherit; color: var(--text); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kpi tbody tr:hover { background: var(--panel-2); }
+.muted { color: var(--muted); font-size: 11px; }
+.signal { line-height: 1.6; }
+.lamp { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.lamp--green { background: #48bb78; box-shadow: 0 0 6px #48bb78; }
+.lamp--amber { background: #ecc94b; box-shadow: 0 0 6px #ecc94b; }
+.lamp--all_red { background: #f56565; box-shadow: 0 0 6px #f56565; }

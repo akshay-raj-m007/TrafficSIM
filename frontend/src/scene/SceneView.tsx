@@ -1,14 +1,18 @@
-import { useEffect, useRef } from 'react';
-import type { NetworkData } from '../api/types';
+import { useEffect, useRef, type MutableRefObject } from 'react';
+import type { NetworkData, VehicleClassInfo } from '../api/types';
+import { Legend } from '../ui/Legend';
 import { SceneManager, VIEWS, type ViewName } from './sceneManager';
 
 interface Props {
   network: NetworkData | null;
+  classes: VehicleClassInfo[];
+  /** Lets the app push frames into the scene without going through React state. */
+  managerRef: MutableRefObject<SceneManager | null>;
 }
 
-export function SceneView({ network }: Props) {
+export function SceneView({ network, classes, managerRef }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const mgrRef = useRef<SceneManager | null>(null);
+  const mgrRef = managerRef;
 
   useEffect(() => {
     const mgr = new SceneManager(hostRef.current!);
@@ -17,11 +21,11 @@ export function SceneView({ network }: Props) {
       mgr.dispose();
       mgrRef.current = null;
     };
-  }, []);
+  }, [mgrRef]);
 
   useEffect(() => {
     if (network) mgrRef.current?.setNetwork(network);
-  }, [network]);
+  }, [network, mgrRef]);
 
   return (
     <div className="viewport">
@@ -33,12 +37,7 @@ export function SceneView({ network }: Props) {
           </button>
         ))}
       </div>
-      <div className="viewport__legend">
-        <span className="dot dot--left" /> left turn
-        <span className="dot dot--through" /> through
-        <span className="dot dot--right" /> right turn
-        <span className="legend__note">1 unit = 1 m · left-hand traffic · grid 100 m</span>
-      </div>
+      <Legend classes={classes} />
     </div>
   );
 }

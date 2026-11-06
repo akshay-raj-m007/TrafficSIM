@@ -3,7 +3,7 @@ import type { ServerMsg } from './types';
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
 
-/** Parse and validate one server message; returns null for anything malformed. */
+/** Parse and validate one JSON server message; returns null for anything malformed. */
 export function parseServerMessage(raw: string): ServerMsg | null {
   let m: unknown;
   try {
@@ -14,12 +14,21 @@ export function parseServerMessage(raw: string): ServerMsg | null {
   if (typeof m !== 'object' || m === null) return null;
   const o = m as Record<string, unknown>;
   switch (o.type) {
-    case 'tick':
-      return isNum(o.tick) && isNum(o.t) && isNum(o.speed) && typeof o.done === 'boolean'
+    case 'hello':
+      return isStr(o.session_id) &&
+        isNum(o.dt) &&
+        Array.isArray(o.speeds) &&
+        Array.isArray(o.classes) &&
+        typeof o.frame === 'object' &&
+        o.frame !== null
         ? (o as unknown as ServerMsg)
         : null;
-    case 'hello':
-      return isStr(o.session_id) && isNum(o.dt) && Array.isArray(o.speeds)
+    case 'kpi':
+      return isNum(o.t) && typeof o.counts === 'object' && Array.isArray(o.flow ?? [])
+        ? (o as unknown as ServerMsg)
+        : null;
+    case 'stats':
+      return isNum(o.t) && isNum(o.tick) && isNum(o.speed) && typeof o.done === 'boolean'
         ? (o as unknown as ServerMsg)
         : null;
     case 'busy':
@@ -33,7 +42,7 @@ export function parseServerMessage(raw: string): ServerMsg | null {
   }
 }
 
-/** Format a sim clock from the integer tick (10 ticks/s) — exact, no float rounding. */
+/** Format a sim clock from the integer tick (exact, no float rounding). */
 export function formatClock(tick: number, stepsPerSecond = 10): string {
   const tenths = tick % stepsPerSecond;
   const totalS = Math.floor(tick / stepsPerSecond);

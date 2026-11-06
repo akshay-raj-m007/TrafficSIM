@@ -1,24 +1,33 @@
-import type { LiveState } from '../App';
+import type { ConnStatus } from '../api/simSocket';
 import { formatClock } from '../api/protocol';
 
-const SPEEDS = [0, 1, 2, 5, 10];
+const DEFAULT_SPEEDS = [0, 0.25, 0.5, 1, 2, 5, 10];
 
-interface Props {
-  live: LiveState;
+export interface HeaderProps {
+  status: ConnStatus;
+  tick: number;
+  agents: number;
+  speeds?: number[];
+  speed?: number;
+  stepsPerSecond?: number;
+  seed?: number;
+  done?: boolean;
   onSpeed(speed: number): void;
+  onReset(seed: number): void;
 }
 
-const STATUS_TEXT: Record<LiveState['status'], string> = {
+const STATUS_TEXT: Record<ConnStatus, string> = {
   connecting: 'connecting…',
   open: 'live',
   busy: 'server busy',
   closed: 'offline',
 };
 
-export function Header({ live, onSpeed }: Props) {
-  const speeds = live.hello?.speeds ?? SPEEDS;
-  const current = live.tick?.speed;
-  const enabled = live.status === 'open';
+const label = (k: number) => (k === 0 ? '❚❚' : `${k}×`);
+
+export function Header(p: HeaderProps) {
+  const speeds = p.speeds ?? DEFAULT_SPEEDS;
+  const enabled = p.status === 'open';
   return (
     <header className="header">
       <div className="brand">
@@ -30,22 +39,34 @@ export function Header({ live, onSpeed }: Props) {
           <button
             key={k}
             type="button"
-            className={k === current ? 'is-active' : ''}
+            className={k === p.speed ? 'is-active' : ''}
             disabled={!enabled}
-            onClick={() => onSpeed(k)}
+            onClick={() => p.onSpeed(k)}
             title={k === 0 ? 'Pause' : `${k}× real time`}
           >
-            {k === 0 ? '❚❚' : `${k}×`}
+            {label(k)}
           </button>
         ))}
+        <button
+          type="button"
+          disabled={!enabled}
+          onClick={() => p.onReset(p.seed ?? 42)}
+          title="Restart the simulation with the same seed"
+        >
+          ↺ reset
+        </button>
+      </div>
+      <div className="agents" title="Vehicles currently on the network">
+        <span className="clock__label">agents</span>
+        <span className="clock__value">{p.agents}</span>
       </div>
       <div className="clock" title="Simulated time (fixed step dt = 0.1 s)">
-        <span className="clock__label">sim clock</span>
-        <span className="clock__value">{formatClock(live.tick?.tick ?? 0)}</span>
+        <span className="clock__label">sim clock{p.done ? ' · finished' : ''}</span>
+        <span className="clock__value">{formatClock(p.tick, p.stepsPerSecond ?? 10)}</span>
       </div>
-      <div className={`status status--${live.status}`}>
+      <div className={`status status--${p.status}`}>
         <span className="status__dot" />
-        {STATUS_TEXT[live.status]}
+        {STATUS_TEXT[p.status]}
       </div>
     </header>
   );
