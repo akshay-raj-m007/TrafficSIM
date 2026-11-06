@@ -60,3 +60,29 @@ def test_checker_flags_insufficient_clearance():
 def test_checker_flags_level_change_without_ramp():
     net = _tiny(deck_z=6.5, connect_directly=True).build()
     assert grade_separation_violations(net)
+
+
+# ---- vehicle level ------------------------------------------------------------------
+def test_vehicles_change_level_only_via_ramps(medium):
+    """Every observed segment transition is a network edge or a same-road lane change,
+    and a vehicle only moves between ground and flyover level on a ramp."""
+    sim = medium.sim
+    lg = sim.lg
+    level = {r.id: r.level for r in sim.network.roads}
+    kind = {r.id: r.kind for r in sim.network.roads}
+    bad = []
+    for a, b in medium.transitions:
+        ra, rb = lg.road_of[a], lg.road_of[b]
+        edge = b in lg.succ[a]
+        lane_change = ra is not None and ra == rb and b in lg.nbr[a]
+        if not (edge or lane_change):
+            bad.append((lg.ids[a], lg.ids[b], "not a network edge"))
+        elif ra and rb and level[ra] != level[rb] and "ramp" not in (kind[ra], kind[rb]):
+            bad.append((lg.ids[a], lg.ids[b], "level change off-ramp"))
+        if (ra and level[ra] == 1 and rb is None) or (rb and level[rb] == 1 and ra is None):
+            bad.append((lg.ids[a], lg.ids[b], "flyover <-> junction"))
+    deck = ("eb_flyover", "wb_flyover")
+    on_fly = sum(1 for _, b in medium.transitions if lg.road_of[b] in deck)
+    print(f"\n[grade separation] {len(medium.transitions)} distinct transitions observed, "
+          f"{on_fly} onto the flyover deck, violations {bad}")  # fmt: skip
+    assert not bad and on_fly > 0

@@ -99,6 +99,8 @@ class JunctionGates:
         self.permit = {}
         on_conn = lg.is_conn[vs.seg]
         self._rear_min = _rear_minima(vs, lg)
+        room_cache: dict[int, float] = {}
+        self._sig_cache: dict[int, bool] = {}
         live = dict(zip(vs.vid.tolist(), range(vs.n), strict=True))
         self.reserved = {
             v: c for v, c in self.reserved.items() if v in live and vs.nxt[live[v]] == c
@@ -125,7 +127,9 @@ class JunctionGates:
             to = int(lg.conn_to[c])
             need = float(need_all[i])
             mine = self.reserved.get(vid) == c
-            room = self._room(vs, occ, to) - claimed.get(to, 0.0)
+            if to not in room_cache:
+                room_cache[to] = self._room(vs, occ, to)
+            room = room_cache[to] - claimed.get(to, 0.0)
             self.room_seen[vid] = (room, need)
             if mine:
                 self.permit[i] = True
@@ -145,8 +149,11 @@ class JunctionGates:
                 claimed[to] = claimed.get(to, 0.0) + need
 
     def _allowed(self, c: int, room: float, need: float, reserved: set[int]) -> bool:
-        if self.signal is not None and not self.signal(c):
-            return False
+        if self.signal is not None:
+            if c not in self._sig_cache:
+                self._sig_cache[c] = self.signal(c)
+            if not self._sig_cache[c]:
+                return False
         if room < need:
             return False
         for o, s_o in self.conf_s[c].items():

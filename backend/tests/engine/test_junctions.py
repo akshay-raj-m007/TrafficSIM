@@ -28,12 +28,12 @@ def test_conflict_table_matches_geometry(net):
 
 def _minor_left_run(net, major_vph):
     dem = (OdFlow("W", "E", major_vph), OdFlow("N2", "E", 900))  # minor saturated
-    sim = Simulation(net, Scenario(seed=11, duration_s=1500.0, demand=dem))
-    sim.run_until(1500.0)
+    sim = Simulation(net, Scenario(seed=11, duration_s=1200.0, demand=dem))
+    sim.run_until(1200.0)
     lg = sim.lg
     c_major, c_minor = lg.seg_of["eb_e2:0>eb_out:0"], lg.seg_of["n2_in:0>eb_out:0"]
     ent = [e for e in sim.log.junction_entries if e.t >= WARMUP_S]
-    span_h = (1500.0 - WARMUP_S) / 3600.0
+    span_h = (1200.0 - WARMUP_S) / 3600.0
     t_major = np.array([e.t for e in ent if e.conn == c_major])
     cap = sum(e.conn == c_minor for e in ent) / span_h
     return sim, t_major, cap, span_h

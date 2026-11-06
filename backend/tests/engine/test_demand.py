@@ -13,13 +13,13 @@ def test_arrival_count_and_mix_match_demand():
     sim = Simulation(
         straight_network(), Scenario(seed=3, duration_s=3600.0, demand=(OdFlow("A", "B", rate),))
     )
-    sim.run_until(3600.0)
+    sim.demand.generate(3600.0)  # the arrival process alone (no vehicles moved)
     n = sim.demand.generated
     sd = np.sqrt(rate * hours)  # Poisson
-    print(f"\n[arrivals] {n} in 1 h at {rate:.0f} veh/h (expected {rate:.0f} ± {sd:.1f})")
+    print(f"\n[arrivals] {n} in 1 h at {rate:.0f} veh/h (expected {rate:.0f} +- {sd:.1f})")
     assert abs(n - rate * hours) < 4 * sd
 
-    classes = [e.cls for e in sim.log.exits] + list(sim.vehicles.cls)
+    classes = [q.cls for z in sim.demand.zones for q in z.queue]
     for name, share in sim.scenario.vehicle_mix:
         k = sum(1 for c in classes if c == CLASS_INDEX[name])
         sd_k = np.sqrt(len(classes) * share * (1 - share))
