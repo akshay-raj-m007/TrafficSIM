@@ -218,6 +218,36 @@ tested; the browser smoothness at real 60 fps is unverified.
   endpoint (process pool), multi-seed controller comparison, load test for the session cap.
 - Deployment decision (Render free = 0.1 CPU, 512 MB, 5 GB/month egress, sleeps after 15 min).
 
+## Addendum (7 Nov 2026): J2 minor approach flared into a left lane and a right lane
+- **Trigger:** the user noticed the J2 minor road filling up and asked whether that was a mistake.
+  Diagnosis (instrumented lead vehicle, HCM comparison from the simulated flows): not a code
+  bug, but the single shared minor lane let a waiting right-turner (crossing both EB lanes and
+  merging into WB lane 1, 7.5 s gap in ~1,230 veh/h) block left-turners whose gap was open 37 %
+  of the time. Served 48 veh/h vs 216 from HCM's shared-lane formula for the same flows. The
+  right turn had never been validated against HCM (only the left), so the earlier "platoons"
+  explanation covered only part of the gap.
+- **Decision (user chose it from four options):** separate left/right lanes. Rejected: lowering
+  demand only, a waiting-time-dependent critical gap (unsourced parameters), leaving as is.
+- **Change:** `build_demo_network(minor_approach_lanes=2)` (default); `1` reproduces the original
+  network exactly. N2 approach `n2_in` has 2 lanes of 2.75 m: lane 0 (kerb) left turn
+  `n2_in:0>eb_out:0`, lane 1 right turn `n2_in:1>wb_e2:1`. `J2_MINOR_SETBACK_M = 3.0`: the
+  approach stop line is 3 m further north because the kerb-lane left-turn path would otherwise be
+  ~10 m, shorter than the 12 m truck (the engine rejects segments shorter than the longest
+  vehicle). Only the entry side moved; every other connector is bit-identical to the old
+  network (test). Junction plate extended to the set-back.
+- **Regenerated** `freeflow_demo.json` (only N2-origin routes changed) and `calibration_demo.json`
+  (only its digest changed: J1 saturation flows are untouched).
+- **Proof nothing else changed:** `tests/engine/test_j2_minor_lanes.py`: with no N2-origin
+  demand, exits, lane changes and junction entries are identical on both networks (uncontrolled
+  and Webster); minor turns share no conflict; right turn still crosses both EB lanes.
+- **Measured:** left turns served in 600 s with a saturated right turn: 23 (27 left-only) vs 8
+  on the old lane; right turn vs HCM: 980 veh/h conflicting → HCM 207, simulation 132 veh/h
+  (64 %), min accepted gap 7.51 s ≥ 7.5 s; default demo 900 s: 17 N2-origin trips completed (7
+  before), N2 queue peak 142 m (238 m), right-turn lane still queues (18 standing) because its
+  100 veh/h demand exceeds the crossing capacity (a scenario input, left as is).
+- **Docs:** the user renamed `PROJECT_STATE.md` to `project_state_1.md` (untracked/uncommitted
+  rename at the time of this change).
+
 ## Commands
 ```bash
 cd backend && .venv/Scripts/python -m pytest -m "not slow"   # fast subset, ~40 s

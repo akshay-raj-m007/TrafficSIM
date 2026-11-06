@@ -3,7 +3,9 @@
 Contains every element the brief requires:
   * J1 — 4-arm signalised junction at x=0 (cross street N1/S1, 2+2 lanes, 3.25 m);
     the flyover deck passes over it.
-  * J2 — give-way T-junction at x=1100; minor road N2 (1+1 lanes, 2.75 m) yields.
+  * J2 — give-way T-junction at x=1100; minor road N2 yields. Its approach has a left-turn
+    lane and a right-turn lane (a flared approach, so a waiting right-turner, which must
+    cross the whole major road, does not block left-turners); the exit lane is single.
   * Flyover with diverge/merge ramps; through traffic chooses it by destination.
   * Roads with 1, 2, 3 and 4 lanes; a 3→2 lane drop (bottleneck) at x=900.
   * Left / through / right turning movements at both junctions.
@@ -34,17 +36,28 @@ from trafficsim.network.demo_corridor import (
 W_CROSS = 3.25  # J1 cross-street lanes
 W_MINOR = 2.75  # narrow minor road at J2
 ARM_LEN = 400.0  # length of the cross-street arms from the corridor centreline
+# The flared (two-lane) minor approach stops this far north of the junction box edge. The
+# left-turn path leaves from the kerb lane, 2.75 m further east than a single lane would;
+# without the set-back it would be shorter than the longest vehicle (12 m), which the engine
+# rejects. Only the entry side moves: every other J2 connector keeps its geometry.
+J2_MINOR_SETBACK_M = 3.0
 
 
-def _add_cross_streets(b: NetworkBuilder) -> None:
+def _minor_stop_y(minor_lanes: int) -> float:
+    return J2_MINOR_Y + (J2_MINOR_SETBACK_M if minor_lanes > 1 else 0.0)
+
+
+def _add_cross_streets(b: NetworkBuilder, minor_lanes: int) -> None:
     c2 = [W_CROSS, W_CROSS]
     # J1 cross street (x = 0). Southbound lanes sit east of the centreline (LHT).
     b.road("n1_in", "surface", geo.straight(0, ARM_LEN, 0, J1_HALF_Y), c2, 0.5, 40)
     b.road("n1_out", "surface", geo.straight(0, J1_HALF_Y, 0, ARM_LEN), c2, 0.5, 40)
     b.road("s1_in", "surface", geo.straight(0, -ARM_LEN, 0, -J1_HALF_Y), c2, 0.5, 40)
     b.road("s1_out", "surface", geo.straight(0, -J1_HALF_Y, 0, -ARM_LEN), c2, 0.5, 40)
-    # J2 minor road (x = 1100), single lane each way, no median.
-    b.road("n2_in", "surface", geo.straight(J2_X, ARM_LEN, J2_X, J2_MINOR_Y), [W_MINOR], 0.0, 30)
+    # J2 minor road (x = 1100), no median: `minor_lanes` approach lanes (southbound lanes
+    # lie east of the centreline: lane 0 = kerb/left side, last lane = median side), one exit lane.
+    b.road("n2_in", "surface", geo.straight(J2_X, ARM_LEN, J2_X, _minor_stop_y(minor_lanes)),
+           [W_MINOR] * minor_lanes, 0.0, 30)  # fmt: skip
     b.road("n2_out", "surface", geo.straight(J2_X, J2_MINOR_Y, J2_X, ARM_LEN), [W_MINOR], 0.0, 30)
 
 
@@ -71,12 +84,14 @@ def _add_j1_turns(b: NetworkBuilder) -> None:
     b.junction("J1", "signalised", (-J1_HALF_X, J1_HALF_X), (-J1_HALF_Y, J1_HALF_Y))
 
 
-def _add_j2_turns(b: NetworkBuilder) -> None:
+def _add_j2_turns(b: NetworkBuilder, minor_lanes: int) -> None:
     t = b.turn
     major_half = MEDIAN_HALF + 2 * W_ART
-    # Minor approach (southbound from N2) gives way to all major-road traffic.
+    # Minor approach (southbound from N2) gives way to all major-road traffic. Left turns
+    # leave from the kerb lane; right turns (which cross the whole major road) from the
+    # last lane. With a single approach lane (minor_lanes = 1) both share lane 0.
     t("J2", "n2_in", 0, "eb_out", 0, "left", yields=True)
-    t("J2", "n2_in", 0, "wb_e2", 1, "right", yields=True)
+    t("J2", "n2_in", minor_lanes - 1, "wb_e2", 1, "right", yields=True)
     # Major eastbound: through, plus a left turn into N2 (no opposing stream in LHT).
     t("J2", "eb_e2", 0, "eb_out", 0, "through")
     t("J2", "eb_e2", 1, "eb_out", 1, "through")
@@ -89,7 +104,7 @@ def _add_j2_turns(b: NetworkBuilder) -> None:
         "J2",
         "give_way",
         (J2_X - J2_HALF_X, J2_X + J2_HALF_X),
-        (-major_half, J2_MINOR_Y),
+        (-major_half, _minor_stop_y(minor_lanes)),
         minor_approach_roads=("n2_in",),
     )
 
@@ -114,14 +129,20 @@ def _add_zones_and_labels(b: NetworkBuilder) -> None:
     b.annotate("Cross street · 3.25 m", 14, 250)
 
 
-@lru_cache(maxsize=1)
-def build_demo_network():
-    """Build (once) and return the immutable demo network."""
+@lru_cache(maxsize=2)
+def build_demo_network(minor_approach_lanes: int = 2):
+    """Build (once per variant) and return the immutable demo network.
+
+    ``minor_approach_lanes=1`` reproduces the original single shared minor lane at J2 (kept
+    to prove that the flared approach changes nothing outside J2's minor approach).
+    """
+    if minor_approach_lanes not in (1, 2):
+        raise ValueError("minor_approach_lanes must be 1 or 2")
     b = NetworkBuilder()
     add_corridor(b)
-    _add_cross_streets(b)
+    _add_cross_streets(b, minor_approach_lanes)
     _add_j1_turns(b)
-    _add_j2_turns(b)
+    _add_j2_turns(b, minor_approach_lanes)
     _add_zones_and_labels(b)
     meta = {
         "deck_z_m": DECK_Z,

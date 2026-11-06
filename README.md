@@ -132,6 +132,33 @@ implies. Capacity is therefore a property of the *arrival process* here, not jus
 flow. The source of the bunching (the lane drop, the flyover merge or the upstream signal)
 has not been isolated yet; that is a hypothesis, not a result.
 
+The table above is for the minor *left* turn only. The *right* turn (to westbound) crosses
+both eastbound lanes and merges into westbound lane 1, so it needs a 7.5 s gap in the
+combined stream, and it had not been validated against HCM at all.
+
+#### Minor approach: a left-turn lane and a right-turn lane
+
+Originally the minor road had one lane shared by both turns. With the demo demand (about
+1,230 veh/h conflicting with the right turn) the right-turn gap was open only 10% of the
+time, so a waiting right-turner blocked the left-turners behind it even though the left
+turn's gap was open 37% of the time: 48 veh/h served in total, against 216 veh/h from HCM's
+own shared-lane formula for the same flows. This was the model working as designed, but a
+single shared lane for two movements with such different gap needs is not how such a
+junction is built. The approach now has two lanes (left lane, right lane; the stop line is
+set back 3 m so that the left-turn path is longer than a truck). Evidence (see
+`tests/engine/test_j2_minor_lanes.py`):
+
+- with nobody entering from N2, every exit, lane change and junction entry on the whole
+  network is **bit-identical** to the old network, with and without signals, so nothing
+  outside J2's minor approach changed (every other connector's geometry is identical);
+- left turns served in 10 minutes with a saturated right turn: **23** (27 with no right-turn
+  demand) against **8** on the old shared lane;
+- the right turn, now validated: with 980 veh/h conflicting flow HCM gives 207 veh/h and the
+  simulation serves **132 veh/h (64%)**, never accepting a gap below the 7.5 s critical gap;
+- default demo, 15 minutes: 17 vehicles starting at N2 complete their trip (7 before); the
+  N2 queue peaks at 142 m (238 m before). The right-turn lane still queues (18 standing at the
+  end): its demand of 100 veh/h exceeds what a movement crossing about 1,200 veh/h can serve.
+
 ### Known differences from HCM
 
 **Stop-line saturation flow is about 1,630 veh/h for cars, not 1,900.** It is measured,

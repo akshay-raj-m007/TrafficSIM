@@ -13,7 +13,7 @@ WARMUP_S = 300.0
 
 def test_conflict_table_matches_geometry(net):
     t = conflict_table(net)
-    minor_right = t["n2_in:0>wb_e2:1"]
+    minor_right = t["n2_in:1>wb_e2:1"]
     assert minor_right["eb_e2:0>eb_out:0"].kind == "cross"  # crosses both EB lanes
     assert minor_right["eb_e2:1>eb_out:1"].kind == "cross"
     assert minor_right["wb_in:1>wb_e2:1"].kind == "merge"  # joins WB lane 1
