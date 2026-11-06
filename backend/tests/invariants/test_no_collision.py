@@ -8,6 +8,8 @@ fixed-time signals and an over-capacity run with max-pressure signals.
 
 import pytest
 
+pytestmark = pytest.mark.slow  # long simulation runs
+
 
 @pytest.mark.parametrize("run", ["medium", "overload"])
 def test_no_collision_and_no_negative_speed(request, run):

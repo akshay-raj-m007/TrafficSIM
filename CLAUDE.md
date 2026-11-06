@@ -67,7 +67,9 @@ telemetry. Built for the QUEST Lab pre-doctoral application.
 ```bash
 # Backend (from backend/)
 py -3.12 -m venv .venv && .venv/Scripts/python -m pip install -r requirements-dev.txt
-.venv/Scripts/python -m pytest              # all tests
+.venv/Scripts/python -m pytest -m "not slow"  # fast subset (~45 s): use after every change
+.venv/Scripts/python -m pytest              # all tests (~5 min); CI runs this
+# tests over ~5 s carry @pytest.mark.slow; tests/test_fast_subset.py keeps every area covered
 .venv/Scripts/python -m ruff check . && .venv/Scripts/python -m ruff format --check .
 .venv/Scripts/python -m uvicorn trafficsim.server.app:app --reload --port 8000
 

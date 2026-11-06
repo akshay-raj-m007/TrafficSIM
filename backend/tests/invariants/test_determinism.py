@@ -4,10 +4,14 @@ The full vehicle state (ids, segments, positions, speeds, routes, tails) and the
 conservation counters are hashed at every step and compared bit for bit.
 """
 
+import pytest
+
 from tests.invariants.conftest import RUN_S, STEPS
 from tests.invariants.harness import run_checked
 from trafficsim.engine.presets import DEMO_DEMAND
 from trafficsim.engine.scenario import Scenario
+
+pytestmark = pytest.mark.slow  # long simulation runs
 
 
 def _exits(rep):

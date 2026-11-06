@@ -14,8 +14,11 @@ from trafficsim.server.app import create_app
 from trafficsim.server.config import Settings
 from trafficsim.server.pacing import StepPacer
 
-WINDOW_S = 2.0  # wall-clock measurement window per case
-TOLERANCE = 0.05  # ±5 % of the requested speed
+WINDOW_S = 3.0  # wall-clock measurement window per case
+# Frames arrive in whole 100 ms steps and are timestamped on receipt, so the ratio of a
+# 3 s window resolves to about one frame (3 %) plus scheduling jitter: ±7 % is what the
+# test can honestly distinguish (the exact arithmetic is covered by StepPacer's tests).
+TOLERANCE = 0.07
 
 
 @pytest.mark.parametrize(

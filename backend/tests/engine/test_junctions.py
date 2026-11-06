@@ -40,6 +40,7 @@ def _minor_left_run(net, major_vph):
 
 
 @pytest.mark.parametrize("major_vph", [400, 1800])
+@pytest.mark.slow
 def test_give_way_gap_acceptance_and_capacity(net, major_vph):
     sim, t_major, cap, span_h = _minor_left_run(net, major_vph)
     tc = sim.gates.crit_gap[sim.lg.seg_of["n2_in:0>eb_out:0"]]
@@ -64,6 +65,7 @@ def test_give_way_gap_acceptance_and_capacity(net, major_vph):
         assert cap == pytest.approx(hcm, rel=0.30)
 
 
+@pytest.mark.slow
 def test_spillback_guard_with_blocked_exit(net):
     """Close both N1 exit lanes 80 m before their end: the queue must build upstream of
     J1, never inside it, and every entry must have had room when it committed."""

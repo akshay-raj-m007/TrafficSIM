@@ -7,6 +7,7 @@ are measured; nothing here is tuned to reach a target.
 """
 
 import numpy as np
+import pytest
 
 from tests.helpers import on_segments, straight_network, track
 from trafficsim.engine.loop import Simulation
@@ -24,6 +25,7 @@ def _free_flow_ramp(net, cls):
     return ramp.min(), sim.lg.v0_eff[sim.lg.seg_of["eb_ramp_up:1"], CLASS_INDEX[cls]]
 
 
+@pytest.mark.slow
 def test_free_flow_slowdown_on_upgrade(net):
     res = {cls: _free_flow_ramp(net, cls) for cls in ("truck_bus", "car", "two_wheeler")}
     for cls, (vmin, v0) in res.items():

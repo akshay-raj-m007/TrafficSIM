@@ -17,6 +17,9 @@ MEASURE_FROM_S = 600.0  # last five minutes
 EMPIRICAL_WAVE_KMH = (-20.0, -10.0)
 
 
+pytestmark = pytest.mark.slow  # long simulation runs
+
+
 @pytest.fixture(scope="module")
 def sweep():
     rows = {}

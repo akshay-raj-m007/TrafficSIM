@@ -7,6 +7,8 @@ vehicle ids are unique. Over capacity, the entry queues hold the unserved demand
 
 import pytest
 
+pytestmark = pytest.mark.slow  # long simulation runs
+
 
 @pytest.mark.parametrize("run", ["medium", "overload"])
 def test_vehicles_are_conserved_every_step(request, run):

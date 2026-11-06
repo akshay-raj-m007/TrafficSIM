@@ -8,9 +8,14 @@
    queues (engine/calibration.py). Reference: HCM base saturation flow 1,900 pc/h/ln;
    IRC:SP:41 gives 525 PCU/h per metre of approach width (~1,840 PCU/h for 3.5 m).
    Mixed traffic is reported in vehicles, not PCU, so it is lower by construction.
-The queue discharge is below the free-flow maximum: the "capacity drop" observed in
-real traffic (typically 10-20 %), which IDM reproduces. All numbers are printed.
+Queue discharge is below the steady-state maximum of the same desired speed because
+vehicles cross the line while still accelerating (start-up transient, about 7 % at a
+40 km/h desired speed); the 60 km/h free-flow maximum is higher mainly because of the
+higher desired speed. This is NOT the motorway "capacity drop" (see README, "Known
+differences from HCM"). All numbers are printed.
 """
+
+import pytest
 
 from tests.validation.ring import run_ring
 from trafficsim.engine.calibration import saturation_flows
@@ -20,6 +25,9 @@ FD_DENSITIES = (20, 30, 40, 50, 55, 60, 65)
 FD_DURATION_S = 600.0
 FREE_FLOW_CAPACITY_RANGE = (1800.0, 2400.0)
 SATURATION_RANGE_CARS = (1500.0, 2000.0)
+
+
+pytestmark = pytest.mark.slow  # long simulation runs
 
 
 def test_free_flow_capacity_from_fundamental_diagram():

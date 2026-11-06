@@ -9,7 +9,10 @@ include = ["trafficsim*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --strict-markers"
+markers = [
+    "slow: long simulation runs (about 5 s or more). Skip locally with -m 'not slow'; CI runs everything.",
+]
 
 [tool.ruff]
 line-length = 100

@@ -33,6 +33,7 @@ def test_intergreens_follow_ite_formulas(net):
         assert width == pytest.approx(30.0 if ph.approach_road.startswith(("eb", "wb")) else 40.0)
 
 
+@pytest.mark.slow
 def test_saturation_flow_is_measured_per_movement(net):
     sat = saturation_flows(net, DEFAULT_MIX, "J1")
     cars = saturation_flows(net, (("car", 1.0),), "J1")
@@ -43,6 +44,7 @@ def test_saturation_flow_is_measured_per_movement(net):
     assert cars["eb_surf_w:0>n1_out:0"] < through  # tight left turn discharges slower
 
 
+@pytest.mark.slow
 def test_webster_plan_numbers(net):
     sim = Simulation(net, Scenario(duration_s=60.0, demand=J1_DEMAND))
     plan = sim.signals[0].plan
@@ -61,6 +63,7 @@ def test_webster_plan_numbers(net):
 
 
 @pytest.mark.parametrize("control", ["fixed_webster", "max_pressure"])
+@pytest.mark.slow
 def test_signal_safety_and_timing(net, control):
     sim = Simulation(
         net, Scenario(seed=4, duration_s=900.0, demand=J1_DEMAND, signal_control=control)

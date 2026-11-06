@@ -53,6 +53,7 @@ def demo_run(net):
     return sim, worst_decel, longest_wait, still
 
 
+@pytest.mark.slow
 def test_every_destination_is_reached(demo_run):
     sim, _, longest_wait, _ = demo_run
     by_od = Counter(sim.routes.od[e.route] for e in sim.log.exits)
@@ -63,6 +64,7 @@ def test_every_destination_is_reached(demo_run):
     assert longest_wait < STUCK_S
 
 
+@pytest.mark.slow
 def test_every_lane_change_was_safe(demo_run):
     sim, worst_decel, _, _ = demo_run
     ev = sim.log.lane_changes
@@ -76,6 +78,7 @@ def test_every_lane_change_was_safe(demo_run):
     assert sim.emergency_brakings == 0 and worst_decel > -B_EMERGENCY_MPS2
 
 
+@pytest.mark.slow
 def test_merge_gap_acceptance_on_acceleration_lane(net):
     """Surface traffic (S1→E) must merge from eb_e3 lane 0 before it ends at the drop."""
     dem = (OdFlow("W", "E", 1100), OdFlow("S1", "E", 300))

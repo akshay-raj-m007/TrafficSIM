@@ -11,6 +11,8 @@ import math
 
 import pytest
 
+pytestmark = pytest.mark.slow  # long simulation runs
+
 
 @pytest.mark.parametrize("run", ["medium", "overload"])
 def test_every_entry_had_room_and_no_box_blocking(request, run):

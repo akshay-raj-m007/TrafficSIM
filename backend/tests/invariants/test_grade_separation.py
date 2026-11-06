@@ -10,6 +10,7 @@ step 2, once vehicles exist.
 """
 
 import numpy as np
+import pytest
 
 from trafficsim.network import geometry as geo
 from trafficsim.network.builder import NetworkBuilder
@@ -63,6 +64,7 @@ def test_checker_flags_level_change_without_ramp():
 
 
 # ---- vehicle level ------------------------------------------------------------------
+@pytest.mark.slow
 def test_vehicles_change_level_only_via_ramps(medium):
     """Every observed segment transition is a network edge or a same-road lane change,
     and a vehicle only moves between ground and flyover level on a ramp."""

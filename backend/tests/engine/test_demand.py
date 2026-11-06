@@ -1,6 +1,7 @@
 """Demand generation, class mix, entry queues and conservation under blocking."""
 
 import numpy as np
+import pytest
 
 from tests.helpers import straight_network
 from trafficsim.engine.loop import Simulation
@@ -44,6 +45,7 @@ def test_blocked_entry_queues_and_conserves():
     assert d.queued > 0
 
 
+@pytest.mark.slow
 def test_same_seed_same_arrivals_different_seed_different():
     def run(seed):
         sim = Simulation(
