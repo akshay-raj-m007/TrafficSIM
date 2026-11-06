@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from tests.engine.test_lane_changes import DEMO_DEMAND
-from trafficsim.engine.calibration import saturation_flows
+from trafficsim.engine.calibration import saturation_flows, startup_lost_times
 from trafficsim.engine.constants import STEPS_PER_SECOND
 from trafficsim.engine.loop import Simulation
 from trafficsim.engine.params.control import (
@@ -52,11 +52,17 @@ def test_webster_plan_numbers(net):
           f"C0 {plan.c0_s:.1f} s, C {plan.cycle_s:.1f} s, greens "
           f"{[round(g, 1) for g in plan.greens_s]} s")  # fmt: skip
     assert plan.c0_s == pytest.approx((1.5 * plan.lost_s + 5) / (1 - plan.Y))
+    ph = sim.signals[0].phases
+    assert plan.cycle_s == pytest.approx(sum(plan.greens_s) + sum(p.intergreen_s for p in ph))
+    l1 = startup_lost_times(net, DEFAULT_MIX, "J1")
+    assert all(a != 2.0 for a in plan.startup_lost_s) and len(plan.startup_lost_s) == len(ph)
+    assert min(l1.values()) > 2.0  # measured start-up loss exceeds the HCM default of 2 s
     assert plan.cycle_s <= C_MAX_S + 1e-9 and min(plan.greens_s) >= G_MIN_S
     over = webster_plan(build_phases(net, net.junctions[0]),
                         {k: 5000.0 for k in sim.signals[0].phases[0].connector_ids} | {
                             c: 0.0 for ph in sim.signals[0].phases[1:] for c in ph.connector_ids},
-                        saturation_flows(net, DEFAULT_MIX, "J1"), net)  # fmt: skip
+                        saturation_flows(net, DEFAULT_MIX, "J1"),
+                        startup_lost_times(net, DEFAULT_MIX, "J1"), net)  # fmt: skip
     print(f"[webster] oversaturated case: Y {over.Y:.2f} -> C {over.cycle_s:.1f} s, flagged "
           f"{over.oversaturated}")  # fmt: skip
     assert over.oversaturated and over.cycle_s == pytest.approx(C_MAX_S)

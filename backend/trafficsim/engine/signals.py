@@ -157,7 +157,8 @@ def make_controllers(net, lg, routes, scenario) -> list[SignalController]:
         sat = saturation_flows(net, scenario.vehicle_mix, j.id)
         if scenario.signal_control == "fixed_webster":
             flows = movement_flows(net, routes, lg, scenario.demand, j)
-            plan = webster_plan(phases, flows, sat, net)
+            lost = startup_lost_times(net, scenario.vehicle_mix, j.id)
+            plan = webster_plan(phases, flows, sat, lost, net)
             out.append(FixedTimeWebster(j.id, phases, lg, plan))
         elif scenario.signal_control == "max_pressure":
             out.append(MaxPressure(j.id, phases, lg, sat))

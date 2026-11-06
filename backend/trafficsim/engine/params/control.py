@@ -49,9 +49,9 @@ PERCEPTION_REACTION_S: Final[float] = 1.0  # ITE t_pr
 ITE_DECEL_MPS2: Final[float] = 3.05  # ITE comfortable deceleration, 10 ft/s²
 CLEARANCE_VEHICLE_LENGTH_M: Final[float] = 4.5  # design vehicle for AR: a car
 
-# HCM lost-time defaults (HCM 6th ed., Ch. 19): start-up lost time l1 and extension of
-# effective green e. Lost time per phase = l1 + (amber + all-red) − e.
-STARTUP_LOST_S: Final[float] = 2.0
+# Lost time per phase = l1 + (amber + all-red) − e. The start-up lost time l1 is MEASURED
+# (engine/calibration.py; HCM's default of 2 s is no longer used). The extension of
+# effective green e is not measured; it keeps the HCM 6th ed. (Ch. 19) default.
 GREEN_EXTENSION_S: Final[float] = 2.0
 
 # Green-time bounds [s]. Minimum green: common practice 5–10 s for vehicle phases

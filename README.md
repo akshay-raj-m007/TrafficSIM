@@ -237,8 +237,15 @@ Webster, pure max-pressure and thresholded max-pressure are to be compared over 
 seeds and reported as a result. (One seed, 600 s, demo demand, for orientation only: 20, 40
 and 23 greens; 375, 366 and 381 vehicles served.)
 
-Note: the measured start-up loss at J1 is 3.8–5.5 s per movement against the HCM default
-l1 = 2 s used in the Webster lost-time sum.
+**Webster now uses the measured start-up loss.** The measured l1 at J1 is 3.8–5.5 s per
+movement (HCM default 2 s); the plan uses the flow-weighted mean per phase. The extension of
+effective green e = 2 s is still the HCM default (not measured). Before and after, default
+demand: lost time L 25.5 s to **35.8 s**; unbounded Webster cycle C0 123.1 s to **167.1 s**;
+applied cycle **120 s both times**, because C_MAX = 120 s (IRC:93) now limits it. The greens
+therefore changed (displayed green = effective green + l1 - e): they now sum with the
+intergreens to exactly the cycle (tested). The fixed-time plan is computed from the demand in
+force when it is selected and does not follow later demand changes (that is what fixed-time
+means).
 
 ## Project rules
 
