@@ -2,7 +2,7 @@
 
 Phase order inside ``step`` (fixed; later phases slot in without changing it):
 
-    1. signals     update controller states            (part 4)
+    1. signals     advance J1 controller (fixed-time Webster or max-pressure)
     2. demand      arrivals → entry queues → insertion
     3. leaders     occupancy, leaders, stop lines / lane ends, junction gates
     4. decisions   MOBIL lane changes (mandatory first), then leaders are refreshed
@@ -31,6 +31,7 @@ from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
 from trafficsim.engine.scenario import Scenario
+from trafficsim.engine.signals import make_controllers
 from trafficsim.engine.transfer import TransferLog, advance_segments
 from trafficsim.engine.vehicle import CLASS_INDEX, VehicleState
 from trafficsim.network.types import Network
@@ -48,10 +49,14 @@ class Simulation:
         self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
         self.gates = JunctionGates(network, self.lg)
+        self.signals = make_controllers(network, self.lg, self.routes, scenario)
+        if self.signals:
+            self.gates.signal = lambda c: all(ctrl.allows(c) for ctrl in self.signals)
         self._incidents = [(self.lg.seg_of[x.lane_id], x.s_m, x) for x in scenario.incidents]
         self.log = TransferLog()
         self.emergency_brakings = 0
         self.lane_changes = 0
+        self.allow_lane_changes = True  # experiments (calibration) may switch this off
         self.box_stopped_vehicle_s = 0.0
         self.mandatory_lane_changes = 0
         self.tick: int = 0
@@ -108,6 +113,8 @@ class Simulation:
             return False
         t = self.time_s
         vs, lg = self.vehicles, self.lg
+        for ctrl in self.signals:
+            ctrl.update(self.tick, vs, lg)
         self.demand.generate(t)
         self.demand.insert(vs, t)
         if vs.n == 0:  # nothing on the network: only the clock advances
@@ -117,8 +124,10 @@ class Simulation:
         occ = build_occupancy(vs, lg, static)
         self.gates.update(vs, occ)
         gap, v_lead = find_leaders(vs, lg, self.routes, occ, self.gates)
-        changes, mandatory = lane_changes(
-            vs, lg, self.routes, occ, gap, v_lead, self.tick, self.log, t
+        changes, mandatory = (
+            (0, 0)
+            if not self.allow_lane_changes
+            else lane_changes(vs, lg, self.routes, occ, gap, v_lead, self.tick, self.log, t)
         )
         if changes:
             self.lane_changes += changes

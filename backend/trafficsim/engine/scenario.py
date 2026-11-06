@@ -12,7 +12,8 @@ from typing import Literal
 from trafficsim.engine.constants import ticks_for
 from trafficsim.engine.vehicle import CLASS_INDEX
 
-SignalControl = Literal["fixed_webster", "max_pressure"]
+# "uncontrolled": no signals at J1 (calibration experiments only).
+SignalControl = Literal["fixed_webster", "max_pressure", "uncontrolled"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +76,7 @@ class Scenario:
         shares = [s for _, s in self.vehicle_mix]
         if any(s < 0 for s in shares) or abs(sum(shares) - 1.0) > 1e-9:
             raise ValueError("vehicle mix shares must be non-negative and sum to 1")
-        if self.signal_control not in ("fixed_webster", "max_pressure"):
+        if self.signal_control not in ("fixed_webster", "max_pressure", "uncontrolled"):
             raise ValueError(f"unknown signal control {self.signal_control!r}")
 
     @property

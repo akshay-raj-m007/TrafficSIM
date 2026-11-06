@@ -34,6 +34,13 @@ class RouteTable:
         roads = fastest_route(net, origin, dest)
         if roads is None:
             raise ValueError(f"no route from {origin} to {dest}")
+        return self.add_explicit(lg, tuple(roads), key)
+
+    def add_explicit(self, lg: LaneGraph, roads: tuple[str, ...], key: tuple[str, str]) -> int:
+        """Register a given road sequence (e.g. a two-road calibration route that ends,
+        and leaves the network, at the end of its last road)."""
+        if key in self.index:
+            return self.index[key]
         k = len(self.roads)
         self.roads.append(tuple(roads))
         self.od.append(key)

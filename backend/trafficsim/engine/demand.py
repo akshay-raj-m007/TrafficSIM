@@ -118,18 +118,20 @@ class Demand:
                 best = (gap, k, float(L), v_ins)
         return None if best is None else best[1:]
 
-    def _append(self, vs, q: Queued, seg: int, s_front: float, v: float, t_now: float):
-        nxt = next_seg(self.lg, self.rt, q.route, 0, seg)
+    def _append(self, vs, q: Queued, seg: int, s_front: float, v: float, t_now: float, rpos=0):
+        nxt = next_seg(self.lg, self.rt, q.route, rpos, seg)
         vs.append(
             vid=self.next_vid, cls=q.cls, seg=seg, s=s_front, v=v, acc=0.0, route=q.route,
-            rpos=0, nxt=nxt, tail=-1, off=0, goodbits=0, lc_timer=0.0, t_gen=q.t_gen, t_ins=t_now,
+            rpos=rpos, nxt=nxt, tail=-1, off=0, goodbits=0, lc_timer=0.0, t_gen=q.t_gen,
+            t_ins=t_now,
         )  # fmt: skip
         refresh_lane_cache(vs, self.lg, self.rt, vs.n - 1)
         self.next_vid += 1
         self.inserted += 1
         return self.next_vid - 1
 
-    def place(self, vs, route: int, cls: int, seg: int, s: float, v: float, t_now: float):
+    def place(self, vs, route: int, cls: int, seg: int, s: float, v: float, t_now: float,
+              rpos: int = 0):  # fmt: skip
         """Scripted insertion (tests/experiments); counted as generated and inserted."""
         self.generated += 1
-        return self._append(vs, Queued(t_now, cls, route), seg, s, v, t_now)
+        return self._append(vs, Queued(t_now, cls, route), seg, s, v, t_now, rpos)

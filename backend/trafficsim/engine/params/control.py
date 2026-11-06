@@ -38,3 +38,33 @@ INCIDENT_LENGTH_M: Final[float] = 4.5
 # behind stop lines. The commitment distance includes it (see engine/gates.py), which
 # makes "never cross a closed gate" hold by construction.
 STOP_LINE_STANDOFF_M: Final[float] = 1.0
+
+# ---------------------------------------------------------------- signals --------------
+# Intergreen from the ITE formulas (ITE, "Determining Vehicle Signal Change and
+# Clearance Intervals", 1994/2020):
+#   amber   Y  = t_pr + v / (2·a_d)            (level approach)
+#   all-red AR = (W + L) / v                   (W: width to clear, L: vehicle length)
+# with v the approach speed limit and W the junction-box extent along the approach.
+PERCEPTION_REACTION_S: Final[float] = 1.0  # ITE t_pr
+ITE_DECEL_MPS2: Final[float] = 3.05  # ITE comfortable deceleration, 10 ft/s²
+CLEARANCE_VEHICLE_LENGTH_M: Final[float] = 4.5  # design vehicle for AR: a car
+
+# HCM lost-time defaults (HCM 6th ed., Ch. 19): start-up lost time l1 and extension of
+# effective green e. Lost time per phase = l1 + (amber + all-red) − e.
+STARTUP_LOST_S: Final[float] = 2.0
+GREEN_EXTENSION_S: Final[float] = 2.0
+
+# Green-time bounds [s]. Minimum green: common practice 5–10 s for vehicle phases
+# without pedestrian timing (e.g. FHWA Signal Timing Manual, 2nd ed., Table 5-3).
+# Maximum green for max-pressure, and maximum Webster cycle (IRC:93-1985 recommends
+# keeping cycles at or below 120 s).
+G_MIN_S: Final[float] = 7.0
+G_MAX_S: Final[float] = 60.0
+C_MAX_S: Final[float] = 120.0
+
+# Saturation-flow calibration (measured in the simulation, not assumed): a standing
+# queue of this many vehicles is released at the line; headways of vehicles after the
+# 4th (HCM 6th ed., Ch. 31) are averaged.
+SAT_QUEUE_VEHICLES: Final[int] = 24
+SAT_SKIP_VEHICLES: Final[int] = 4
+CALIBRATION_SEED: Final[int] = 0
