@@ -141,7 +141,8 @@ x east, y north, z up. EB corridor runs on the north side.
 - **Max-pressure** switches too often (mean green ~8 s; 620 vs 640 served). The user was
   told; a switching threshold is not added (user's call).
 - **J2 minor road** capacity below HCM at high conflicting flow (156 vs 287 veh/h)
-  because platooned major traffic has about 4× fewer usable gaps.
+  (the bunched major stream has about 4× fewer usable gaps; later found to be only a partial
+  factor, the shared minor lane was the main problem, see project_state_2.md addendum).
 - **Truck on the up-ramp:** 93% of desired speed at free flow; 36.7 vs 45.9 km/h from a
   standing start.
 

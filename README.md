@@ -115,8 +115,11 @@ parameters are Treiber and Kesting's published city set (a = 1.0 m/s², T = 1.0 
 b = 1.5 m/s², s0 = 2 m); an earlier set (a = 1.5, T = 1.2, b = 2.0) was string-stable at every
 density and could not produce waves, which is why it was replaced.
 
-### Give-way junction (J2): platooned major-road traffic offers fewer gaps than HCM assumes
+### Give-way junction (J2): minor-road capacity against HCM
 
+The original single shared minor lane was the main problem (see "Minor approach" below);
+bunching of the major-road stream is at most a partial factor and is still a hypothesis.
+The table is the measurement made before the lanes were split, for the minor *left* turn.
 The minor road is saturated; vehicles accept a gap only if every priority vehicle is at
 least the HCM critical headway (6.9 s) from the conflict point.
 
@@ -125,12 +128,13 @@ least the HCM critical headway (6.9 s) from the conflict point.
 | 12 veh/h | 0.80 | 8 (12 if arrivals were random) | 880 veh/h | 1,072 veh/h |
 | 896 veh/h | **1.42** | **40** (161 if random) | **156 veh/h** | 287 veh/h |
 
-At high conflicting flow the minor-left capacity is about half of the HCM value because the
+At high conflicting flow the minor-left capacity is about half of the HCM value. The
 major-road stream is bunched (coefficient of variation 1.42 against 1.0 for random
-arrivals), so long gaps are about four times rarer than HCM's random-arrival assumption
-implies. Capacity is therefore a property of the *arrival process* here, not just of the
-flow. The source of the bunching (the lane drop, the flyover merge or the upstream signal)
-has not been isolated yet; that is a hypothesis, not a result.
+arrivals) and long gaps are about four times rarer than a random-arrival assumption gives.
+That is a measured property of the stream; that it *causes* the whole shortfall is not
+shown, and the shared-lane blocking found later explains most of what the junction served.
+The source of the bunching (the lane drop, the flyover merge or the upstream signal) has
+not been isolated; that is a hypothesis, not a result.
 
 The table above is for the minor *left* turn only. The *right* turn (to westbound) crosses
 both eastbound lanes and merges into westbound lane 1, so it needs a 7.5 s gap in the
@@ -160,6 +164,25 @@ set back 3 m so that the left-turn path is longer than a truck). Evidence (see
   end): its demand of 100 veh/h exceeds what a movement crossing about 1,200 veh/h can serve.
 
 ### Known differences from HCM
+
+**The J2 right turn serves 64% of HCM (132 against 207 veh/h at 980 veh/h conflicting).**
+Nothing was tuned to close the gap. Attribution from the same run (saturated right turn):
+
+1. *Fewer usable gaps than random arrivals (largest).* Gaps of at least 7.5 s occur 52 times
+   per hour; a random stream of the same flow gives 127. The merged conflicting stream has a
+   headway CV of 1.77 (1.0 for random). Where the bunching comes from is a hypothesis (the J1
+   signal 1.1 km upstream, the lane drop and the flyover merge are candidates; not isolated).
+2. *Partly offset:* in a bunched stream the gaps that do occur are longer, so each usable gap
+   serves 2.5 vehicles against about 1.6 in HCM's formula.
+3. *Follow-up headway:* consecutive right-turners enter 4.36 s apart (23 pairs) against
+   HCM's 3.5 s; the right-turn path is 24.8 m long and curvature-limited to about 21 km/h,
+   so each vehicle clears the conflict area more slowly. Worth up to about -20% for the
+   second and later vehicles in a gap.
+4. *Small:* a vehicle must be at the line when the window opens (2 of 15 windows unused;
+   1.4 s from opening to the first entry).
+
+Not a cause: the minor/minor conflicts (the two minor turns share none) and the critical
+gap (never violated).
 
 **Stop-line saturation flow is about 1,630 veh/h for cars, not 1,900.** It is measured,
 not assumed: a standing queue of 24 vehicles is released and the headways after the fourth
