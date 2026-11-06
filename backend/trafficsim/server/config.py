@@ -19,6 +19,9 @@ class Settings:
     tick_hz: float = 10.0
     # Close a live session after this long without any client message (incl. pings).
     idle_timeout_s: float = 900.0
+    # Measure the J1 saturation flows at start-up (about 7 s) instead of in the first
+    # session that needs them.
+    warm_up: bool = True
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -29,4 +32,5 @@ class Settings:
             static_dir=static_dir,
             tick_hz=float(os.environ.get("TICK_HZ", "10")),
             idle_timeout_s=float(os.environ.get("SESSION_IDLE_TIMEOUT_S", "900")),
+            warm_up=os.environ.get("WARM_UP", "1") != "0",
         )

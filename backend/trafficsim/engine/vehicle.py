@@ -33,6 +33,10 @@ class VehicleClass:
     b_mps2: float  # comfortable deceleration
     s0_m: float  # minimum standstill gap
     power_to_mass_w_per_kg: float
+    # Overall height [m]. VISUAL ONLY (rendering boxes); never used by the dynamics.
+    # Typical overall heights: compact car ~1.5 m, rigid truck / bus ~3.2 m, motorcycle
+    # with rider ~1.5 m.
+    height_m: float = 1.5
 
     def __post_init__(self) -> None:
         for f in self.__dataclass_fields__:
@@ -42,8 +46,8 @@ class VehicleClass:
 
 VEHICLE_CLASSES: Final[tuple[VehicleClass, ...]] = (
     VehicleClass("car", 4.5, 1.8, 16.7, 1.0, 1.0, 1.5, 2.0, 48.0),
-    VehicleClass("truck_bus", 12.0, 2.5, 13.9, 1.8, 0.7, 1.5, 3.0, 6.0),
-    VehicleClass("two_wheeler", 2.0, 0.8, 16.7, 0.9, 2.0, 2.5, 1.0, 33.0),
+    VehicleClass("truck_bus", 12.0, 2.5, 13.9, 1.8, 0.7, 1.5, 3.0, 6.0, 3.2),
+    VehicleClass("two_wheeler", 2.0, 0.8, 16.7, 0.9, 2.0, 2.5, 1.0, 33.0, 1.5),
     VehicleClass("cav", 4.5, 1.8, 16.7, 0.8, 1.5, 2.0, 2.0, 48.0),
 )
 CLASS_INDEX: Final[dict[str, int]] = {c.name: i for i, c in enumerate(VEHICLE_CLASSES)}

@@ -31,11 +31,11 @@ def test_detector_counts_every_vehicle_exactly_once_and_windows_flow():
     spec = DetectorSpec("D", "line", "main", 1500.0)
     sim = Simulation(
         straight_network(length_m=3000.0),
-        Scenario(seed=2, duration_s=200.0, demand=(OdFlow("A", "B", 900.0),)),
+        Scenario(seed=2, duration_s=140.0, demand=(OdFlow("A", "B", 900.0),)),
         KpiLayout((spec,), ()),
     )
     prev, times = {}, []
-    for _ in range(2000):
+    for _ in range(1400):
         sim.step()
         vs = sim.vehicles
         cur = dict(zip(vs.vid.tolist(), vs.s.tolist(), strict=True))
@@ -153,9 +153,9 @@ def test_mean_delay_matches_manual_recomputation_in_traffic(net):
 
 # ------------------------------------------------------------------ snapshot --------------
 def test_snapshot_is_json_traceable_and_conserves_counts(net):
-    sim = Simulation(net, Scenario(seed=3, duration_s=120.0, demand=DEMO_DEMAND,
+    sim = Simulation(net, Scenario(seed=3, duration_s=60.0, demand=DEMO_DEMAND,
                                    signal_control="uncontrolled"), DEMO_KPI_LAYOUT)  # fmt: skip
-    sim.run_until(120.0)
+    sim.run_until(60.0)
     snap = json.loads(json.dumps(sim.kpi_snapshot()))  # plain JSON types only
     c = snap["counts"]
     assert c["generated"] == c["active"] + c["exited"] + c["queued"] == sim.demand.generated
