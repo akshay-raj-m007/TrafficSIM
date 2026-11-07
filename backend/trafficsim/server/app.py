@@ -13,6 +13,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from trafficsim import __version__
@@ -21,6 +22,8 @@ from trafficsim.network.demo import build_demo_network
 from trafficsim.network.serialize import network_to_dict
 from trafficsim.server import protocol
 from trafficsim.server.config import Settings
+from trafficsim.server.presets_doc import PRESET_INFO, all_presets
+from trafficsim.server.scenario_doc import problems
 from trafficsim.server.session_config import DEFAULT_SIGNAL, SessionParams
 from trafficsim.server.sessions import SessionManager
 from trafficsim.server.ws import LiveSession
@@ -52,7 +55,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="TrafficSIM", version=__version__, lifespan=lifespan)
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # egress is metered on free hosts
     sessions = SessionManager(settings.max_sessions)
-    network_json = json.dumps(network_to_dict(network), separators=(",", ":")).encode()
+    network_json = {
+        k: json.dumps(network_to_dict(build_demo_network(k)), separators=(",", ":")).encode()
+        for k in (1, 2)
+    }  # one per J2 minor-approach structure
     app.state.settings = settings
     app.state.sessions = sessions
 
@@ -68,8 +74,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.get("/api/network")
-    def get_network() -> Response:
-        return Response(network_json, media_type="application/json")
+    def get_network(j2_minor_lanes: int = 2) -> Response:
+        if j2_minor_lanes not in network_json:
+            return JSONResponse(
+                {"detail": f"j2_minor_lanes must be 1 or 2, got {j2_minor_lanes}"}, status_code=422
+            )
+        return Response(network_json[j2_minor_lanes], media_type="application/json")
+
+    @app.get("/api/presets")
+    def get_presets() -> dict:
+        return {n: {"info": PRESET_INFO[n], "scenario": d} for n, d in all_presets().items()}
+
+    @app.post("/api/scenario/validate")
+    def validate_scenario(raw: dict) -> dict:
+        found = problems(raw)
+        return {"valid": not found, "errors": found}
 
     @app.websocket("/ws/sim")
     async def ws_sim(

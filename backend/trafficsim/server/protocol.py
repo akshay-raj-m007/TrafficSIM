@@ -1,18 +1,21 @@
 """WebSocket message schemas.
 
-Client -> server (JSON, validated with pydantic): set_speed, reset, ping.
+Client -> server (JSON, validated with pydantic): set_speed, reset (seed / preset / scenario
+document), apply (a live change), export, ping.
 Server -> client:
   * binary frames: vehicle poses, see ``frames.py`` (sent only when the simulation advanced)
   * JSON ``hello`` (session description, vehicle class dimensions, frame format),
     ``kpi`` (measured KPIs, at most once per wall second), ``stats`` (streaming/server
-    measurements, once per wall second), ``busy``, ``pong``, ``error``.
+    measurements, once per wall second), ``applied`` / ``rejected`` (answer to ``apply``
+    and to an invalid ``reset``), ``scenario`` (answer to ``export``), ``busy``, ``pong``,
+    ``error``.
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, Field, TypeAdapter, field_validator, model_validator
 
 from trafficsim.engine.constants import STEPS_PER_SECOND
 from trafficsim.engine.kpi import KPI_DEFS
@@ -37,8 +40,32 @@ class SetSpeed(BaseModel):
 
 
 class Reset(BaseModel):
+    """seed only: same settings, new seed; preset: a named preset (optionally with a seed);
+    scenario: a whole scenario document (import). At most one of preset / scenario."""
+
     type: Literal["reset"]
-    seed: int = Field(ge=0, le=2**32 - 1)
+    seed: int | None = Field(default=None, ge=0, le=2**32 - 1)
+    preset: str | None = None
+    scenario: dict | None = None
+
+    @model_validator(mode="after")
+    def _one_source(self) -> Reset:
+        if self.preset is not None and self.scenario is not None:
+            raise ValueError("give a preset or a scenario, not both")
+        if self.scenario is not None and self.seed is not None:
+            raise ValueError("the scenario document carries its own seed")
+        return self
+
+
+class Apply(BaseModel):
+    """A live change (see scenario_doc.py for the fields; the tick is set by the server)."""
+
+    type: Literal["apply"]
+    change: dict
+
+
+class Export(BaseModel):
+    type: Literal["export"]
 
 
 class Ping(BaseModel):
@@ -46,11 +73,12 @@ class Ping(BaseModel):
     id: int
 
 
-ClientMessage = Annotated[SetSpeed | Reset | Ping, Field(discriminator="type")]
-_client_adapter: TypeAdapter[SetSpeed | Reset | Ping] = TypeAdapter(ClientMessage)
+ClientMsg = SetSpeed | Reset | Apply | Export | Ping
+ClientMessage = Annotated[ClientMsg, Field(discriminator="type")]
+_client_adapter: TypeAdapter[ClientMsg] = TypeAdapter(ClientMessage)
 
 
-def parse_client_message(raw: str) -> SetSpeed | Reset | Ping:
+def parse_client_message(raw: str) -> ClientMsg:
     """Raises pydantic.ValidationError on malformed input."""
     return _client_adapter.validate_json(raw)
 
@@ -60,8 +88,8 @@ def speed_index(speed: float) -> int:
 
 
 def hello(
-    session_id: str, dt: float, tick_hz: float, params, duration_s: float, epoch: int,
-    fmt: FrameFormat, segments: list[dict],
+    session_id: str, dt: float, tick_hz: float, sc, demand_scale: float, epoch: int,
+    fmt: FrameFormat, segments: list[dict], scenario: dict | None = None, minor_lanes: int = 2,
 ) -> dict:  # fmt: skip
     return {
         "type": "hello",
@@ -70,16 +98,18 @@ def hello(
         "steps_per_second": STEPS_PER_SECOND,
         "tick_hz": tick_hz,
         "speeds": list(ALLOWED_SPEEDS),
-        "seed": params.seed,
-        "signal": params.signal,
-        "demand_scale": params.demand_scale,
-        "duration_s": duration_s,
+        "seed": sc.seed,
+        "signal": sc.signal_control,
+        "demand_scale": demand_scale,  # query-parameter experiment seam only
+        "duration_s": sc.duration_s,
         "epoch": epoch & 255,
         "classes": [
             {"name": c.name, "length_m": c.length_m, "width_m": c.width_m, "height_m": c.height_m}
             for c in VEHICLE_CLASSES
         ],
         "frame": fmt.to_dict(),
+        "scenario": scenario,  # the document in force (None if it cannot be exported)
+        "network": {"j2_minor_lanes": minor_lanes},  # fetch /api/network?j2_minor_lanes=
         "segments": segments,  # frame segment index -> lane / connector id, length, successors
         "lane_change_blend_s": LC_BLEND_S,
         "kpi_defs": KPI_DEFS,
@@ -112,3 +142,16 @@ def pong(ping_id: int) -> dict:
 
 def error(message: str, detail: Any = None) -> dict:
     return {"type": "error", "message": message, "detail": detail}
+
+
+def applied(tick: int, change: dict) -> dict:
+    return {"type": "applied", "tick": tick, "change": change}
+
+
+def rejected(what: str, errors: list[dict]) -> dict:
+    """``what`` names the request that failed ("apply" or "reset"); nothing was changed."""
+    return {"type": "rejected", "request": what, "errors": errors}
+
+
+def scenario_doc(doc: dict) -> dict:
+    return {"type": "scenario", "scenario": doc}

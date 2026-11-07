@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Final, get_args
 
-from trafficsim.engine.presets import DEMO_DEMAND, scaled
+from trafficsim.engine.presets import DEFAULT_DEMAND, scaled
 from trafficsim.engine.scenario import Scenario, SignalControl
 
 SESSION_DURATION_S: Final[float] = 3600.0  # simulated length of a live session [s]
@@ -40,6 +40,6 @@ class SessionParams:
         return Scenario(
             seed=self.seed,
             duration_s=SESSION_DURATION_S,
-            demand=scaled(DEMO_DEMAND, self.demand_scale),
+            demand=scaled(DEFAULT_DEMAND, self.demand_scale),
             signal_control=self.signal,  # type: ignore[arg-type]
         )

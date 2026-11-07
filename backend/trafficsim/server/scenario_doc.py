@@ -174,18 +174,20 @@ def _flows(rows: list[DemandRow]) -> tuple[OdFlow, ...]:
     return tuple(OdFlow(r.origin, r.destination, r.veh_per_h) for r in rows)
 
 
+def engine_change(c):
+    """The engine change of a validated change model."""
+    if isinstance(c, SetDemandChange):
+        return SetDemand(_flows(c.demand))
+    if isinstance(c, SetMixChange):
+        return SetMix(c.mix.to_engine())
+    if isinstance(c, SetPolicyChange):
+        return SetPolicy(c.policy)
+    return SetFlyover(c.open)
+
+
 def to_engine(doc: ScenarioDoc) -> Scenario:
     """The engine scenario (including the change log to replay) of a valid document."""
-    changes = []
-    for c in doc.changes:
-        if isinstance(c, SetDemandChange):
-            changes.append((c.tick, SetDemand(_flows(c.demand))))
-        elif isinstance(c, SetMixChange):
-            changes.append((c.tick, SetMix(c.mix.to_engine())))
-        elif isinstance(c, SetPolicyChange):
-            changes.append((c.tick, SetPolicy(c.policy)))
-        else:
-            changes.append((c.tick, SetFlyover(c.open)))
+    changes = [(c.tick, engine_change(c)) for c in doc.changes]
     return Scenario(
         seed=doc.seed, duration_s=doc.duration_s, demand=_flows(doc.initial.demand),
         vehicle_mix=doc.initial.mix.to_engine(), signal_control=doc.initial.policy,

@@ -151,6 +151,11 @@ class Simulation:
         self._pending.sort(key=lambda p: p[0])  # stable: same-tick changes keep their order
         return at
 
+    @property
+    def all_changes(self) -> list[tuple[int, Change]]:
+        """Applied changes followed by the queued ones (what an export must contain)."""
+        return self.change_log + self._pending
+
     def _apply_due(self) -> None:
         while self._pending and self._pending[0][0] <= self.tick:
             _, change = self._pending.pop(0)
