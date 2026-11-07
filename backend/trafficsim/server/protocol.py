@@ -144,6 +144,11 @@ def error(message: str, detail: Any = None) -> dict:
     return {"type": "error", "message": message, "detail": detail}
 
 
+def building(reason: str, name: str) -> dict:
+    """A scenario is being built (off the event loop); the hello follows when it is ready."""
+    return {"type": "building", "reason": reason, "name": name}
+
+
 def applied(tick: int, change: dict) -> dict:
     return {"type": "applied", "tick": tick, "change": change}
 

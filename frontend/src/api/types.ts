@@ -1,6 +1,6 @@
 /** Mirrors backend/trafficsim/network/serialize.py, server/protocol.py and engine/kpi.py. */
 import type { Vec3 } from '../scene/coords';
-import type { LoggedChange, Problem, ScenarioDoc } from './scenarioTypes';
+import type { ScenarioDoc } from './scenarioTypes';
 
 export interface LaneData {
   id: string;
@@ -174,42 +174,3 @@ export interface StatsMsg {
   frames_total: number;
   vehicles: number;
 }
-
-export interface BusyMsg {
-  type: 'busy';
-  sessions_max: number;
-  message: string;
-}
-export interface PongMsg {
-  type: 'pong';
-  id: number;
-}
-export interface ErrorMsg {
-  type: 'error';
-  message: string;
-  detail?: unknown;
-}
-export interface AppliedMsg {
-  type: 'applied';
-  tick: number;
-  change: LoggedChange;
-}
-export interface RejectedMsg {
-  type: 'rejected';
-  request: 'apply' | 'reset' | 'export' | 'message';
-  errors: Problem[];
-}
-export interface ScenarioMsg {
-  type: 'scenario';
-  scenario: ScenarioDoc;
-}
-export type ServerMsg =
-  | HelloMsg
-  | KpiMsg
-  | StatsMsg
-  | BusyMsg
-  | PongMsg
-  | ErrorMsg
-  | AppliedMsg
-  | RejectedMsg
-  | ScenarioMsg;

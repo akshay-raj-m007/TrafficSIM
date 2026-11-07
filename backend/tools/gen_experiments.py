@@ -9,6 +9,7 @@ runs of the first. ``--cost`` also measures a default-demand comparison (not shi
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -21,6 +22,7 @@ from trafficsim.server.compare_spec import CompareLimits  # noqa: E402
 from trafficsim.server.presets_doc import preset  # noqa: E402
 
 CACHE = Path(__file__).resolve().parents[1] / ".cache" / "compare"
+os.environ.setdefault("TRAFFICSIM_TABLE_CACHE", str(CACHE.parent / "tables"))
 
 
 def run_comparison(manager: CompareManager, a: dict, b: dict, label: str) -> dict:

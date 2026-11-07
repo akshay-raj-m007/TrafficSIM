@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
+from trafficsim.engine import tablecache
 from trafficsim.network.types import Network
 
 TABLE_PATH = Path(__file__).resolve().parents[1] / "data" / "freeflow_demo.json"
@@ -111,6 +112,7 @@ class FreeFlowReference:
         self.net = net
         self._values: dict[tuple[tuple[str, ...], int], float] = {}
         self.table_used = False
+        self._digest: str | None = None  # set when the lane graph is known
         if lg is not None:
             digest = input_digest(net, lg)
             for path in (TABLE_PATH, TABLE_PATH_J2_1):
@@ -122,6 +124,12 @@ class FreeFlowReference:
                         self._values[(tuple(e["roads"]), e["cls"])] = e["t_s"]
                     self.table_used = True
                     break
+            else:  # not a committed table: a previous measurement on this machine?
+                cached = tablecache.load("freeflow", digest)
+                for e in (cached or {}).get("values", []):
+                    self._values[(tuple(e["roads"]), e["cls"])] = e["t_s"]
+                self.table_used = bool(cached)
+            self._digest = digest
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self.seconds_to_compute = 0.0  # wall time of the last batch (diagnostic)
@@ -189,3 +197,6 @@ class FreeFlowReference:
             e = sim.log.exits[-1]
             self._values[(roads, cls)] = e.t_exit - e.t_ins
         self.seconds_to_compute = time.perf_counter() - t0
+        if self._digest:  # remember for the next process / session
+            values = [{"roads": list(r), "cls": c, "t_s": t} for (r, c), t in self._values.items()]
+            tablecache.store("freeflow", self._digest, {"digest": self._digest, "values": values})

@@ -43,6 +43,24 @@ def run_one(spec: dict) -> dict:
     return {"key": spec["key"], "metrics": metrics, "cpu_s": time.process_time() - t0}
 
 
+def prepare_tables(doc: dict) -> bool:
+    """Worker: make sure the reference tables of this scenario's network and vehicle mix exist
+    (committed table, on-disk cache, or measured now and cached), so that the runs themselves
+    never measure. Instant for the default network and mix."""
+    from trafficsim.engine.calibration import saturation_flows
+    from trafficsim.engine.freeflow import all_keys, reference_for
+    from trafficsim.engine.lanegraph import compile_network
+
+    parsed = parse(doc)
+    net = build_demo_network(parsed.structure.j2_minor_lanes)
+    mix = to_engine(parsed).vehicle_mix
+    for j in net.junctions:
+        if j.control == "signalised":
+            saturation_flows(net, mix, j.id)
+    reference_for(net, compile_network(net)).request(all_keys(net), background=False)
+    return True
+
+
 class RunCache:
     """Per-run results by key: an in-memory layer (preloaded shipped results) over files."""
 
@@ -74,14 +92,16 @@ class Job:
     total: int
     done: int = 0
     cached: int = 0
-    state: str = "running"  # running | done | error | cancelled
+    state: str = "running"  # running | stopping | done | error | cancelled
+    phase: str = "running"  # preparing (reference tables of a new structure / mix) | running
     result: dict | None = None
     error: str | None = None
     cancel: threading.Event = field(default_factory=threading.Event)
     t0: float = field(default_factory=time.perf_counter)
 
     def to_dict(self) -> dict:
-        return {"id": self.id, "state": self.state, "total": self.total, "done": self.done,
+        return {"id": self.id, "state": self.state, "phase": self.phase, "total": self.total,
+                "done": self.done,
                 "cached": self.cached, "error": self.error, "result": self.result,
                 "elapsed_s": round(time.perf_counter() - self.t0, 1)}  # fmt: skip
 
@@ -147,6 +167,7 @@ class CompareManager:
                     job.cached += 1
                 else:
                     todo.append(sp)
+            self._prepare(job, todo)
             pending = {self._pool().submit(run_one, sp) for sp in todo}
             stop: BaseException | str | None = None
             while pending:
@@ -184,6 +205,20 @@ class CompareManager:
             job.state = "done"
         except Exception as exc:  # report, never hang the poller
             job.state, job.error = "error", f"{type(exc).__name__}: {exc}"
+
+    def _prepare(self, job: Job, todo: list[dict]) -> None:
+        """Measure missing reference tables once per distinct network and mix, in the pool,
+        before any run is dispatched (an error here fails the job before anything runs)."""
+        docs = {}
+        for sp in todo:
+            d = sp["doc"]
+            key = json.dumps([d["structure"], d["initial"]["mix"]], sort_keys=True)
+            docs.setdefault(key, d)
+        if docs:
+            job.phase = "preparing"
+            for fut in [self._pool().submit(prepare_tables, d) for d in docs.values()]:
+                fut.result()
+            job.phase = "running"
 
     def cancel(self, job_id: str) -> bool:
         job = self._jobs.get(job_id)

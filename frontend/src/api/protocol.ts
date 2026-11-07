@@ -1,4 +1,4 @@
-import type { ServerMsg } from './types';
+import type { ServerMsg } from './messageTypes';
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -37,6 +37,8 @@ export function parseServerMessage(raw: string): ServerMsg | null {
       return isNum(o.id) ? (o as unknown as ServerMsg) : null;
     case 'error':
       return isStr(o.message) ? (o as unknown as ServerMsg) : null;
+    case 'building':
+      return isStr(o.reason) ? (o as unknown as ServerMsg) : null;
     case 'applied':
       return isNum(o.tick) && typeof o.change === 'object' ? (o as unknown as ServerMsg) : null;
     case 'rejected':

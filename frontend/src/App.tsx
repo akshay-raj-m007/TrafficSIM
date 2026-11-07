@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchNetwork } from './api/network';
 import { SimSocket, type ConnStatus } from './api/simSocket';
 import type { LiveChange, Problem, ScenarioDoc } from './api/scenarioTypes';
+import type { BuildingMsg } from './api/messageTypes';
 import type { HelloMsg, KpiMsg, NetworkData, StatsMsg } from './api/types';
 import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
 import { Header } from './ui/Header';
 import type { PresetInfo } from './ui/editor/SeedBar';
+import { downloadJson } from './ui/download';
 import { CompareView } from './ui/compare/CompareView';
 import { ScenarioPanel } from './ui/ScenarioPanel';
 import { restartDoc } from './ui/scenarioDraft';
@@ -16,17 +18,6 @@ interface FrameInfo {
   tick: number;
   agents: number;
   speedIndex: number;
-}
-
-function downloadJson(doc: ScenarioDoc): void {
-  const blob = new Blob([JSON.stringify(doc, null, 2)], {
-    type: 'application/json',
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `scenario-${doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-seed${doc.seed}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
 }
 
 export function App() {
@@ -46,6 +37,7 @@ export function App() {
   const [rttMs, setRttMs] = useState<number | undefined>();
   const [pendingSpeed, setPendingSpeed] = useState<number | null>(null);
   const [view, setView] = useState<'simulate' | 'compare'>('simulate');
+  const [building, setBuilding] = useState<BuildingMsg | null>(null);
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
   const [structure, setStructure] = useState<ScenarioDoc['structure']>({ j2_minor_lanes: 2 });
   const [presets, setPresets] = useState<Record<string, PresetInfo>>({});
@@ -86,6 +78,7 @@ export function App() {
         speedsRef.current = h.speeds;
         sceneRef.current?.setSession(h);
         setHello(h);
+        setBuilding(null);
         setDoc(h.scenario);
         if (h.scenario) setStructure(h.scenario.structure);
         setApplyErrors([]);
@@ -98,6 +91,7 @@ export function App() {
       },
       onRejected: (m) => (m.request === 'apply' ? setApplyErrors : setResetErrors)(m.errors),
       onScenario: (m) => downloadJson(m.scenario),
+      onBuilding: (m) => setBuilding(m),
       onFrame: (f, _now, rate) => {
         sceneRef.current?.pushFrame(f);
         setFrame({ tick: f.tick, agents: f.n, speedIndex: f.speedIndex });
@@ -160,7 +154,7 @@ export function App() {
         applyErrors={applyErrors}
         resetErrors={resetErrors}
         stepsPerSecond={hello?.steps_per_second ?? 10}
-        disabled={status !== 'open'}
+        disabled={status !== 'open' || building !== null}
         onApply={onApply}
         structure={structure}
         onStructure={setStructure}
@@ -179,6 +173,11 @@ export function App() {
       )}
       <main className="centre">
         <SceneView network={network} classes={hello?.classes ?? []} managerRef={sceneRef} />
+        {building && (
+          <div className="banner banner--busy" role="status" data-testid="building">
+            Building “{building.name}” ({building.reason})… other sessions keep running.
+          </div>
+        )}
         {status === 'busy' && (
           <div className="banner banner--busy" role="alert">
             {statusDetail} Retrying automatically every 15 s.

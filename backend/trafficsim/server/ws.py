@@ -17,25 +17,24 @@ from __future__ import annotations
 import asyncio
 import time
 
-from fastapi import WebSocket, WebSocketDisconnect
-from pydantic import ValidationError
+from fastapi import WebSocket
 
 from trafficsim.engine.constants import DT
-from trafficsim.engine.loop import Simulation
-from trafficsim.engine.presets import DEMO_KPI_LAYOUT
 from trafficsim.network.types import Network
 from trafficsim.server import live_scenario, protocol
 from trafficsim.server.config import Settings
-from trafficsim.server.frames import FrameEncoder, segment_table
+from trafficsim.server.frames import segment_table
 from trafficsim.server.pacing import StepPacer
-from trafficsim.server.scenario_doc import ScenarioError, change_dict
+from trafficsim.server.scenario_doc import ScenarioError
+from trafficsim.server.session_build import build_session
 from trafficsim.server.session_config import SessionParams
 from trafficsim.server.stats import StreamStats
+from trafficsim.server.ws_client import ClientHandlers
 
 AUX_PERIOD_S = 1.0  # KPI and stats messages, at most once per this many wall seconds
 
 
-class LiveSession:
+class LiveSession(ClientHandlers):
     def __init__(
         self, ws: WebSocket, sid: str, network: Network, settings: Settings,
         params: SessionParams | None = None,
@@ -52,12 +51,26 @@ class LiveSession:
         self.stats = StreamStats()
         self._send_lock = asyncio.Lock()
         self._last_client_msg = 0.0
-        self._new_simulation()
+        self.sim = None  # built in run(), in a worker thread
+        self.encoder = None
+        self.building = False
+        self._build_task: asyncio.Task | None = None
 
-    def _new_simulation(self) -> None:
-        self.network = self.setup.network
-        self.sim = Simulation(self.network, self.setup.scenario, DEMO_KPI_LAYOUT)
-        self.encoder = FrameEncoder(self.sim)
+    async def _build(self, setup, reason: str, new_epoch: bool = True) -> None:
+        """Build a simulation off the event loop (other sessions keep running), swap it in,
+        send the hello. While it runs the ticker is idle and live changes are refused."""
+        self.building = True
+        try:
+            await self._send(protocol.building(reason, setup.name))
+            sim, encoder = await asyncio.to_thread(build_session, setup)
+            self.setup, self.sim, self.encoder, self.network = setup, sim, encoder, setup.network
+            if new_epoch:
+                self.epoch = (self.epoch + 1) & 255
+            await self._hello()
+        except Exception as exc:  # the old simulation (if any) keeps running
+            await self._send(protocol.error(f"could not build the scenario: {exc}"))
+        finally:
+            self.building = False
 
     def _export(self) -> dict | None:
         try:
@@ -93,13 +106,16 @@ class LiveSession:
     async def run(self) -> None:
         loop = asyncio.get_running_loop()
         self._last_client_msg = loop.time()
-        await self._hello()
+        await self._build(self.setup, "starting the session", new_epoch=False)
+        if self.sim is None:
+            return
         tasks = [asyncio.create_task(self._ticker()), asyncio.create_task(self._reader())]
         try:
             await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         finally:
-            for t in tasks:
-                t.cancel()
+            for t in (*tasks, self._build_task):
+                if t is not None:
+                    t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
 
     async def _ticker(self) -> None:
@@ -108,6 +124,10 @@ class LiveSession:
         deadline = last_aux = loop.time()
         pacer = StepPacer(self.settings.tick_hz)
         while True:
+            if self.building:  # a scenario is being built: nothing to step or send
+                await asyncio.sleep(period)
+                deadline = last_aux = loop.time()
+                continue
             lag_ms = max(0.0, (loop.time() - deadline) * 1000.0)
             sim = self.sim
             t0 = time.perf_counter()
@@ -136,82 +156,3 @@ class LiveSession:
                 self.frames_dropped += int((now - deadline) / period)
                 deadline = now
             await asyncio.sleep(max(0.0, deadline - now))
-
-    async def _reset(self, msg: protocol.Reset) -> None:
-        try:
-            if msg.scenario is not None:
-                setup = live_scenario.from_doc(msg.scenario)
-            elif msg.preset is not None:
-                setup = live_scenario.from_preset(msg.preset, msg.seed)
-            else:
-                setup = self.setup.folded(self.sim, msg.seed)  # keeps the live edits
-        except KeyError as exc:
-            await self._send(
-                protocol.rejected("reset", [{"path": "preset", "message": str(exc.args[0])}])
-            )
-            return
-        except ScenarioError as exc:
-            await self._send(protocol.rejected("reset", exc.items))
-            return
-        self.setup = setup
-        self.epoch = (self.epoch + 1) & 255
-        self._new_simulation()
-        await self._hello()
-
-    async def _apply(self, raw: dict) -> None:
-        try:
-            if len(self.sim.all_changes) >= self.settings.max_live_changes:
-                raise ValueError(
-                    f"this session already has {len(self.sim.all_changes)} live changes; the limit "
-                    f"is {self.settings.max_live_changes}. Reset to start a new log."
-                )
-            change = live_scenario.live_change(raw, self.sim.tick)
-            tick = self.sim.schedule(change)
-        except ScenarioError as exc:
-            await self._send(protocol.rejected("apply", exc.items))
-            return
-        except ValueError as exc:  # valid document, but cannot apply to the running simulation
-            await self._send(protocol.rejected("apply", [{"path": "change", "message": str(exc)}]))
-            return
-        await self._send(protocol.applied(tick, change_dict(tick, change)))
-
-    async def _reader(self) -> None:
-        loop = asyncio.get_running_loop()
-        try:
-            while True:
-                raw = await self.ws.receive_text()
-                self._last_client_msg = loop.time()
-                size = len(raw.encode("utf-8"))
-                if size > self.settings.max_message_bytes:
-                    limit = self.settings.max_message_bytes
-                    text = f"message is {size} bytes; the limit is {limit}"
-                    await self._send(
-                        protocol.rejected("message", [{"path": "(message)", "message": text}])
-                    )
-                    continue
-                try:
-                    msg = protocol.parse_client_message(raw)
-                except ValidationError as exc:
-                    await self._send(
-                        protocol.error(
-                            "invalid message",
-                            exc.errors(include_url=False, include_context=False)[:3],
-                        )
-                    )
-                    continue
-                if isinstance(msg, protocol.SetSpeed):
-                    self.speed = msg.speed
-                elif isinstance(msg, protocol.Reset):
-                    await self._reset(msg)
-                elif isinstance(msg, protocol.Apply):
-                    await self._apply(msg.change)
-                elif isinstance(msg, protocol.Export):
-                    try:
-                        await self._send(protocol.scenario_doc(
-                            live_scenario.export_doc(self.setup, self.sim)))  # fmt: skip
-                    except ScenarioError as exc:
-                        await self._send(protocol.rejected("export", exc.items))
-                elif isinstance(msg, protocol.Ping):
-                    await self._send(protocol.pong(msg.id))
-        except WebSocketDisconnect:
-            return

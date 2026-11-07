@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import os
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
@@ -17,6 +18,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from trafficsim import __version__
+from trafficsim.engine import tablecache
 from trafficsim.engine.constants import DT
 from trafficsim.network.demo import build_demo_network
 from trafficsim.network.serialize import network_to_dict
@@ -61,6 +63,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     }  # one per J2 minor-approach structure
     app.state.settings = settings
     app.state.sessions = sessions
+    if settings.cache_dir is not None:  # measured tables are shared with worker processes
+        os.environ.setdefault(tablecache.ENV_VAR, str(settings.cache_dir.parent / "tables"))
     app.state.compare = compare_api.register(app, settings)
 
     @app.get("/api/health")

@@ -79,7 +79,8 @@ export interface CompareRequest {
 
 export interface Job {
   id: string;
-  state: 'running' | 'done' | 'error' | 'cancelled';
+  state: 'running' | 'stopping' | 'done' | 'error' | 'cancelled';
+  phase: 'preparing' | 'running';
   total: number;
   done: number;
   cached: number;

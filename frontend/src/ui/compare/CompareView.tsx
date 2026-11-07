@@ -146,7 +146,10 @@ export function CompareView({ presets, current }: Props) {
           <div className="cmp-progress">
             <progress value={job.done} max={job.total} />
             <span>
-              {job.state === 'running' ? 'running' : job.state} · {job.done}/{job.total} runs
+              {job.state === 'running' && job.phase === 'preparing'
+                ? 'preparing reference tables (first use of a network or vehicle mix)'
+                : job.state}{' '}
+              · {job.done}/{job.total} runs
               {job.cached ? ` (${job.cached} cached)` : ''} · {job.elapsed_s.toFixed(0)} s
             </span>
             {running && (

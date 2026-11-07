@@ -22,10 +22,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from pathlib import Path
 
 import numpy as np
 
+from trafficsim.engine import tablecache
 from trafficsim.engine.params.control import (
     CALIBRATION_SEED,
     SAT_QUEUE_VEHICLES,
@@ -41,6 +43,7 @@ TABLE_PATH_J2_1 = TABLE_PATH.with_name("calibration_demo_j2_1.json")  # one-lane
 
 DISCHARGE_TIMEOUT_S = 300.0  # generous upper bound for one queue to discharge [s]
 _cache: dict[tuple, dict[str, tuple[float, float]]] = {}  # conn -> (sat flow, start-up loss)
+_lock = threading.Lock()  # one measurement at a time; a second caller finds the result
 
 
 def _route_through(sim, conn_seg: int) -> tuple[int, int]:
@@ -99,20 +102,34 @@ def table_digest(net: Network, mix) -> str:
     ).hexdigest()
 
 
-def _from_table(net: Network, mix, junction_id: str):
-    if tuple(mix) != tuple(DEFAULT_MIX):
-        return None
-    digest = table_digest(net, mix)
-    for path in (TABLE_PATH, TABLE_PATH_J2_1):
-        if not path.exists():
-            continue
-        doc = json.loads(path.read_text(encoding="utf-8"))
-        if doc["digest"] == digest and junction_id in doc["junctions"]:
-            return {
-                c: (v["sat_flow_veh_h"], v["startup_lost_s"])
-                for c, v in doc["junctions"][junction_id].items()
-            }
+def _from_doc(doc: dict | None, digest: str, junction_id: str):
+    if doc and doc["digest"] == digest and junction_id in doc["junctions"]:
+        return {
+            c: (v["sat_flow_veh_h"], v["startup_lost_s"])
+            for c, v in doc["junctions"][junction_id].items()
+        }
     return None
+
+
+def _from_table(net: Network, mix, junction_id: str):
+    """Committed table (default mix), else the on-disk cache (any mix); None if neither."""
+    digest = table_digest(net, mix)
+    if tuple(mix) == tuple(DEFAULT_MIX):
+        for path in (TABLE_PATH, TABLE_PATH_J2_1):
+            if path.exists():
+                got = _from_doc(json.loads(path.read_text(encoding="utf-8")), digest, junction_id)
+                if got:
+                    return got
+    return _from_doc(tablecache.load("calibration", digest), digest, junction_id)
+
+
+def _store(net: Network, mix, junction_id: str, got: dict[str, tuple[float, float]]) -> None:
+    digest = table_digest(net, mix)
+    doc = tablecache.load("calibration", digest) or {"digest": digest, "junctions": {}}
+    doc["junctions"][junction_id] = {
+        c: {"sat_flow_veh_h": v[0], "startup_lost_s": v[1]} for c, v in got.items()
+    }
+    tablecache.store("calibration", digest, doc)
 
 
 def _measure(net: Network, mix, junction_id: str) -> dict[str, tuple[float, float]]:
@@ -123,7 +140,13 @@ def _measure(net: Network, mix, junction_id: str) -> dict[str, tuple[float, floa
 def _calibrate(net: Network, mix, junction_id: str) -> dict[str, tuple[float, float]]:
     key = (id(net), tuple(mix), junction_id)
     if key not in _cache:
-        _cache[key] = _from_table(net, mix, junction_id) or _measure(net, mix, junction_id)
+        with _lock:
+            if key not in _cache:
+                got = _from_table(net, mix, junction_id)
+                if got is None:
+                    got = _measure(net, mix, junction_id)  # about 8 s, once per mix and machine
+                    _store(net, mix, junction_id, got)
+                _cache[key] = got
     return _cache[key]
 
 

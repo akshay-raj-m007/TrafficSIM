@@ -9,14 +9,15 @@ describe('parseServerMessage', () => {
     expect(parseServerMessage(HELLO)?.type).toBe('hello');
     expect(parseServerMessage('{"type":"kpi","t":1.5,"counts":{},"flow":[]}')?.type).toBe('kpi');
     expect(
-      parseServerMessage('{"type":"stats","t":1,"tick":10,"speed":1,"done":false,"frames":3}')?.type,
+      parseServerMessage('{"type":"stats","t":1,"tick":10,"speed":1,"done":false,"frames":3}')
+        ?.type,
     ).toBe('stats');
   });
 
   it('accepts busy, pong and error', () => {
-    expect(parseServerMessage('{"type":"busy","sessions_max":2,"message":"Server busy"}')?.type).toBe(
-      'busy',
-    );
+    expect(
+      parseServerMessage('{"type":"busy","sessions_max":2,"message":"Server busy"}')?.type,
+    ).toBe('busy');
     expect(parseServerMessage('{"type":"pong","id":3}')?.type).toBe('pong');
     expect(parseServerMessage('{"type":"error","message":"bad"}')?.type).toBe('error');
   });
@@ -26,7 +27,9 @@ describe('parseServerMessage', () => {
     expect(parseServerMessage('null')).toBeNull();
     expect(parseServerMessage('{"type":"hello","session_id":"s1"}')).toBeNull();
     expect(parseServerMessage('{"type":"stats","tick":"12"}')).toBeNull();
-    expect(parseServerMessage('{"type":"tick","tick":1,"t":0.1,"speed":1,"done":false}')).toBeNull();
+    expect(
+      parseServerMessage('{"type":"tick","tick":1,"t":0.1,"speed":1,"done":false}'),
+    ).toBeNull();
   });
 });
 
