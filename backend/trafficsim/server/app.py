@@ -24,7 +24,7 @@ from trafficsim.engine.constants import DT
 from trafficsim.network.demo import build_demo_network
 from trafficsim.network.serialize import network_to_dict
 from trafficsim.network.structure import Structure
-from trafficsim.server import compare_api, protocol
+from trafficsim.server import compare_api, protocol, validation_doc
 from trafficsim.server.config import Settings
 from trafficsim.server.presets_doc import PRESET_INFO, all_presets
 from trafficsim.server.scenario_doc import problems
@@ -94,6 +94,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ValueError as exc:
             return JSONResponse({"detail": str(exc)}, status_code=422)
         return Response(network_bytes(st), media_type="application/json")
+
+    @app.get("/api/validation")
+    def get_validation() -> JSONResponse:
+        doc = validation_doc.stored()
+        if doc is None:
+            return JSONResponse({"detail": "no stored validation results"}, status_code=404)
+        return JSONResponse(doc | {"stale": validation_doc.is_stale(doc)})
 
     @app.get("/api/presets")
     def get_presets() -> dict:
