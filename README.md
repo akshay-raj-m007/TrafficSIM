@@ -100,9 +100,63 @@ excluded): left turn served 342, 282, 180 veh/h (mean 268), right turn 72, 24, 4
 (mean 46). Each default flow is 0.8 x the measured mean: **214 veh/h left, 37 veh/h right**.
 The left turn varies a lot between seeds, so on the weakest seed 214 is above its capacity.
 
-**Not built yet:** lane counts and lane widths of the main roads as structural settings (the
-lane-level links and J1 / J2 turn rules are written for the default counts; generalising them
-is a separate piece of geometry work).
+### Structure: lane counts and widths (applies on reset)
+
+Two lane groups meet at the diverge and are editable per direction (1-4 lanes, 2.5-4.0 m,
+defaults 2 lanes at 3.5 m; the panel shows "pending until reset" while the draft differs from the
+running network, and an out-of-range value is an error next to its field, never clamped):
+
+- the **surface group** (the road through J1): `surface_lanes`, `surface_width_m`;
+- the **flyover / through group** (ramps, deck, the section east of the merge, J2's major road):
+  `flyover_lanes`, `flyover_width_m`.
+
+The west arterial has surface + flyover lanes; east of the merge the flyover lanes plus the single
+J1 link lane (3.0 m, or the flyover width if that is narrower: it merges into a lane of that
+width), which ends at the lane drop. The cross street (3.25 m) and J2's minor road (2.75 m) keep
+their widths. The J1 turn rules are generated per approach and lane count (kerb lane left, middle
+lanes through, last lane through and right; one lane does everything), J2's right turn enters the
+median-side lane. The J1 box and J2 plate follow the widths by two rules taken from the default
+layout (box half-height = max(kerb-lane centre + 6.75 m, link-lane centre + 10.25 m), which is 20 m
+by default; J2's stop and exit lines at fixed rises above the kerb lane), which keep every turn
+path longer than the longest vehicle (12 m) for all allowed structures.
+Wider majors than 2 lanes per direction use HCM's four-lane critical gaps (the largest tabulated).
+KPI detectors on the cross-street arms move inward when a wide structure shortens the arms.
+
+*Evidence* (`tests/test_network_structures.py`, `tests/invariants/test_structures.py`): the default
+structure reproduces the previous network **exactly** (fingerprint of every coordinate, id and
+attribute, both J2 variants, taken from the pre-change code); every corner of the range (16) and
+all 144 combinations of lanes {1..4}^2 x widths {2.5, 3.5, 4.0}^2 build, compile, route every
+origin-destination pair, have consistent lanes/widths, no lateral overlap, correct clearance and
+grade separation; the per-step invariants (no collision, no conflict-point overlap, conservation,
+spillback guard, grade separation) hold on the **extremes (1 lane per group at 2.5 m, 4 lanes per
+group at 4.0 m)** and on mixed combinations. Reference tables of a new structure are measured on
+demand (about 5-8 s for the saturation flows, about 60 s for free-flow times in the background)
+and cached on disk.
+
+### Building a scenario (off the event loop) and the table cache
+
+A new session or reset is built in a worker thread: the server sends `building`, the other
+sessions keep streaming, the session itself keeps answering pings, live changes are refused with
+"still building", and the hello arrives when it is ready (a failed build sends an error and the old
+simulation keeps running). Measured tables (saturation flows for a non-default vehicle mix or
+structure, free-flow times) are stored in `backend/.cache/tables` keyed by the digest of every
+input (the mix is part of it), so the same mix or structure is never measured twice on a machine,
+and worker processes of a comparison reuse them (a "preparing" phase measures them once before
+the runs start).
+
+### Limits (each rejected with a message that names the limit)
+
+WebSocket message at most 256 KB (`MAX_MESSAGE_BYTES`), at most 500 live changes per session or
+document (`MAX_LIVE_CHANGES`), REST body at most 1 MB (`MAX_REQUEST_BYTES`, HTTP 413), a change
+after the end of the run is an error, a failed or cancelled comparison keeps counting against the
+job cap until its started runs have finished.
+
+### Resets
+
+The header's reset and the panel's "Reset with these settings" are the same action: the live
+edits become the new initial settings, the structure draft applies, the seed is taken. A seed-only
+`reset` message to the server behaves the same (it folds the live changes into the initial
+settings).
 
 
 ### Vehicle frames
@@ -157,6 +211,13 @@ step takes 1.8 ms at about 160 vehicles and 4.3 ms at about 640; encoding a fram
 and is what CI runs. `backend/tools/` has the generators for the committed reference tables
 (free-flow times, saturation flows) and the golden frame; the tests fail when a table is
 stale and name the tool to run.
+
+Browser smoke tests (Playwright, `frontend/e2e/`, run in CI): from `frontend/`,
+`npm run build && npm run e2e` (locally set `E2E_PYTHON` to the backend venv python and
+`PW_CHANNEL=chrome` to use installed Chrome; CI installs Chromium). They load the app, switch
+every preset (including the one-lane J2 layout), toggle the flyover, make live changes, change
+lane counts and widths (the extremes) and reset, open the compare view and run a small
+comparison; **any console error or uncaught page error fails a test**.
 
 ## Validation results
 
@@ -378,7 +439,10 @@ low for the worse scenario).
 `mean(d) +- t(0.975, n-1) * sd / sqrt(n)` with df = n-1 (t = 4.303, 2.776, 2.262 for 3, 5, 10
 runs). The Student-t quantile is computed in `engine/pairedstats.py` and tested against
 `scipy.stats.t.ppf`, `scipy.stats.ttest_rel` and a worked example. Runs where a metric is
-undefined are dropped from that metric only and the table says so. About a dozen metrics are
+undefined are dropped from that metric only and the table says so. If every seed shows the *same* non-zero
+difference (no variance) there is no meaningful interval and no p-value: the table says "constant
+difference across seeds, no variance, the confidence interval isn't meaningful" (never p = 0 or
+"significant"). About a dozen metrics are
 compared at once with unadjusted intervals, so a single "significant" among them should be
 read with care. Overloaded scenarios (queues that keep growing) do not settle, so their numbers
 depend on how long they are run: the duration, warm-up and demand are shown with every result.
@@ -388,7 +452,8 @@ depend on how long they are run: the duration, warm-up and demand are shown with
 (10), `COMPARE_MAX_DURATION_S` (1800) and `COMPARE_WORKERS` (default min(4, cores-1)) restrict
 a hosted server; invalid requests are errors, never clamped. Finished runs are cached on disk
 by a hash of (scenario document, seed, duration, warm-up, metric definition version, model
-digest), so the same comparison never runs twice and comparisons that share runs pay once.
+digest, and a hash of the engine and network source files with line endings normalised, so
+changing engine logic invalidates old entries), so the same comparison never runs twice and comparisons that share runs pay once.
 The two built-in experiments are precomputed (`tools/gen_experiments.py`, stored in
 `trafficsim/data/experiments/`, stale when the model digest changes) and served instantly.
 
@@ -410,8 +475,9 @@ Everything that is not significant is shown.
   in every run* for all three policies: everything that reaches J2 comes over the flyover
   (W-E, E-W, W-N2, N2-W all use it), which bypasses J1, so J1's policy cannot reach it.
 - *Flyover.* Closing the flyover at rush hour overloads J1 and the scenario does not settle in
-  900 s. Mean delay rises by 134 s and 394 more vehicles per run are unfinished. Beware the
-  travel-time rows of the closed case: only 57 of its 566 cohort trips complete (the short
+  900 s. Mean delay rises by 142 s and 413 more vehicles per run are unfinished (delay is measured
+  against the open-network route, so the detour itself is part of it). Beware the
+  travel-time rows of the closed case: only 57 of its 584 cohort trips complete (the short
   ones), so its p50 is *lower* than the open case's and its p90 interval is huge; that is
   survivorship, not a benefit, which is why the unfinished count and the lower-bound delay sit
   beside them. Mean delay of completed trips only is not significant (57 trips, large spread).
@@ -477,23 +543,42 @@ Webster (fixed-time) against pure max-pressure and thresholded max-pressure at J
 
 The flyover open against closed from the start, rush-hour demand. Difference = closed - open.
 
-**Flyover open vs closed** (A = Flyover open, B = Flyover closed; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (470 completed, 114 unfinished), B 566 (57 completed, 508 unfinished))
+**Flyover open vs closed** (A = Flyover open, B = Flyover closed; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (470 completed, 114 unfinished), B 584 (57 completed, 527 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 62.6 | 196.3 | +133.7 | [+118.8, +148.5] | **significant** |
+| Mean delay, all trips (unfinished: lower bound) [s] | 62.6 | 204.1 | +141.5 | [+126.7, +156.3] | **significant** |
 | Mean delay, completed trips only [s] | 53.9 | 71.5 | +17.6 | [-4.6, +39.8] | not significant |
 | Travel time p50 (completed) [s] | 188.1 | 102.3 | -85.7 | [-88.9, -82.6] | **significant** |
 | Travel time p90 (completed) [s] | 287.9 | 332.6 | +44.7 | [-95.0, +184.4] | not significant |
 | Throughput (completed trips in window) [veh/h] | 4234 | 1723 | -2511 | [-2756, -2266] | **significant** |
 | Unserved demand (waiting at entries at the end) [veh] | 0.6 | 151.3 | +150.7 | [+136.9, +164.5] | **significant** |
-| Unfinished trips (cohort, at the end) [veh] | 113.9 | 508.5 | +394.6 | [+355.1, +434.1] | **significant** |
+| Unfinished trips (cohort, at the end) [veh] | 113.9 | 527.2 | +413.3 | [+373.7, +452.9] | **significant** |
 | J1 longest approach queue, maximum [m] | 105.9 | 372.0 | +266.0 | [+245.1, +287.0] | **significant** |
 | J1 longest approach queue, time average [m] | 62.8 | 227.4 | +164.6 | [+157.2, +172.0] | **significant** |
 | J2 longest approach queue, maximum [m] | 145.0 | 361.7 | +216.7 | [+163.7, +269.6] | **significant** |
 | J2 longest approach queue, time average [m] | 79.7 | 78.5 | -1.1 | [-40.7, +38.4] | not significant |
 | Flyover share of eligible trips [ratio] | 1.000 | - | - | - | undefined (no usable pair) |
 
+### Example: structure comparisons (rush hour, 10 paired runs, 900 s, warm-up 300 s)
+
+Run with the comparison service (`tools/compare_structures.py`); the reference tables of the two
+new structures are measured once in a "preparing" phase (about 75 s), the 20 runs took 571 CPU s
+(230 s wall on 4 workers).
+
+**Surface road: 3 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B)**, flyover group unchanged:
+essentially **no effect**. Mean delay -0.7 s [-1.6, +0.2] (not significant), throughput 0
+[-21, +21] (not significant), unfinished trips -0.6 [-4.2, +3.0] (not significant), J1's longest
+queue maximum -4.6 m [-12.2, +2.9] (not significant), its time average -2.7 m [-4.2, -1.1] and the
+p50 travel time +0.5 s [+0.1, +0.9] are the only two intervals that exclude zero, and both are
+tiny. The reason is structural: through traffic (W-E, E-W) takes the flyover, so the surface road
+carries only the turning flows (about 350 veh/h on the west approach), and J1's queues are set by
+the signal and the cross-street approaches, not by the number of surface lanes.
+
+**Flyover group: 2 lanes (A) against 1 lane (B)**, surface road unchanged: a large effect. Mean
+delay +90.5 s [+76.7, +104.4], throughput -944 veh/h [-1,126, -763], unserved demand +311 vehicles,
+unfinished trips +203, p50 travel time (completed trips only, survivorship-biased) +139 s. J1's
+queue is *shorter* (-14 m maximum, -9 m average) because less traffic reaches it.
 
 ### CPU cost of a comparison (measured, `tools/gen_experiments.py`, 4 worker processes)
 
