@@ -21,6 +21,32 @@ DEMO_DEMAND: tuple[OdFlow, ...] = (
     OdFlow("E", "N2", 80), OdFlow("W", "N2", 80),
 )  # fmt: skip
 
+# J2 minor-road demand of the default scenario, from MEASURED capacities
+# (``tools/measure_j2_capacity.py``: both movements saturated under the default major-road
+# demand, seeds 1-3, 900 s, first 300 s excluded): the left turn serves 268 veh/h on
+# average (per seed 342, 282, 180), the right turn 46 veh/h (72, 24, 42). Each default flow
+# is 0.8 x its measured capacity, so the default demo is not overloaded on average. (The
+# left turn varies a lot between seeds: on the weakest seed 214 veh/h is above capacity.)
+J2_MINOR_UTILISATION = 0.8
+J2_MINOR_LEFT_VEH_H = 214  # N2 -> E,  0.8 x 268
+J2_MINOR_RIGHT_VEH_H = 37  # N2 -> W,  0.8 x 46
+
+DEFAULT_DEMAND: tuple[OdFlow, ...] = tuple(
+    OdFlow(f.origin, f.destination, J2_MINOR_RIGHT_VEH_H)
+    if (f.origin, f.destination) == ("N2", "W")
+    else OdFlow(f.origin, f.destination, J2_MINOR_LEFT_VEH_H)
+    if (f.origin, f.destination) == ("N2", "E")
+    else f
+    for f in DEMO_DEMAND
+)
+
+# "Rush hour": every flow scaled so that J1's critical flow ratio Y (from the measured
+# saturation flows) is 0.85 instead of the default demand's 0.649. Y is linear in the
+# flows, so the factor is 0.85 / 0.649 (tests/test_presets.py recomputes Y).
+RUSH_TARGET_Y = 0.85
+DEFAULT_Y = 0.649
+RUSH_SCALE = round(RUSH_TARGET_Y / DEFAULT_Y, 2)
+
 
 # Detector lines and queue approaches of the demo network (positions in metres along the
 # road, all at least 20 m from road ends). Road ids are those of network/demo_corridor.py.
