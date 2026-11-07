@@ -31,6 +31,7 @@ import numpy as np
 from trafficsim.engine.constants import DT
 from trafficsim.engine.lanegraph import LaneGraph
 from trafficsim.engine.leaders import Occupancy
+from trafficsim.engine.merge_turns import MergeTurns
 from trafficsim.engine.params.control import (
     CRITICAL_GAP_MAJOR_RIGHT_S,
     CRITICAL_GAP_MINOR_LEFT_S,
@@ -81,6 +82,7 @@ class JunctionGates:
                 # HCM tabulates two-lane and four-lane majors only; a major road with more
                 # lanes per direction uses the four-lane values (the largest tabulated)
                 self.crit_gap[k] = gap_table[min(nl, max(gap_table))]
+        self.turns = MergeTurns(lg, {k for k, y in yields.items() if y})
         self.signal: SignalCheck | None = None
         self.reserved: dict[int, int] = {}  # vid -> connector segment
         self.permit: dict[int, bool] = {}  # row -> may enter its next connector
@@ -122,6 +124,7 @@ class JunctionGates:
         rows = np.flatnonzero(cand)
         rows = rows[np.lexsort((vs.vid[rows], d[rows]))]
         self._movers = _movers(vs, rows, d)
+        self.turns.observe(vs.v, d, nx, rows, self._signal_ok if self.signal else None)
         res_conns = set(self.reserved.values())
         for i in rows:
             i = int(i)
@@ -138,12 +141,14 @@ class JunctionGates:
                 claimed[to] = claimed.get(to, 0.0) + need
                 continue
             ok = self._allowed(c, room, need, res_conns)
+            ok = ok and not self.turns.must_yield(c, to)
             self.permit[i] = ok
             v, cl = float(vs.v[i]), int(vs.cls[i])
             commit = v * v / (2.0 * B[cl]) + v * DT + 0.5 * A[cl] * DT * DT
             commit += STOP_LINE_STANDOFF_M
             if ok and d[i] <= commit:
                 self.reserved[vid] = c
+                self.turns.granted(c, to)
                 self.commit_room[vid] = (room, need)
                 if c in self.crit_gap:
                     self.accepted_gaps.append((vid, c, self._gap(c)))
@@ -164,6 +169,13 @@ class JunctionGates:
         if c in self.crit_gap:  # yielding movement: gap acceptance against priority traffic
             return self._gap(c) >= self.crit_gap[c]
         return True
+
+    def _signal_ok(self, c: int) -> bool:
+        if self.signal is None:
+            return True
+        if c not in self._sig_cache:
+            self._sig_cache[c] = self.signal(c)
+        return self._sig_cache[c]
 
     def _gap(self, c: int) -> float:
         """Earliest arrival [s] of a moving priority vehicle at a conflict point with c."""
