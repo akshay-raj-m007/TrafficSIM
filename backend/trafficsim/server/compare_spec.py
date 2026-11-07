@@ -20,6 +20,7 @@ from trafficsim.engine.constants import DT
 from trafficsim.engine.pairedstats import paired_difference
 from trafficsim.engine.runmetrics import METRICS, METRICS_VERSION
 from trafficsim.engine.sourcedigest import source_digest
+from trafficsim.network.structure import Structure as NetStructure
 from trafficsim.server.scenario_doc import MAX_SEED, ScenarioError, parse
 
 ALLOWED_RUNS: Final[tuple[int, ...]] = (3, 5, 10)
@@ -112,14 +113,14 @@ def validate(raw: dict, limits: CompareLimits) -> Validated:
     return Validated(docs["a"], docs["b"], runs, float(dur), float(warm), base)
 
 
-@lru_cache(maxsize=4)
-def model_digest(j2_minor_lanes: int) -> str:
+@lru_cache(maxsize=32)
+def model_digest(structure: NetStructure) -> str:
     """Digest of the network and every model constant (same one that guards the tables)."""
     from trafficsim.engine.freeflow import input_digest
     from trafficsim.engine.lanegraph import compile_network
     from trafficsim.network.demo import build_demo_network
 
-    net = build_demo_network(j2_minor_lanes)
+    net = build_demo_network(structure)
     return input_digest(net, compile_network(net))
 
 
@@ -130,7 +131,7 @@ def run_key(doc: dict, warmup_s: float) -> str:
         "doc": body,
         "warmup_s": warmup_s,
         "metrics_version": METRICS_VERSION,
-        "model": model_digest(doc["structure"]["j2_minor_lanes"]),
+        "model": model_digest(NetStructure(**doc["structure"])),
         "source": source_digest(),  # engine / network logic, not only constants
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
@@ -180,7 +181,7 @@ def assemble(v: Validated, results: dict[str, dict], cost: dict) -> dict:
     ok, why = pairing(v.a, v.b)
     describe = lambda d: {  # noqa: E731
         "name": d["name"], "demand_veh_h": _demand_total(d),
-        "j2_minor_lanes": d["structure"]["j2_minor_lanes"], "policy": d["initial"]["policy"],
+        "structure": d["structure"], "policy": d["initial"]["policy"],
         "flyover_open": d["initial"]["flyover_open"], "changes": len(d["changes"]),
     }  # fmt: skip
     mean_counts = lambda rs: {  # noqa: E731

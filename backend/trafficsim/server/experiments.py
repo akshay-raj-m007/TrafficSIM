@@ -19,6 +19,7 @@ from typing import Final
 
 from trafficsim.engine.runmetrics import METRICS_VERSION
 from trafficsim.engine.sourcedigest import source_digest
+from trafficsim.network.structure import Structure
 from trafficsim.server.compare_spec import DEFAULT_DURATION_S, DEFAULT_WARMUP_S, model_digest
 from trafficsim.server.presets_doc import preset
 
@@ -72,7 +73,7 @@ def request_for(a: dict, b: dict) -> dict:
 
 def current_stamp() -> dict:
     return {
-        "model_digest": model_digest(2),
+        "model_digest": model_digest(Structure()),
         "metrics_version": METRICS_VERSION,
         "source_digest": source_digest(),
     }

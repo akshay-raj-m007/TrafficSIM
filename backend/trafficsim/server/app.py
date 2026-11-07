@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import json
 import os
 from collections.abc import AsyncIterator
@@ -22,6 +23,7 @@ from trafficsim.engine import tablecache
 from trafficsim.engine.constants import DT
 from trafficsim.network.demo import build_demo_network
 from trafficsim.network.serialize import network_to_dict
+from trafficsim.network.structure import Structure
 from trafficsim.server import compare_api, protocol
 from trafficsim.server.config import Settings
 from trafficsim.server.presets_doc import PRESET_INFO, all_presets
@@ -44,6 +46,13 @@ def _warm_up(network) -> None:
             saturation_flows(network, DEFAULT_MIX, j.id)
 
 
+@functools.lru_cache(maxsize=32)
+def network_bytes(structure: Structure) -> bytes:
+    """The network JSON of one structure (built once, then cached)."""
+    net = build_demo_network(structure)
+    return json.dumps(network_to_dict(net), separators=(",", ":")).encode()
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     network = build_demo_network()
@@ -57,10 +66,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="TrafficSIM", version=__version__, lifespan=lifespan)
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # egress is metered on free hosts
     sessions = SessionManager(settings.max_sessions)
-    network_json = {
-        k: json.dumps(network_to_dict(build_demo_network(k)), separators=(",", ":")).encode()
-        for k in (1, 2)
-    }  # one per J2 minor-approach structure
     app.state.settings = settings
     app.state.sessions = sessions
     if settings.cache_dir is not None:  # measured tables are shared with worker processes
@@ -79,12 +84,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.get("/api/network")
-    def get_network(j2_minor_lanes: int = 2) -> Response:
-        if j2_minor_lanes not in network_json:
-            return JSONResponse(
-                {"detail": f"j2_minor_lanes must be 1 or 2, got {j2_minor_lanes}"}, status_code=422
-            )
-        return Response(network_json[j2_minor_lanes], media_type="application/json")
+    def get_network(
+        j2_minor_lanes: int = 2, surface_lanes: int = 2, flyover_lanes: int = 2,
+        surface_width_m: float = 3.5, flyover_width_m: float = 3.5,
+    ) -> Response:  # fmt: skip
+        try:
+            st = Structure(j2_minor_lanes, surface_lanes, flyover_lanes, surface_width_m,
+                           flyover_width_m)  # fmt: skip
+        except ValueError as exc:
+            return JSONResponse({"detail": str(exc)}, status_code=422)
+        return Response(network_bytes(st), media_type="application/json")
 
     @app.get("/api/presets")
     def get_presets() -> dict:

@@ -29,7 +29,8 @@ def test_hello_carries_the_scenario_document_and_the_network_key(client):
     with client.websocket_connect(WS) as ws:
         hello, _ = hello_and_format(ws)
         assert hello["scenario"]["version"] == 1 and hello["scenario"]["changes"] == []
-        assert hello["network"] == {"j2_minor_lanes": 2}
+        assert hello["network"] == hello["scenario"]["structure"]
+        assert hello["network"]["j2_minor_lanes"] == 2
         n2 = {(r["origin"], r["destination"]): r["veh_per_h"]
               for r in hello["scenario"]["initial"]["demand"]}  # fmt: skip
         assert n2[("N2", "W")] == 37 and n2[("N2", "E")] == 214
@@ -89,17 +90,17 @@ def test_reset_with_a_preset_a_seed_and_a_document(client):
         _, fmt = hello_and_format(ws)
         _send(ws, type="reset", preset="j2_before", seed=5)
         h = next_json(ws, "hello")
-        assert h["network"] == {"j2_minor_lanes": 1} and h["seed"] == 5 and h["epoch"] == 1
+        assert h["network"]["j2_minor_lanes"] == 1 and h["seed"] == 5 and h["epoch"] == 1
         _send(ws, type="reset", seed=9)  # same settings, new seed
         h = next_json(ws, "hello")
-        assert h["seed"] == 9 and h["network"] == {"j2_minor_lanes": 1}
+        assert h["seed"] == 9 and h["network"]["j2_minor_lanes"] == 1
         doc = preset("rush_hour")
         doc["seed"] = 11
         doc["changes"] = [{"tick": 20, "type": "set_flyover", "open": False}]
         _send(ws, type="reset", scenario=doc)
         h = next_json(ws, "hello")
         assert h["seed"] == 11 and h["scenario"]["changes"] == doc["changes"]
-        assert h["network"] == {"j2_minor_lanes": 2}
+        assert h["network"]["j2_minor_lanes"] == 2
         assert next_frame(ws)  # the stream continues on the new epoch
 
 
@@ -161,3 +162,32 @@ def test_a_seed_only_reset_keeps_the_live_edits_like_the_panel_reset(client):
             doc["initial"]["flyover_open"] is False and doc["initial"]["policy"] == "max_pressure"
         )
         assert doc["initial"]["mix"] == mix
+
+
+def test_the_network_endpoint_serves_any_structure_and_rejects_invalid_ones(client):
+    default = client.get("/api/network").json()
+    wide = client.get(
+        "/api/network?surface_lanes=3&flyover_lanes=1&surface_width_m=3.0&flyover_width_m=2.75"
+    ).json()
+    lanes = lambda net, rid: len(next(r for r in net["roads"] if r["id"] == rid)["lanes"])  # noqa: E731
+    assert lanes(default, "eb_w4") == 4 and lanes(wide, "eb_w4") == 4  # 2+2 and 3+1
+    assert lanes(wide, "eb_surf_w") == 3 and lanes(wide, "eb_flyover") == 1
+    widths = {ln["width_m"] for r in wide["roads"] if r["id"] == "eb_surf_w" for ln in r["lanes"]}
+    assert widths == {3.0}
+    bad = client.get("/api/network?surface_lanes=7")
+    assert bad.status_code == 422 and "surface_lanes 7 is outside 1..4" in bad.json()["detail"]
+    assert client.get("/api/network?flyover_width_m=9").status_code == 422
+
+
+@pytest.mark.slow  # a new structure measures its saturation flows (about 8 s)
+def test_a_reset_with_a_structure_document_builds_that_network(client):
+    with client.websocket_connect(WS) as ws:
+        hello_and_format(ws)
+        doc = preset("default")
+        doc["structure"] |= {"surface_lanes": 3, "flyover_lanes": 1, "flyover_width_m": 3.0}
+        _send(ws, type="reset", scenario=doc)
+        h = next_json(ws, "hello")
+        assert h["network"] == doc["structure"] == h["scenario"]["structure"]
+        n_seg = len(h["segments"])
+        _send(ws, type="reset", preset="default")
+        assert len(next_json(ws, "hello")["segments"]) != n_seg  # a different lane graph

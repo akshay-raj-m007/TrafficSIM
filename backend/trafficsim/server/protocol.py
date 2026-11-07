@@ -89,7 +89,8 @@ def speed_index(speed: float) -> int:
 
 def hello(
     session_id: str, dt: float, tick_hz: float, sc, demand_scale: float, epoch: int,
-    fmt: FrameFormat, segments: list[dict], scenario: dict | None = None, minor_lanes: int = 2,
+    fmt: FrameFormat, segments: list[dict], scenario: dict | None = None,
+    structure: dict | None = None,
 ) -> dict:  # fmt: skip
     return {
         "type": "hello",
@@ -109,7 +110,7 @@ def hello(
         ],
         "frame": fmt.to_dict(),
         "scenario": scenario,  # the document in force (None if it cannot be exported)
-        "network": {"j2_minor_lanes": minor_lanes},  # fetch /api/network?j2_minor_lanes=
+        "network": structure or {},  # the structure: fetch /api/network with it as the query
         "segments": segments,  # frame segment index -> lane / connector id, length, successors
         "lane_change_blend_s": LC_BLEND_S,
         "kpi_defs": KPI_DEFS,

@@ -8,7 +8,7 @@ so that importing it reproduces the run exactly.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -21,6 +21,7 @@ from trafficsim.engine.scenario import (
     SetPolicy,
 )
 from trafficsim.network.demo import build_demo_network
+from trafficsim.network.structure import Structure as NetStructure
 from trafficsim.network.types import Network
 from trafficsim.server.presets_doc import preset
 from trafficsim.server.scenario_doc import (
@@ -44,12 +45,12 @@ _change_adapter: TypeAdapter = TypeAdapter(ChangeModel)
 @dataclass(frozen=True)
 class Setup:
     name: str
-    minor_lanes: int
+    structure: NetStructure
     scenario: Scenario
 
     @property
     def network(self) -> Network:
-        return build_demo_network(self.minor_lanes)  # cached per structure
+        return build_demo_network(self.structure)  # cached per structure
 
     def folded(self, sim, seed: int | None = None) -> Setup:
         """The settings in force now (the initial ones with every live change applied) as the
@@ -73,12 +74,12 @@ class Setup:
 
 
 def from_params(p: SessionParams) -> Setup:
-    return Setup("Default", 2, p.scenario())
+    return Setup("Default", NetStructure(), p.scenario())
 
 
 def from_doc(raw) -> Setup:
     doc = parse(raw)
-    return Setup(doc.name, doc.structure.j2_minor_lanes, to_engine(doc))
+    return Setup(doc.name, doc.structure.to_network(), to_engine(doc))
 
 
 def from_preset(name: str, seed: int | None = None) -> Setup:
@@ -118,7 +119,7 @@ def export_doc(setup: Setup, sim) -> dict:
         "name": setup.name,
         "seed": sc.seed,
         "duration_s": sc.duration_s,
-        "structure": {"j2_minor_lanes": setup.minor_lanes},
+        "structure": asdict(setup.structure),
         "initial": {
             "demand": rows_of(sc.demand),
             "mix": mix_of(sc.vehicle_mix),

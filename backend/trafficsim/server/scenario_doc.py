@@ -1,7 +1,8 @@
 """The scenario as one validated JSON document (schema version 1).
 
     {"version": 1, "name": "...", "seed": 42, "duration_s": 900,
-     "structure": {"j2_minor_lanes": 2},
+     "structure": {"j2_minor_lanes": 2, "surface_lanes": 2, "flyover_lanes": 2,
+                   "surface_width_m": 3.5, "flyover_width_m": 3.5},
      "initial": {"demand": [{"origin": "W", "destination": "E", "veh_per_h": 1100}, ...],
                  "mix": {"car": 55, "truck_bus": 10, "two_wheeler": 30, "cav": 5},
                  "policy": "fixed_webster", "flyover_open": true},
@@ -17,7 +18,14 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from trafficsim.engine.constants import DT
 from trafficsim.engine.scenario import (
@@ -29,6 +37,13 @@ from trafficsim.engine.scenario import (
     SetMix,
     SetPolicy,
 )
+from trafficsim.network.structure import (
+    J2_MINOR_LANES,
+    LANES_RANGE,
+    check_lanes,
+    check_width,
+)
+from trafficsim.network.structure import Structure as NetStructure
 
 SCHEMA_VERSION = 1
 CLASSES = tuple(n for n, _ in DEFAULT_MIX)
@@ -76,9 +91,28 @@ class Mix(_Strict):
 
 
 class Structure(_Strict):
-    """Settings that only apply on reset (they change the network)."""
+    """Settings that only apply on reset (they change the network); all fields are required.
+    Lane counts per direction, widths in metres (ranges in network/structure.py)."""
 
-    j2_minor_lanes: Literal[1, 2] = 2  # 1 shared lane or 2 turn lanes
+    j2_minor_lanes: int  # 1 shared lane or 2 turn lanes on J2's minor approach
+    surface_lanes: int
+    flyover_lanes: int
+    surface_width_m: float
+    flyover_width_m: float
+
+    @field_validator("j2_minor_lanes", "surface_lanes", "flyover_lanes", mode="before")
+    @classmethod
+    def _lanes(cls, v, info):
+        lo, hi = J2_MINOR_LANES if info.field_name == "j2_minor_lanes" else LANES_RANGE
+        return check_lanes(info.field_name, v, lo, hi)
+
+    @field_validator("surface_width_m", "flyover_width_m", mode="before")
+    @classmethod
+    def _widths(cls, v, info):
+        return check_width(info.field_name, v)
+
+    def to_network(self) -> NetStructure:
+        return NetStructure(**self.model_dump())
 
 
 class Initial(_Strict):

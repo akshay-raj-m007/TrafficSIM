@@ -88,7 +88,32 @@ def _bad(mutate):
         (
             lambda r: r["structure"].update(j2_minor_lanes=3),
             "structure.j2_minor_lanes",
-            "Input should be 1 or 2",
+            "j2_minor_lanes 3 is outside 1..2",
+        ),
+        (
+            lambda r: r["structure"].update(surface_lanes=5),
+            "structure.surface_lanes",
+            "surface_lanes 5 is outside 1..4",
+        ),
+        (
+            lambda r: r["structure"].update(flyover_lanes=0),
+            "structure.flyover_lanes",
+            "flyover_lanes 0 is outside 1..4",
+        ),
+        (
+            lambda r: r["structure"].update(surface_width_m=2.4),
+            "structure.surface_width_m",
+            "surface_width_m 2.4 m is outside 2.5..4.0 m",
+        ),
+        (
+            lambda r: r["structure"].update(flyover_width_m=4.5),
+            "structure.flyover_width_m",
+            "flyover_width_m 4.5 m is outside 2.5..4.0 m",
+        ),
+        (
+            lambda r: r["structure"].pop("flyover_width_m"),
+            "structure.flyover_width_m",
+            "Field required",
         ),
         (lambda r: r.update(seed=-1), "seed", "greater than or equal to 0"),
         (lambda r: r.update(duration_s=0), "duration_s", "greater than 0"),

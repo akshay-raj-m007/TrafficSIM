@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from dataclasses import asdict
 
 from fastapi import WebSocket
 
@@ -98,7 +99,7 @@ class LiveSession(ClientHandlers):
                 self.encoder.fmt,
                 segment_table(self.sim.lg),
                 self._export(),
-                self.setup.minor_lanes,
+                asdict(self.setup.structure),
             )  # fmt: skip
         )
         await self._send_bytes(self.encoder.encode(self.epoch, protocol.speed_index(self.speed)))

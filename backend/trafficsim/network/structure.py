@@ -25,6 +25,21 @@ WIDTH_RANGE_M = (2.5, 4.0)
 J2_MINOR_LANES = (1, 2)
 
 
+def check_lanes(name: str, value, lo: int, hi: int) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not lo <= value <= hi:
+        raise ValueError(f"{name} {value!r} is outside {lo}..{hi} (whole lanes)")
+    return value
+
+
+def check_width(name: str, value) -> float:
+    lo, hi = WIDTH_RANGE_M
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        raise ValueError(f"{name} {value!r} is not a number")
+    if not lo <= value <= hi:
+        raise ValueError(f"{name} {value} m is outside {lo}..{hi} m")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class Structure:
     j2_minor_lanes: int = 2  # 1 shared lane or 2 turn lanes on J2's minor approach
@@ -34,22 +49,11 @@ class Structure:
     flyover_width_m: float = 3.5
 
     def __post_init__(self) -> None:
-        for name, value, (lo, hi) in (
-            ("j2_minor_lanes", self.j2_minor_lanes, J2_MINOR_LANES),
-            ("surface_lanes", self.surface_lanes, LANES_RANGE),
-            ("flyover_lanes", self.flyover_lanes, LANES_RANGE),
-        ):
-            if not isinstance(value, int) or isinstance(value, bool) or not lo <= value <= hi:
-                raise ValueError(f"{name} {value!r} is outside {lo}..{hi} (whole lanes)")
-        lo_w, hi_w = WIDTH_RANGE_M
-        for name, value in (
-            ("surface_width_m", self.surface_width_m),
-            ("flyover_width_m", self.flyover_width_m),
-        ):
-            if not isinstance(value, int | float) or isinstance(value, bool):
-                raise ValueError(f"{name} {value!r} is not a number")
-            if not lo_w <= value <= hi_w:
-                raise ValueError(f"{name} {value} m is outside {lo_w}..{hi_w} m")
+        check_lanes("j2_minor_lanes", self.j2_minor_lanes, *J2_MINOR_LANES)
+        check_lanes("surface_lanes", self.surface_lanes, *LANES_RANGE)
+        check_lanes("flyover_lanes", self.flyover_lanes, *LANES_RANGE)
+        check_width("surface_width_m", self.surface_width_m)
+        check_width("flyover_width_m", self.flyover_width_m)
 
     @property
     def is_default(self) -> bool:

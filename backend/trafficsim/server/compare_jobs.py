@@ -38,7 +38,7 @@ def run_one(spec: dict) -> dict:
     t0 = time.process_time()
     doc = parse(spec["doc"])
     metrics = run_metrics(
-        build_demo_network(doc.structure.j2_minor_lanes), to_engine(doc), spec["warmup_s"]
+        build_demo_network(doc.structure.to_network()), to_engine(doc), spec["warmup_s"]
     )
     return {"key": spec["key"], "metrics": metrics, "cpu_s": time.process_time() - t0}
 
@@ -52,7 +52,7 @@ def prepare_tables(doc: dict) -> bool:
     from trafficsim.engine.lanegraph import compile_network
 
     parsed = parse(doc)
-    net = build_demo_network(parsed.structure.j2_minor_lanes)
+    net = build_demo_network(parsed.structure.to_network())
     mix = to_engine(parsed).vehicle_mix
     for j in net.junctions:
         if j.control == "signalised":
