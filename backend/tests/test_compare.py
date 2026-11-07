@@ -114,8 +114,9 @@ def test_the_same_comparison_twice_gives_identical_numbers_and_the_second_is_cac
     assert second.result["meta"]["cost"]["computed_runs"] == 0
     assert first.result["meta"]["paired_arrivals"] is True
     assert {m_["id"] for m_ in first.result["metrics"]} == set(METRICS)
-    print(f"\n[compare] {first.total} runs in {first.result['meta']['cost']['wall_s']} s "
-          f"({first.result['meta']['cost']['cpu_s']} CPU s); repeat: all {second.cached} cached")  # fmt: skip
+    cost = first.result["meta"]["cost"]
+    print(f"\n[compare] {first.total} runs in {cost['wall_s']} s ({cost['cpu_s']} CPU s); "
+          f"repeat: all {second.cached} cached")  # fmt: skip
 
 
 @pytest.mark.slow
