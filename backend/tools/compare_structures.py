@@ -35,11 +35,11 @@ if __name__ == "__main__":
     manager = CompareManager(CompareLimits(max_jobs=1), RunCache(CACHE))
     job = manager.submit({"a": a, "b": b, "runs": 10, "duration_s": 900.0, "warmup_s": 300.0,
                           "base_seed": 1})  # fmt: skip
-    t0, phase = time.perf_counter(), None
+    t0 = time.perf_counter()
     while job.state == "running":
-        if job.phase != phase or True:
-            phase = job.phase
-            print(f"  {job.phase}: {job.done}/{job.total} ({time.perf_counter() - t0:.0f} s)", flush=True)
+        print(
+            f"  {job.phase}: {job.done}/{job.total} ({time.perf_counter() - t0:.0f} s)", flush=True
+        )
         time.sleep(15)
     if job.state != "done":
         raise SystemExit(f"{job.state}: {job.error}")

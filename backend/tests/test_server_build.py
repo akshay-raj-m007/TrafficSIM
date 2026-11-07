@@ -2,6 +2,7 @@
 
 import json
 import time
+from dataclasses import asdict
 
 import pytest
 from fastapi.testclient import TestClient
@@ -81,10 +82,7 @@ def test_the_extreme_structures_build_a_complete_live_session():
 
     for st in (Structure(2, 1, 1, 2.5, 2.5), Structure(2, 4, 4, 4.0, 4.0)):
         doc = preset("default")
-        doc["structure"] = {
-            "j2_minor_lanes": 2, "surface_lanes": st.surface_lanes, "flyover_lanes": st.flyover_lanes,
-            "surface_width_m": st.surface_width_m, "flyover_width_m": st.flyover_width_m,
-        }  # fmt: skip
+        doc["structure"] = asdict(st)
         sim, enc = ws_module.build_session(live_scenario.from_doc(doc))
         sim.step_n(20)
         assert enc.encode(0, 3) and len(sim.kpi_snapshot()["flow"]) == 12
