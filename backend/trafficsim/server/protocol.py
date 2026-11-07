@@ -1,7 +1,7 @@
 """WebSocket message schemas.
 
 Client -> server (JSON, validated with pydantic): set_speed, reset (seed / preset / scenario
-document), apply (a live change), export, charts (on / off), ping.
+document), apply (a live change), export, charts (on / off), inspect (a vehicle or null), ping.
 Server -> client:
   * binary frames: vehicle poses, see ``frames.py`` (sent only when the simulation advanced)
   * JSON ``hello`` (session description, vehicle class dimensions, frame format),
@@ -9,7 +9,8 @@ Server -> client:
     measurements, once per wall second), ``applied`` / ``rejected`` (answer to ``apply``
     and to an invalid ``reset``), ``scenario`` (answer to ``export``), ``busy``, ``pong``,
     ``error``, ``charts`` (only while asked for: MFD points, corridor speed columns and queue
-    samples not yet sent, see engine/charts.py).
+    samples not yet sent, see engine/charts.py), ``vehicle`` (the selected vehicle, with every
+    frame until it leaves; see inspector.py).
 """
 
 from __future__ import annotations
@@ -76,12 +77,19 @@ class Charts(BaseModel):
     on: bool
 
 
+class Inspect(BaseModel):
+    """Select a vehicle (frame id) for the ``vehicle`` stream, or null to stop it."""
+
+    type: Literal["inspect"]
+    id: int | None = Field(default=None, ge=0, le=0xFFFF)
+
+
 class Ping(BaseModel):
     type: Literal["ping"]
     id: int
 
 
-ClientMsg = SetSpeed | Reset | Apply | Export | Charts | Ping
+ClientMsg = SetSpeed | Reset | Apply | Export | Charts | Inspect | Ping
 ClientMessage = Annotated[ClientMsg, Field(discriminator="type")]
 _client_adapter: TypeAdapter[ClientMsg] = TypeAdapter(ClientMessage)
 

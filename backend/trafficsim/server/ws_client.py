@@ -98,6 +98,9 @@ class ClientHandlers:
                 elif isinstance(msg, protocol.Charts):
                     self.charts_on = msg.on
                     self.charts_seen = {}  # a new request starts from the whole history
+                elif isinstance(msg, protocol.Inspect):
+                    self.inspector.select(msg.id)
+                    self.inspect_dirty = True  # answer at once, also while paused
                 elif isinstance(msg, protocol.Ping):
                     await self._send(protocol.pong(msg.id))
         except WebSocketDisconnect:

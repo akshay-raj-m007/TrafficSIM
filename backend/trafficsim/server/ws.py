@@ -25,6 +25,7 @@ from trafficsim.network.types import Network
 from trafficsim.server import live_scenario, protocol
 from trafficsim.server.config import Settings
 from trafficsim.server.frames import segment_table
+from trafficsim.server.inspector import Inspector
 from trafficsim.server.pacing import StepPacer
 from trafficsim.server.scenario_doc import ScenarioError
 from trafficsim.server.session_build import build_session
@@ -57,6 +58,8 @@ class LiveSession(ClientHandlers):
         self.building = False
         self.charts_on = False  # the results drawer is open: stream the chart measurements
         self.charts_seen: dict = {}  # cursors of what this session has received
+        self.inspector = Inspector()  # the vehicle the browser is looking at, if any
+        self.inspect_dirty = False
         self._build_task: asyncio.Task | None = None
 
     async def _build(self, setup, reason: str, new_epoch: bool = True) -> None:
@@ -68,6 +71,7 @@ class LiveSession(ClientHandlers):
             sim, encoder = await asyncio.to_thread(build_session, setup)
             self.setup, self.sim, self.encoder, self.network = setup, sim, encoder, setup.network
             self.charts_seen = {}  # new simulation: history starts again
+            self.inspector.select(None)  # vehicle ids belong to the old simulation
             if new_epoch:
                 self.epoch = (self.epoch + 1) & 255
             await self._hello()
@@ -143,6 +147,9 @@ class LiveSession(ClientHandlers):
                 encode_ms = (time.perf_counter() - t1) * 1000.0
                 await self._send_bytes(frame)
                 self.stats.add_frame(step_ms, encode_ms, len(frame))
+            if self.inspector.active and (taken or self.inspect_dirty):
+                self.inspect_dirty = False
+                await self._send(self.inspector.message(sim))
             now = loop.time()
             if now - last_aux >= AUX_PERIOD_S:
                 agg = self.stats.snapshot(now - last_aux)
