@@ -37,6 +37,14 @@ export function parseServerMessage(raw: string): ServerMsg | null {
       return isNum(o.id) ? (o as unknown as ServerMsg) : null;
     case 'error':
       return isStr(o.message) ? (o as unknown as ServerMsg) : null;
+    case 'applied':
+      return isNum(o.tick) && typeof o.change === 'object' ? (o as unknown as ServerMsg) : null;
+    case 'rejected':
+      return isStr(o.request) && Array.isArray(o.errors) ? (o as unknown as ServerMsg) : null;
+    case 'scenario':
+      return typeof o.scenario === 'object' && o.scenario !== null
+        ? (o as unknown as ServerMsg)
+        : null;
     default:
       return null;
   }

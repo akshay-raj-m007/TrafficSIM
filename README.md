@@ -45,8 +45,62 @@ docker run --rm -p 8000:8000 trafficsim   # http://localhost:8000
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/health` | status, `dt`, active / max / rejected sessions |
-| `GET /api/network` | the network geometry (metres; x east, y north, z up) |
-| `WS /ws/sim` | live session. Server to client: `hello` (class sizes, frame format, KPI definitions), binary vehicle frames (only when the simulation advanced), `kpi` and `stats` (once per second), `busy`. Client to server: `set_speed` (0, 0.25, 0.5, 1, 2, 5, 10), `reset`, `ping`. Close code 1013 when full. Optional query parameters `seed`, `signal` (`fixed_webster`, `max_pressure`, `max_pressure_threshold`, `uncontrolled`) and `demand_scale` (0.25 to 3) are an experiment seam; there is no UI for them yet |
+| `GET /api/network?j2_minor_lanes=1\|2` | the network geometry (metres; x east, y north, z up) |
+| `GET /api/presets` | the four named scenarios (documents) with a one-line description each |
+| `POST /api/scenario/validate` | validate a scenario document: `{valid, errors: [{path, message}]}` |
+| `WS /ws/sim` | live session. Server to client: `hello` (class sizes, frame format, segment table, the scenario document in force, network key), binary vehicle frames (only when the simulation advanced), `kpi` and `stats` (once per second), `applied` / `rejected` (answers to `apply` and `reset`), `scenario` (answer to `export`), `busy`. Client to server: `set_speed` (0, 0.25, 0.5, 1, 2, 5, 10), `reset` (`seed`, or `preset` [+ `seed`], or a whole `scenario` document), `apply` (one live change), `export`, `ping`. Close code 1013 when full. Optional query parameters `seed`, `signal` (`fixed_webster`, `max_pressure`, `max_pressure_threshold`, `uncontrolled`) and `demand_scale` (0.25 to 3) are an experiment seam |
+
+### Scenario editor, JSON and live changes
+
+The left panel is the scenario editor. **Live settings** change while the simulation runs;
+**structural settings** (the J2 minor approach: one shared lane or two turn lanes) are marked
+*applies on reset* and show *pending until reset* while they differ from the running network.
+
+| Live setting | Behaviour |
+|---|---|
+| Demand (veh/h, per origin-destination pair; per-origin total keeps the split; scale all) | a zone whose total rate changes redraws its next arrival as now + Exp(new rate) from the arrival stream (valid because the exponential is memoryless) |
+| Vehicle mix (percent, must add up to exactly 100) | applies to vehicles generated afterwards |
+| J1 signal policy (Webster, max-pressure, thresholded max-pressure) | the new controller continues in the current phase and state, finishes the running amber and all-red, then decides for itself, so two conflicting greens cannot occur. A Webster plan is computed from the demand in force when it is selected and does not follow later demand changes |
+| Flyover open / closed | see below |
+
+**Closing the flyover.** The deck and both ramps stop accepting vehicles. Entry queues and
+arrivals are routed over the surface, and so is every vehicle that can still change its
+route, including one inside a junction (it chooses from the road it is entering). A vehicle
+on the deck or a ramp finishes its trip. A vehicle upstream of the diverge that would need
+lane changes it cannot make in the distance left (lanes to cross x 3 s lane-change cooldown
+x speed limit) keeps its flyover route (it is "grandfathered"): stranding it at the end of
+a lane that no longer leads anywhere would block the lane. Reopening applies the same rule in
+reverse. A vehicle keeps the free-flow reference of the route it was *inserted* on, so a
+detour forced on a vehicle already in the network counts as delay; a vehicle inserted after
+the closure gets the closed-network route (and its free-flow time) as reference.
+
+**Every live change is logged with the tick it was applied at**, changes apply at a tick
+boundary before the first phase of that tick, and `Simulation.change_log` plus the seed
+reproduces the run exactly (`tests/engine/test_live_changes.py`: per-step state hashes
+identical across replays and between live scheduling and replaying the logged scenario).
+
+**Scenario JSON** (one schema, version 1, `server/scenario_doc.py`): `version`, `name`,
+`seed`, `duration_s`, `structure.j2_minor_lanes`, `initial` (per-pair demand, mix in percent,
+policy, `flyover_open`) and `changes` (the log). Nothing is clamped, defaulted or
+renormalised; every problem comes back as `{path, message}` (for example
+`initial.mix: shares sum to 97, must be exactly 100`), and unknown fields are rejected.
+Export and import are buttons in the panel; importing an export gives the same document back.
+
+**Presets:** `default`; `rush_hour` (every flow x1.31, which takes J1's critical flow ratio Y
+from 0.649 to 0.850, both from the measured saturation flows; the unbounded Webster cycle
+would then be 391 s, the applied one stays at the 120 s cap); `flyover_closed`; `j2_before`
+(one shared minor lane, otherwise the default).
+
+**Default J2 minor demand, from measured capacities** (`tools/measure_j2_capacity.py`, both
+movements saturated under the default major-road demand, seeds 1-3, 900 s, first 300 s
+excluded): left turn served 342, 282, 180 veh/h (mean 268), right turn 72, 24, 42 veh/h
+(mean 46). Each default flow is 0.8 x the measured mean: **214 veh/h left, 37 veh/h right**.
+The left turn varies a lot between seeds, so on the weakest seed 214 is above its capacity.
+
+**Not built yet:** lane counts and lane widths of the main roads as structural settings (the
+lane-level links and J1 / J2 turn rules are written for the default counts; generalising them
+is a separate piece of geometry work).
+
 
 ### Vehicle frames
 

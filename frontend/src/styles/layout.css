@@ -116,3 +116,19 @@ input { background: var(--bg); color: var(--text); border: 1px solid var(--borde
 .lamp--green { background: #48bb78; box-shadow: 0 0 6px #48bb78; }
 .lamp--amber { background: #ecc94b; box-shadow: 0 0 6px #ecc94b; }
 .lamp--all_red { background: #f56565; box-shadow: 0 0 6px #f56565; }
+
+/* scenario editor */
+.app { grid-template-columns: 320px minmax(0, 1fr) 280px; }
+select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font: inherit; width: 100%; }
+.ed-row { display: grid; grid-template-columns: 92px 1fr; gap: 2px 8px; align-items: center; margin: 3px 0; color: var(--muted); }
+.ed-row .ed-error { grid-column: 2; }
+.ed-origin { margin: 4px 0; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; }
+.ed-origin summary { cursor: pointer; color: var(--text); }
+.ed-inline { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.ed-inline .ed-row { flex: 1; margin: 0; }
+.ed-error { color: var(--danger); font-size: 11px; margin: 2px 0; }
+.ed-badge { color: var(--amber); font-size: 11px; border: 1px solid #5a4325; border-radius: 3px; padding: 2px 6px; }
+.ed-radio { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.ed-radio input { width: auto; }
+.ed-log { margin: 4px 0; padding-left: 18px; font-size: 11px; }
+input[aria-invalid='true'] { border-color: var(--danger); }

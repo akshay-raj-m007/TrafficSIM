@@ -1,5 +1,6 @@
 /** Mirrors backend/trafficsim/network/serialize.py, server/protocol.py and engine/kpi.py. */
 import type { Vec3 } from '../scene/coords';
+import type { LoggedChange, Problem, ScenarioDoc } from './scenarioTypes';
 
 export interface LaneData {
   id: string;
@@ -96,6 +97,8 @@ export interface HelloMsg {
   classes: VehicleClassInfo[];
   frame: FrameFormat;
   segments: SegmentInfo[];
+  scenario: ScenarioDoc | null; // the document in force (null for experiment-only setups)
+  network: { j2_minor_lanes: 1 | 2 };
   lane_change_blend_s: number;
   kpi_defs: Record<string, string>;
 }
@@ -136,12 +139,22 @@ export interface KpiMsg {
   type: 'kpi';
   t: number;
   tick: number;
-  counts: { generated: number; inserted: number; exited: number; active: number; queued: number };
+  counts: {
+    generated: number;
+    inserted: number;
+    exited: number;
+    active: number;
+    queued: number;
+  };
   signal: SignalKpi | null;
   flow: FlowKpi[];
   queues: QueueKpi[];
   delay: DelayKpi;
-  unserved: { queued: number; oldest_wait_s: number; by_zone: Record<string, number> };
+  unserved: {
+    queued: number;
+    oldest_wait_s: number;
+    by_zone: Record<string, number>;
+  };
 }
 
 export interface StatsMsg {
@@ -176,4 +189,27 @@ export interface ErrorMsg {
   message: string;
   detail?: unknown;
 }
-export type ServerMsg = HelloMsg | KpiMsg | StatsMsg | BusyMsg | PongMsg | ErrorMsg;
+export interface AppliedMsg {
+  type: 'applied';
+  tick: number;
+  change: LoggedChange;
+}
+export interface RejectedMsg {
+  type: 'rejected';
+  request: 'apply' | 'reset' | 'export';
+  errors: Problem[];
+}
+export interface ScenarioMsg {
+  type: 'scenario';
+  scenario: ScenarioDoc;
+}
+export type ServerMsg =
+  | HelloMsg
+  | KpiMsg
+  | StatsMsg
+  | BusyMsg
+  | PongMsg
+  | ErrorMsg
+  | AppliedMsg
+  | RejectedMsg
+  | ScenarioMsg;

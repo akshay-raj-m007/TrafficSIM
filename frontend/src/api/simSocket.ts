@@ -11,7 +11,16 @@
  */
 import { decodeFrame, type Frame } from './frame';
 import { parseServerMessage, wsUrl } from './protocol';
-import type { FrameFormat, HelloMsg, KpiMsg, StatsMsg } from './types';
+import type { LiveChange, ScenarioDoc } from './scenarioTypes';
+import type {
+  AppliedMsg,
+  FrameFormat,
+  HelloMsg,
+  KpiMsg,
+  RejectedMsg,
+  ScenarioMsg,
+  StatsMsg,
+} from './types';
 
 export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed';
 
@@ -22,6 +31,9 @@ export interface SimSocketEvents {
   onKpi(msg: KpiMsg): void;
   onStats(msg: StatsMsg): void;
   onRtt(ms: number): void;
+  onApplied(msg: AppliedMsg): void;
+  onRejected(msg: RejectedMsg): void;
+  onScenario(msg: ScenarioMsg): void;
 }
 
 const BUSY_RETRY_MS = 15000;
@@ -71,6 +83,9 @@ export class SimSocket {
       } else if (msg.type === 'kpi') this.ev.onKpi(msg);
       else if (msg.type === 'stats') this.ev.onStats(msg);
       else if (msg.type === 'pong') this.onPong(msg.id);
+      else if (msg.type === 'applied') this.ev.onApplied(msg);
+      else if (msg.type === 'rejected') this.ev.onRejected(msg);
+      else if (msg.type === 'scenario') this.ev.onScenario(msg);
       else if (msg.type === 'busy') {
         busy = true;
         this.ev.onStatus('busy', msg.message);
@@ -109,6 +124,19 @@ export class SimSocket {
 
   reset(seed: number): void {
     this.send({ type: 'reset', seed });
+  }
+
+  /** Reset to a named preset (optionally with a seed) or to a whole scenario document. */
+  resetTo(target: { preset: string; seed?: number } | { scenario: ScenarioDoc }): void {
+    this.send({ type: 'reset', ...target });
+  }
+
+  applyChange(change: LiveChange): void {
+    this.send({ type: 'apply', change });
+  }
+
+  exportScenario(): void {
+    this.send({ type: 'export' });
   }
 
   close(): void {

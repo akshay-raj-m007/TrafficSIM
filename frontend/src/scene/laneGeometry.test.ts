@@ -28,7 +28,9 @@ describe('placement agrees with the server pose table', () => {
       expect(Math.abs(shortestAngleDelta(h, o.heading))).toBeLessThan(HEADING_TOL_RAD);
       expect(Math.abs(o.pitch - pit)).toBeLessThan(HEADING_TOL_RAD);
     }
-    console.log(`[placement] worst position difference to the server: ${(worst * 1000).toFixed(2)} mm`);
+    console.log(
+      `[placement] worst position difference to the server: ${(worst * 1000).toFixed(2)} mm`,
+    );
     expect(worst).toBeLessThan(0.005);
   });
 });
