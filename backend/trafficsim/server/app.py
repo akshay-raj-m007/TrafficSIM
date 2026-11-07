@@ -20,7 +20,7 @@ from trafficsim import __version__
 from trafficsim.engine.constants import DT
 from trafficsim.network.demo import build_demo_network
 from trafficsim.network.serialize import network_to_dict
-from trafficsim.server import protocol
+from trafficsim.server import compare_api, protocol
 from trafficsim.server.config import Settings
 from trafficsim.server.presets_doc import PRESET_INFO, all_presets
 from trafficsim.server.scenario_doc import problems
@@ -61,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     }  # one per J2 minor-approach structure
     app.state.settings = settings
     app.state.sessions = sessions
+    app.state.compare = compare_api.register(app, settings)
 
     @app.get("/api/health")
     def health() -> dict:
