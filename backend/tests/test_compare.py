@@ -133,6 +133,40 @@ def test_the_job_cap_answers_busy_instead_of_queueing(tmp_path):
         m.submit(req(b="flyover_closed"))
 
 
+def test_a_failed_run_cannot_exceed_the_job_cap(tmp_path, monkeypatch):
+    """One run fails at once, the other runs are already started and keep going: the job is
+    'stopping' and still counts against the cap until they have finished."""
+    import threading
+
+    from trafficsim.server import compare_jobs
+
+    release = threading.Event()
+    calls = []
+
+    def fake_run(spec):
+        calls.append(spec["key"])
+        if len(calls) == 1:
+            raise RuntimeError("boom")
+        release.wait(10)  # a run that has started and cannot be cancelled
+        return {"key": spec["key"], "metrics": {}, "cpu_s": 0.0}
+
+    monkeypatch.setattr(compare_jobs, "run_one", fake_run)
+    m = manager(tmp_path, factory=lambda n: ThreadPoolExecutor(max_workers=4))
+    job = m.submit(req())
+    t0 = time.time()
+    while job.state == "running" and time.time() - t0 < 5:
+        time.sleep(0.02)
+    assert job.state == "stopping"  # failed, but runs are still executing
+    with pytest.raises(CompareBusy, match="already running"):
+        m.submit(req(b="flyover_closed"))  # the cap holds
+    release.set()
+    t0 = time.time()
+    while job.state == "stopping" and time.time() - t0 < 10:
+        time.sleep(0.02)
+    assert job.state == "error" and "boom" in job.error
+    assert m.running == 0 and m.submit(req(b="flyover_closed")).state == "running"  # free again
+
+
 # --------------------------------------------------------------- whole runs (slow) -------
 @pytest.mark.slow
 def test_the_same_comparison_twice_gives_identical_numbers_and_the_second_is_cached(tmp_path):

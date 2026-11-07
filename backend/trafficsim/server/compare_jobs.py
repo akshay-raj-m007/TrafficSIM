@@ -16,13 +16,15 @@ import os
 import threading
 import time
 from collections.abc import Callable
-from concurrent.futures import Executor, ProcessPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, Executor, ProcessPoolExecutor, wait
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from trafficsim.network.demo import build_demo_network
 from trafficsim.server.compare_spec import CompareLimits, assemble, run_specs, validate
 from trafficsim.server.scenario_doc import parse, to_engine
+
+ACTIVE_STATES = ("running", "stopping")
 
 
 class CompareBusy(RuntimeError):
@@ -104,7 +106,9 @@ class CompareManager:
 
     @property
     def running(self) -> int:
-        return sum(j.state == "running" for j in self._jobs.values())
+        # a job that is stopping (after an error or a cancel) still occupies the pool until
+        # its started runs have finished, so it keeps counting against the cap
+        return sum(j.state in ACTIVE_STATES for j in self._jobs.values())
 
     def submit(self, raw: dict) -> Job:
         """Validate (CompareError), enforce the job cap (CompareBusy), start the job."""
@@ -143,17 +147,32 @@ class CompareManager:
                     job.cached += 1
                 else:
                     todo.append(sp)
-            futures = {self._pool().submit(run_one, sp): sp for sp in todo}
-            for fut in as_completed(futures):
-                if job.cancel.is_set():
-                    for f in futures:
-                        f.cancel()
-                    job.state = "cancelled"
-                    return
-                r = fut.result()
-                self.cache.put(r["key"], r)
-                results[r["key"]] = r
-                job.done += 1
+            pending = {self._pool().submit(run_one, sp) for sp in todo}
+            stop: BaseException | str | None = None
+            while pending:
+                finished, pending = wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
+                if job.cancel.is_set() and stop is None:
+                    stop = "cancelled"
+                for fut in finished:
+                    if fut.cancelled():
+                        continue
+                    if (exc := fut.exception()) is not None:
+                        stop = stop or exc
+                        continue
+                    r = fut.result()  # a finished run is valid and cached even if the job stops
+                    self.cache.put(r["key"], r)
+                    results[r["key"]] = r
+                    job.done += 1
+                if stop is not None and job.state == "running":
+                    job.state = "stopping"
+                    for f in pending:
+                        f.cancel()  # not started yet: gone; started ones are waited for below
+                    pending = {f for f in pending if not f.cancelled()}
+            if stop == "cancelled":
+                job.state = "cancelled"
+                return
+            if stop is not None:
+                raise stop  # type: ignore[misc]
             wall = time.perf_counter() - job.t0
             cpu = sum(results[sp["key"]]["cpu_s"] for sp in todo)
             workers = default_workers(self.limits)
@@ -168,7 +187,7 @@ class CompareManager:
 
     def cancel(self, job_id: str) -> bool:
         job = self._jobs.get(job_id)
-        if job and job.state == "running":
+        if job and job.state in ACTIVE_STATES:
             job.cancel.set()
             return True
         return False
