@@ -37,7 +37,12 @@ export function CompareView({ presets, current }: Props) {
 
   useEffect(() => {
     fetchLimits()
-      .then(setLimits)
+      .then((l) => {
+        setLimits(l); // defaults follow what this server allows (a hosted one is tighter)
+        setDuration(String(l.default_duration_s));
+        setWarmup(String(l.default_warmup_s));
+        setRuns((r) => Math.min(r, ...l.runs));
+      })
       .catch(() => setLimits(null));
     fetchExperiments()
       .then(setExperiments)
@@ -133,9 +138,8 @@ export function CompareView({ presets, current }: Props) {
           </button>
         </div>
         <p className="hint">
-          Run i of A and B share seed base + i. Warm-up default 300 s: longer than the longest
-          free-flow trip (242 s). Server limits: up to {limits?.runs.at(-1) ?? '…'} runs,{' '}
-          {limits?.max_duration_s ?? '…'} s.
+          Run i of A and B share seed base + i; short runs give lower bounds. Server limits: up to{' '}
+          {limits?.runs.at(-1) ?? '…'} runs, {limits?.max_duration_s ?? '…'} s.
         </p>
         {errors.map((e) => (
           <p key={e.path + e.message} className="ed-error">

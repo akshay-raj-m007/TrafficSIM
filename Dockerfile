@@ -18,6 +18,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     STATIC_DIR=/app/static \
     MAX_SESSIONS=2 \
+    COMPARE_CACHE_DIR=/tmp/trafficsim/compare \
     PORT=8000
 WORKDIR /app
 COPY backend/requirements.txt ./

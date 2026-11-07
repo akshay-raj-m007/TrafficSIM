@@ -12,7 +12,19 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
+      # Load test (README, "Deployment"): 0.1 CPU serves 2 live sessions at 1x without late frames;
+      # a third makes all three late, and one session at 10x already runs at about 2 frames/s.
       - key: MAX_SESSIONS
         value: "2"
       - key: SESSION_IDLE_TIMEOUT_S
         value: "900"
+      # Custom comparisons on the hosted server: 3 runs, 300 s, one job at a time, one worker.
+      # The five built-in experiments are precomputed and shipped (instant, no CPU).
+      - key: COMPARE_MAX_RUNS
+        value: "3"
+      - key: COMPARE_MAX_DURATION_S
+        value: "300"
+      - key: COMPARE_MAX_JOBS
+        value: "1"
+      - key: COMPARE_WORKERS
+        value: "1"

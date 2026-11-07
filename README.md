@@ -13,7 +13,7 @@ It is meant to be used as a small research workbench.
 
 > Status: **step 2b done**: vehicles are drawn in the 3D view with smooth motion, and the
 > right panel shows KPIs measured in the backend. Scenario controls come in step 3.
-> Deployment is parked: this runs on localhost.
+> Hosted on Render (free tier): see "Deployment" below (2 live seats, a minute to wake up).
 
 ## Run locally
 
@@ -519,6 +519,14 @@ Nothing was tuned to close the gap. Attribution from the same run (saturated rig
 Not a cause: the minor/minor conflicts (the two minor turns share none) and the critical
 gap (never violated).
 
+**At rush hour the J2 minor right turn serves nothing, and that is expected behaviour.** The right turn crosses both
+eastbound lanes and merges into the westbound stream, so it needs a 7.5 s gap in the combined conflicting flow (HCM's
+critical gap). The default demand serves about 14 veh/h (saturated capacity 18 veh/h: 68% of HCM's formula at 1,020 veh/h
+conflicting); at rush hour (every flow x1.26) the conflicting stream has no usable gap in a 900 s window, so no right-turner
+enters (the lane utilisation report lists it as empty at rush hour; it is not a lane-choice bug, the vehicles are there,
+waiting for a gap that does not come). The queue on the minor approach grows instead, as gap acceptance predicts. The
+lane utilisation test uses the default demand, where it is served.
+
 **Stop-line saturation flow is about 1,630 veh/h for cars, not 1,900.** It is measured,
 not assumed: a standing queue of 24 vehicles is released and the headways after the fourth
 vehicle are averaged. It decomposes (cars only, J1 through movement):
@@ -880,6 +888,56 @@ A run costs about 3% of the simulated time in CPU (28-32 s for 900 s). On a sing
 10-run comparison is about 10 CPU-minutes; on the 0.1-CPU Render tier it would take over an hour
 and a half, which is why the built-in experiments ship precomputed and custom comparisons are
 limited by configuration (`COMPARE_MAX_RUNS`, `COMPARE_MAX_DURATION_S`, `COMPARE_MAX_JOBS`).
+
+## Deployment (Render free tier, Singapore)
+
+`render.yaml` (Blueprint, Docker runtime, `plan: free`, region `singapore`, health check `/api/health`). One uvicorn
+worker (live sessions and the session cap live in this process). Settings, all environment variables:
+
+| Variable | Hosted value | Why |
+|---|---|---|
+| `MAX_SESSIONS` | 2 | load test below |
+| `SESSION_IDLE_TIMEOUT_S` | 900 | frees a slot of a forgotten tab |
+| `COMPARE_MAX_RUNS` / `COMPARE_MAX_DURATION_S` | 3 / 300 | custom comparisons are small; the Compare tab's defaults follow these limits |
+| `COMPARE_MAX_JOBS` / `COMPARE_WORKERS` | 1 / 1 | one job at a time, one process (0.1 CPU) |
+| `COMPARE_CACHE_DIR` (Dockerfile) | `/tmp/trafficsim/compare` | the container's `/app` is not writable by the non-root user (the first container test crashed on it) |
+
+The **five built-in experiments and the validation results are precomputed and shipped** in the image: opening them costs
+no CPU. A custom comparison of 3 runs x 300 s took **890 s (about 15 minutes)** on the throttled free-tier container (measured), one job at a time; the Compare
+tab shows its progress. Choosing a stored experiment is instant.
+
+**Sleep and wake-up.** The free instance sleeps after 15 minutes without traffic and needs about a minute to start
+(measured here: 31 s from container start to a healthy server at 0.1 CPU, plus Render's own start-up). While it is
+asleep Render shows its own loading page; once the app's page is open and the connection is not up within 4 seconds, the
+app shows "Waking up the server ... about a minute" and connects by itself (`tests`: `frontend/e2e/waking.spec.ts`).
+The first visitor after a sleep should simply wait.
+
+**Load test** (`backend/tools/load_test.py`; the real Docker image run with `--cpus=0.1 --memory=512m`, the free
+tier's limits; N sessions opened at once, 40 s each after a 10 s warm-up; the server sends 10 frames/s; "late" = under 9 frames/s or a 95th-percentile
+gap over 0.25 s):
+
+| sessions | speed | frame rate | p95 gap | server lag | verdict |
+|---:|---:|---:|---:|---:|---|
+| 1 | 1x | 10.0 Hz | 0.11 s | 0 ms | fine |
+| **2** | 1x | 9.5 Hz | 0.20 s | 47 ms | fine (the cap) |
+| 3 | 1x | 6.8 Hz | 0.30 s | 123 ms | all three late |
+| 4 | 1x | 5.4 Hz | 0.39 s | 182 ms | all four late |
+| 1 | 10x | 2.4 Hz | 0.70 s | 0 ms | late |
+| 2 | 10x | 1.2 Hz | 1.28 s | 503 ms | late |
+
+Reading: a 1x session costs about 0.05 CPU, so 0.1 CPU serves two; **10x is not sustainable on the free tier** (one
+session gets 2.4 frames/s; it needs about 0.4 CPU), the speed buttons above 2x are best avoided there. Memory is not a
+constraint (53 MB of 512 MB in use).
+
+**100 users at once** (100 sessions opened together, cap 2): 2 are accepted and run at 9.9 Hz (p95 gap 0.19 s), 98 get the
+"server busy" message (and the page retries by itself every 15 s); the page and `/api/health` stayed fast (6 ms) the whole
+time. So **what breaks first is the number of live seats, not the server**: 98 of 100 visitors cannot start a live
+simulation, but nothing crashes or slows down. The stored experiments, the validation tab and the Compare tab's stored
+results do not need a seat. A second limit is the 5 GB/month egress: a session streams about 3 KB/s, so two seats used
+around the clock would use about 15 GB a month; normal use is far below that.
+**What it would take:** CPU. About 0.05 CPU per 1x seat means Render's Starter instance (0.5 CPU) would give about 9 seats at
+1x, the Standard (1 CPU) about 18; a 10x seat needs about 0.4 CPU. A cheaper change in the code (not made): a hosted speed
+cap of 2x, and pausing sessions whose tab is hidden (the client already disconnects after 60 s hidden).
 
 ## Project rules
 

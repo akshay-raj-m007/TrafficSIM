@@ -185,6 +185,7 @@ export function App() {
           serverError={serverError}
           busy={status === 'busy' ? (statusDetail ?? '') : null}
           netError={netError}
+          status={status}
         />
       </main>
       <TelemetryPanel

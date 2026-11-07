@@ -70,7 +70,8 @@ def register(app: FastAPI, settings: Settings) -> CompareManager:
             "runs": [r for r in ALLOWED_RUNS if r <= lim.max_runs],
             "max_duration_s": lim.max_duration_s, "max_jobs": lim.max_jobs,
             "default_duration_s": min(DEFAULT_DURATION_S, lim.max_duration_s),
-            "default_warmup_s": DEFAULT_WARMUP_S,
+            # a tighter duration limit needs a shorter default warm-up (it must stay inside the run)
+            "default_warmup_s": min(DEFAULT_WARMUP_S, lim.max_duration_s / 5),
         }  # fmt: skip
 
     @app.post("/api/compare")
