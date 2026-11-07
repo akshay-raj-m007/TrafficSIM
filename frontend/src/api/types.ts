@@ -60,13 +60,8 @@ export interface NetworkData {
 
 // ---- WebSocket protocol -------------------------------------------------------------
 export interface FrameFormat {
-  x0_m: number;
-  y0_m: number;
-  pos_scale_m: number;
-  z0_m: number;
-  z_scale_m: number;
-  heading_scale_rad: number;
-  pitch_scale_rad: number;
+  s_scale_m: number;
+  lat_scale_m: number;
   speed_scale_mps: number;
   header_bytes: number;
   bytes_per_vehicle: number;
@@ -77,6 +72,13 @@ export interface VehicleClassInfo {
   length_m: number;
   width_m: number;
   height_m: number;
+}
+
+/** One lane or junction connector of the compiled lane graph; the index is the frame's id. */
+export interface SegmentInfo {
+  id: string;
+  length_m: number;
+  next: number[]; // successor segment indices
 }
 
 export interface HelloMsg {
@@ -93,6 +95,7 @@ export interface HelloMsg {
   epoch: number;
   classes: VehicleClassInfo[];
   frame: FrameFormat;
+  segments: SegmentInfo[];
   lane_change_blend_s: number;
   kpi_defs: Record<string, string>;
 }

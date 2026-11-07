@@ -50,15 +50,27 @@ docker run --rm -p 8000:8000 trafficsim   # http://localhost:8000
 
 ### Vehicle frames
 
-Little-endian, struct-of-arrays, `12 + 13 n` bytes for `n` vehicles: a 12-byte header (type,
-J1 phase and state, epoch, tick, count, speed index) and the columns `u16 id`, `u16 x`,
-`u16 y`, `u16 z`, `u16 heading`, `i8 pitch`, `u8 speed`, `u8 flags` (brake light, class).
-Positions are the centre of the vehicle's footprint on the road surface, quantised to 5 cm;
-the quantisation steps are sent in `hello`. The model changes lanes instantaneously; the
-encoder blends the lateral offset over 3 s for display only. The frontend renders 2 frame
-intervals behind the newest frame and interpolates in simulation ticks, so motion is smooth
-at any display rate and at 0.25x. At 5-10x consecutive frames are 0.5-1 s of simulated time
-apart, so a vehicle crossing a junction turn is interpolated along a chord.
+Format v2. Little-endian, struct-of-arrays, `12 + 9 n` bytes for `n` vehicles: a 12-byte
+header (type, J1 phase and state, epoch, tick, count, speed index) and the columns `u16 id`,
+`u16 segment`, `u16 s`, `i8 lateral`, `u8 speed`, `u8 flags` (brake light, class). A vehicle
+is sent as *where it is on the lane graph*: the segment (an index into `hello.segments`, which
+also lists each segment's id, length and successors), the arc length of its centre in 1 cm
+steps, and a lateral offset in 5 cm steps. The browser places it on the real lane and
+connector polylines from `GET /api/network`, so turns and ramps follow the curve at any
+playback speed (v1 sent x, y, z, heading and pitch, 13 bytes, and the browser interpolated
+straight lines between frames: up to 5.8 m of corner cutting for a frame pair spanning a
+whole turn at 10x; now 1 mm). The model changes lanes instantaneously; the encoder blends a
+lateral offset over 3 s for display only. The frontend renders 2 frame intervals behind the
+newest frame and interpolates in simulation ticks along the lane graph, so motion is smooth
+at any display rate and at 0.25x.
+
+**Known display limitation:** during the 3 s lane-change blend a vehicle moves sideways
+while its neighbours keep driving, so two vehicles can visually overlap by up to part of a
+lane width. The simulation itself has no overlap (the no-collision invariant is on the model
+state); only the drawing does.
+
+Measured with `tools/measure_stream.py` at 10 frames/s: 159 vehicles 1,440 B raw per frame
+(v1: 2,540 B for 178 vehicles), 412 B deflated; 548 vehicles 4,946 B raw, 1,081 B deflated.
 
 ### Streaming cost (measured on the wire)
 

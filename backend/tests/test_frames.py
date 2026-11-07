@@ -1,4 +1,4 @@
-"""Binary frame codec: round trip, golden file, brake flags, lane-change blending."""
+"""Binary frame codec (v2: lane-graph placement): round trip, golden file, brake, blending."""
 
 import json
 
@@ -16,50 +16,44 @@ from trafficsim.server.frames import (
     BYTES_PER_VEHICLE,
     HEADER,
     LC_BLEND_S,
-    POS_SCALE_M,
     FrameEncoder,
     format_for,
     pack_frame,
+    segment_table,
     unpack_frame,
+    world_pose,
 )
 
 
-def test_frame_size_is_12_plus_13_per_vehicle():
+def test_frame_size_is_12_plus_9_per_vehicle():
     rng = np.random.default_rng(0)
     for n in (0, 1, 200, 600):
         a = rng.random(n)
         data = pack_frame(
             FMT, phase=0, state=0, epoch=0, tick=5, speed_index=3, vid=np.arange(n),
-            x=a * 100, y=a * 10, z=a, heading=a, pitch=a * 0, speed=a * 10, brake=a > 0.5,
+            seg=np.zeros(n, int), s=a * 100, lat=a * 0, speed=a * 10, brake=a > 0.5,
             cls=np.zeros(n, int),
         )  # fmt: skip
-        assert len(data) == HEADER.size + BYTES_PER_VEHICLE * n == 12 + 13 * n
+        assert len(data) == HEADER.size + BYTES_PER_VEHICLE * n == 12 + 9 * n
 
 
 def test_round_trip_is_within_the_quantisation_steps():
     rng = np.random.default_rng(1)
     n = 500
-    x, y = rng.uniform(-1000, 1490, n), rng.uniform(-400, 400, n)
-    z, h = rng.uniform(0, 7, n), rng.uniform(-np.pi, np.pi, n)
-    pitch, v = rng.uniform(-0.06, 0.06, n), rng.uniform(0, 17, n)
+    seg, s = rng.integers(0, 120, n), rng.uniform(0, 550, n)
+    lat, v = rng.uniform(-3.5, 3.5, n), rng.uniform(0, 17, n)
     brake, cls = rng.random(n) > 0.5, rng.integers(0, 4, n)
     data = pack_frame(FMT, phase=1, state=2, epoch=9, tick=77, speed_index=4, vid=np.arange(n),
-                      x=x, y=y, z=z, heading=h, pitch=pitch, speed=v, brake=brake,
-                      cls=cls)  # fmt: skip
+                      seg=seg, s=s, lat=lat, speed=v, brake=brake, cls=cls)  # fmt: skip
     d = unpack_frame(FMT, data)
     assert (d["phase"], d["state"], d["epoch"], d["tick"], d["n"], d["speed_index"]) == (
         1, 2, 9, 77, n, 4,
     )  # fmt: skip
-    assert np.abs(d["x"] - x).max() <= POS_SCALE_M / 2 + 1e-9
-    assert np.abs(d["y"] - y).max() <= POS_SCALE_M / 2 + 1e-9
-    assert np.abs(d["z"] - z).max() <= 0.005 + 1e-9
-    dh = np.abs((d["heading"] - np.mod(h, 2 * np.pi) + np.pi) % (2 * np.pi) - np.pi)
-    assert dh.max() <= 2 * np.pi / 65536
-    assert np.abs(d["pitch"] - pitch).max() <= 0.0005 + 1e-9
+    assert (d["seg"] == seg).all()
+    assert np.abs(d["s"] - s).max() <= FMT.s_scale_m / 2 + 1e-9
+    assert np.abs(d["lat"] - lat).max() <= FMT.lat_scale_m / 2 + 1e-9
     assert np.abs(d["speed"] - v).max() <= 0.05 + 1e-9
     assert (d["brake"] == brake).all() and (d["cls"] == cls).all()
-    print(f"\n[frame] max position error {np.abs(d['x'] - x).max() * 100:.2f} cm, "
-          f"heading {np.degrees(dh.max()) * 3600:.1f} arcsec")  # fmt: skip
 
 
 def test_malformed_frames_are_rejected():
@@ -67,7 +61,7 @@ def test_malformed_frames_are_rejected():
     with pytest.raises(ValueError):
         unpack_frame(FMT, data[:-1])
     with pytest.raises(ValueError):
-        unpack_frame(FMT, b"\x02" + data[1:])
+        unpack_frame(FMT, b"\x01" + data[1:])
 
 
 def test_golden_frame_files_are_current():
@@ -97,12 +91,14 @@ def test_encoder_matches_engine_state_and_brake_convention():
     d = unpack_frame(enc.fmt, enc.encode(epoch=0, speed_index=3))
     vs = sim.vehicles
     x, y, z, h, p = enc.pose.vehicle_poses(vs)
+    X, Y, Z, H, P = world_pose(enc.pose, d)  # what the browser computes from the frame
     assert d["n"] == vs.n > 100 and (d["id"] == (vs.vid & 0xFFFF)).all()
-    dev = np.hypot(d["x"] - x, d["y"] - y)
+    dev = np.hypot(X - x, Y - y)
     blending = {e.vid & 0xFFFF for e in sim.log.lane_changes if sim.time_s - e.t < LC_BLEND_S}
-    off = set(d["id"][dev > 2 * POS_SCALE_M].tolist())
-    assert off <= blending  # only vehicles in a lane-change blend deviate from the true pose
-    assert dev.max() <= 3.5 + POS_SCALE_M  # never more than one lane width
+    quiet = ~np.isin(d["id"], list(blending))
+    assert dev[quiet].max() <= 0.05  # 1 cm arc + 2.5 cm lateral quantisation, nobody else off
+    assert dev.max() <= 3.5 + 0.05  # a blend never offsets more than one lane width
+    assert np.abs(Z - z).max() < 0.05
     assert (d["cls"] == vs.cls).all() and d["tick"] == sim.tick
     hard = vs.acc <= -BRAKE_LIGHT_DECEL_MPS2
     assert d["brake"][hard].all()  # every hard-braking vehicle shows its brake lights
@@ -110,7 +106,7 @@ def test_encoder_matches_engine_state_and_brake_convention():
     standing = (vs.v < 0.1) & (vs.acc < 0.1)
     assert standing.sum() > 0 and d["brake"][standing].all()  # standing queue: lights on
     print(f"\n[frame] {vs.n} vehicles, {int(d['brake'].sum())} braking, "
-          f"{int(hard.sum())} decelerating hard")  # fmt: skip
+          f"max pose error {dev[quiet].max() * 100:.1f} cm")  # fmt: skip
 
 
 def test_lane_change_is_blended_laterally_not_a_jump():
@@ -125,8 +121,9 @@ def test_lane_change_is_blended_laterally_not_a_jump():
 
     def encoded_xy():
         d = unpack_frame(enc.fmt, enc.encode(0, 3))
+        X, Y, *_ = world_pose(enc.pose, d)
         k = int(np.flatnonzero(d["id"] == (ev.vid & 0xFFFF))[0])
-        return np.array([d["x"][k], d["y"][k]])
+        return np.array([X[k], Y[k]])
 
     # The event is logged before that step's movement: the old lane at the vehicle's
     # *current* position is where the blended frame must start.
@@ -151,6 +148,20 @@ def test_lane_change_is_blended_laterally_not_a_jump():
     assert all(a >= b - 0.05 for a, b in zip(lateral, lateral[1:], strict=False))  # monotone
 
 
-def test_format_covers_the_network():
-    fmt = format_for(build_demo_network())
-    assert fmt.x0_m < -1000.0 and fmt.y0_m < -400.0
+def test_segment_table_describes_the_lane_graph():
+    sim = _sim()
+    table = segment_table(sim.lg)
+    assert len(table) == sim.lg.n and format_for(sim.lg).bytes_per_vehicle == 9
+    assert [t["id"] for t in table] == sim.lg.ids
+    assert all(0 <= b < len(table) for t in table for b in t["next"])
+    assert max(t["length_m"] for t in table) < 655.35  # a u16 of centimetres
+
+
+def test_placement_fixture_is_current():
+    """The network, segment table and server poses the TypeScript placement test reads."""
+    from tools.gen_golden_frame import placement
+
+    doc = json.loads((FIXTURE_DIR / "placement.json").read_text(encoding="utf-8"))
+    assert doc == json.loads(json.dumps(placement())), (
+        "run `python tools/gen_golden_frame.py` in backend/ and commit the fixtures"
+    )

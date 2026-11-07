@@ -98,7 +98,7 @@ Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 
   `frontend/src/api/fixtures/`; the Python and TypeScript decoders must both read them.
 - **Measurement tools:** `tools/measure_stream.py` (frame size/CPU), `tools/measure_wire.py`
   (real bytes on the wire, with and without compression).
-- **Wire protocol:** binary vehicle frames (`server/frames.py`, `12 + 13 n` bytes) plus JSON
+- **Wire protocol:** binary vehicle frames (`server/frames.py`, `12 + 9 n` bytes, lane-graph placement (segment, arc length, lateral)) plus JSON
   `hello` / `kpi` / `stats`. Speeds 0, 0.25, 0.5, 1, 2, 5, 10. The renderer interpolates in
   simulation ticks (`frontend/src/scene/interpolator.ts`), 2 frame intervals behind.
 - **Signal controllers:** `fixed_webster`, `max_pressure` (textbook), `max_pressure_threshold`

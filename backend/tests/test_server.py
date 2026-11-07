@@ -60,7 +60,7 @@ def test_hello_describes_the_session_and_is_followed_by_a_frame(client):
 
 def test_frames_carry_vehicles_and_have_the_documented_size(client):
     with client.websocket_connect(WS) as ws:
-        _, fmt = hello_and_format(ws)
+        hello, fmt = hello_and_format(ws)
         ws.send_text(json.dumps({"type": "set_speed", "speed": 10}))
         n = 0
         for _ in range(600):
@@ -71,7 +71,7 @@ def test_frames_carry_vehicles_and_have_the_documented_size(client):
                 break
         assert n >= 5
         f = decoded(ws, fmt)
-        assert f["x"].min() > -1010 and f["x"].max() < 1510 and (f["speed"] <= 17).all()
+        assert f["seg"].max() < len(hello["segments"]) and (f["speed"] <= 17).all()
 
 
 def test_frames_are_sent_only_when_the_simulation_advanced(client):

@@ -13,7 +13,9 @@ import { buildFlyover } from './flyover';
 import { buildJunctions } from './junctions';
 import { buildLabels, buildScaleBar } from './labels';
 import { createMaterials, LIFT } from './materials';
+import { placeFrame } from '../api/frame';
 import { FrameInterpolator } from './interpolator';
+import { LanePlacer } from './laneGeometry';
 import { disposeTree } from './meshUtil';
 import { buildLanes, buildMarkings } from './roads';
 import { VehicleLayer } from './vehicles';
@@ -38,6 +40,9 @@ export class SceneManager {
   private networkRoot = new THREE.Group();
   private vehicles = new VehicleLayer();
   private interp: FrameInterpolator | null = null;
+  private network: NetworkData | null = null;
+  private placer: LanePlacer | null = null;
+  private hello: HelloMsg | null = null;
   private renderTick = 0; // fractional simulation tick last drawn (diagnostics)
   private raf = 0;
   private resizeObs: ResizeObserver;
@@ -86,6 +91,8 @@ export class SceneManager {
   }
 
   setNetwork(net: NetworkData): void {
+    this.network = net;
+    this.buildPlacer();
     disposeTree(this.networkRoot);
     this.networkRoot.clear();
     this.networkRoot.add(
@@ -101,11 +108,20 @@ export class SceneManager {
   /** A (re)started session: vehicle class dimensions and the interpolation clock. */
   setSession(hello: HelloMsg): void {
     this.vehicles.setClasses(hello.classes);
-    this.interp = new FrameInterpolator(hello.steps_per_second, hello.speeds);
+    this.hello = hello;
+    this.buildPlacer();
+  }
+
+  /** Lane geometry (network JSON) + segment table (hello) -> vehicle placement. */
+  private buildPlacer(): void {
+    if (!this.network || !this.hello) return;
+    const h = this.hello;
+    this.placer = new LanePlacer(this.network, h.segments);
+    this.interp = new FrameInterpolator(h.steps_per_second, h.speeds, this.placer);
   }
 
   pushFrame(frame: Frame): void {
-    this.interp?.push(frame);
+    if (this.placer) this.interp?.push(placeFrame(frame, this.placer));
   }
 
   view(name: ViewName): void {

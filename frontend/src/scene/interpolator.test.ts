@@ -19,6 +19,7 @@ function frame(tick: number, vs: V[], speedIndex = 3, epoch = 0): Frame {
   return {
     tick, epoch, phase: 255, state: 255, speedIndex, n,
     id: Uint16Array.from(vs.map((v) => v.id)),
+    seg: f(() => 0) as unknown as Uint16Array, s: f(() => 0), lat: f(() => 0),
     x: f((v) => v.x), y: f(() => 0), z: f(() => 0),
     heading: f((v) => v.heading ?? 0), pitch: f(() => 0), speed: f(() => 14),
     brake: Uint8Array.from(vs.map(() => 0)), cls: Uint8Array.from(vs.map(() => 0)),

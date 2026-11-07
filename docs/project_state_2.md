@@ -250,6 +250,16 @@ tested; the browser smoothness at real 60 fps is unverified.
 - **Docs:** the user renamed `PROJECT_STATE.md` to `project_state_1.md` (untracked/uncommitted
   rename at the time of this change).
 
+## Addendum (7 Nov 2026, step 3 part 2): frame format v2
+- Vehicles are sent as `u16 id | u16 segment | u16 s (1 cm) | i8 lateral (5 cm) | u8 speed | u8 flags`
+  = 9 bytes (was 13); `hello.segments` = id, length, successors per lane-graph segment. The browser
+  (`scene/laneGeometry.ts`, `LanePlacer`) puts vehicles on the network polylines and moves them
+  along lane -> connector -> lane between frames, so turns follow the curve at 10x.
+- Fixtures: `golden_frame.*` and `placement.json` (network, segment table, 400 server poses);
+  `tools/gen_golden_frame.py` regenerates; tests fail when stale.
+- Tolerances: network JSON is rounded to 1 mm, so client and server positions differ by 2.2 mm
+  at most (tested < 5 mm), headings by < 5 mrad.
+
 ## Commands
 ```bash
 cd backend && .venv/Scripts/python -m pytest -m "not slow"   # fast subset, ~40 s

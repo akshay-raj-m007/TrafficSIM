@@ -9,10 +9,13 @@
  * without a stall. Interpolation is linear in position, pitch and speed and takes the
  * shortest way round for heading. Vehicles are matched by id.
  *
- * Known limit: at 5–10× consecutive frames are 0.5–1 s of simulated time apart, so a
- * vehicle crossing a junction turn is interpolated along a chord, not along the curve.
+ * With a `LanePlacer` a vehicle moves along the lane graph between two frames (lane ->
+ * junction connector -> lane), so turns follow the curve even at 5-10× where consecutive
+ * frames are 0.5-1 s of simulated time apart. If the two positions are not connected (a
+ * lane change) the two world poses are interpolated, which is a short lateral move.
  */
 import type { Frame } from '../api/frame';
+import type { LanePlacer, Pose } from './laneGeometry';
 
 export const INTERP_DELAY_FRAMES = 2;
 const MAX_BUFFERED_FRAMES = 16;
@@ -62,11 +65,13 @@ export class FrameInterpolator {
   private lastDelta = 1; // ticks between the last two frames
   private bIndex = new Map<number, number>();
   private out = emptyState(1024);
+  private readonly pose: Pose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0 };
 
   /** `speeds[i]` is the simulated-seconds-per-second of the frame header's speed index i. */
   constructor(
     private readonly ticksPerSecond: number,
     private readonly speeds: readonly number[],
+    private readonly placer?: LanePlacer,
   ) {}
 
   reset(): void {
@@ -167,11 +172,21 @@ export class FrameInterpolator {
         o.brake[i] = a.brake[i]!;
         continue;
       }
-      o.x[i] = a.x[i]! + (b.x[j]! - a.x[i]!) * u;
-      o.y[i] = a.y[i]! + (b.y[j]! - a.y[i]!) * u;
-      o.z[i] = a.z[i]! + (b.z[j]! - a.z[i]!) * u;
-      o.heading[i] = a.heading[i]! + shortestAngleDelta(a.heading[i]!, b.heading[j]!) * u;
-      o.pitch[i] = a.pitch[i]! + (b.pitch[j]! - a.pitch[i]!) * u;
+      const lat = a.lat[i]! + (b.lat[j]! - a.lat[i]!) * u;
+      const p = this.pose;
+      if (this.placer?.between(a.seg[i]!, a.s[i]!, b.seg[j]!, b.s[j]!, lat, u, p)) {
+        o.x[i] = p.x;
+        o.y[i] = p.y;
+        o.z[i] = p.z;
+        o.heading[i] = p.heading;
+        o.pitch[i] = p.pitch;
+      } else {
+        o.x[i] = a.x[i]! + (b.x[j]! - a.x[i]!) * u;
+        o.y[i] = a.y[i]! + (b.y[j]! - a.y[i]!) * u;
+        o.z[i] = a.z[i]! + (b.z[j]! - a.z[i]!) * u;
+        o.heading[i] = a.heading[i]! + shortestAngleDelta(a.heading[i]!, b.heading[j]!) * u;
+        o.pitch[i] = a.pitch[i]! + (b.pitch[j]! - a.pitch[i]!) * u;
+      }
       o.speed[i] = a.speed[i]! + (b.speed[j]! - a.speed[i]!) * u;
       o.brake[i] = u < 0.5 ? a.brake[i]! : b.brake[j]!;
     }

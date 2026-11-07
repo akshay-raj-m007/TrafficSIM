@@ -1,18 +1,19 @@
 /**
- * Decoder for the binary vehicle frames (see backend/trafficsim/server/frames.py).
+ * Decoder for the binary vehicle frames, format v2 (see backend/trafficsim/server/frames.py).
  *
- *   header, 12 bytes:  u8 type=1 | u8 J1 phase | u8 J1 state | u8 epoch | u32 tick |
+ *   header, 12 bytes:  u8 type=2 | u8 J1 phase | u8 J1 state | u8 epoch | u32 tick |
  *                      u16 count n | u8 speed index | u8 pad
- *   body, 13 n bytes:  u16 id[n] | u16 x[n] | u16 y[n] | u16 z[n] | u16 heading[n] |
- *                      i8 pitch[n] | u8 speed[n] | u8 flags[n]       (little-endian)
+ *   body, 9 n bytes:   u16 id[n] | u16 segment[n] | u16 s[n] | i8 lateral[n] |
+ *                      u8 speed[n] | u8 flags[n]                  (little-endian)
  *
- * Columns are viewed as typed arrays directly over the received buffer; physical units
- * are recovered with the quantisation steps from `hello`. Positions are in SIMULATION
- * axes (x east, y north, z up), in metres.
+ * A vehicle is given as (segment, arc length of its centre, lateral offset); `placeFrame`
+ * puts it on the lane geometry with a `LanePlacer`, filling the world pose (x, y, z,
+ * heading, pitch; simulation axes: x east, y north, z up, metres).
  */
+import type { LanePlacer, Pose } from '../scene/laneGeometry';
 import type { FrameFormat } from './types';
 
-export const FRAME_TYPE = 1;
+export const FRAME_TYPE = 2;
 export const NO_SIGNAL = 255;
 
 export interface Frame {
@@ -23,6 +24,9 @@ export interface Frame {
   speedIndex: number;
   n: number;
   id: Uint16Array;
+  seg: Uint16Array; // index into hello.segments
+  s: Float32Array; // arc length of the vehicle centre on seg [m]
+  lat: Float32Array; // lateral offset to the left of the lane [m] (lane-change blend)
   x: Float32Array;
   y: Float32Array;
   z: Float32Array;
@@ -49,30 +53,28 @@ export function decodeFrame(buf: ArrayBuffer, fmt: FrameFormat): Frame {
     return a;
   };
   const id = u16();
-  const xq = u16();
-  const yq = u16();
-  const zq = u16();
-  const hq = u16();
-  const pitchQ = new Int8Array(buf, off, n);
+  const seg = u16();
+  const sq = u16();
+  const latQ = new Int8Array(buf, off, n);
   off += n;
   const speedQ = new Uint8Array(buf, off, n);
   off += n;
   const flags = new Uint8Array(buf, off, n);
 
-  const x = new Float32Array(n);
-  const y = new Float32Array(n);
-  const z = new Float32Array(n);
-  const heading = new Float32Array(n);
-  const pitch = new Float32Array(n);
-  const speed = new Float32Array(n);
+  const f32 = () => new Float32Array(n);
+  const s = f32();
+  const lat = f32();
+  const x = f32();
+  const y = f32();
+  const z = f32();
+  const heading = f32();
+  const pitch = f32();
+  const speed = f32();
   const brake = new Uint8Array(n);
   const cls = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
-    x[i] = xq[i]! * fmt.pos_scale_m + fmt.x0_m;
-    y[i] = yq[i]! * fmt.pos_scale_m + fmt.y0_m;
-    z[i] = zq[i]! * fmt.z_scale_m + fmt.z0_m;
-    heading[i] = hq[i]! * fmt.heading_scale_rad;
-    pitch[i] = pitchQ[i]! * fmt.pitch_scale_rad;
+    s[i] = sq[i]! * fmt.s_scale_m;
+    lat[i] = latQ[i]! * fmt.lat_scale_m;
     speed[i] = speedQ[i]! * fmt.speed_scale_mps;
     brake[i] = flags[i]! & 1;
     cls[i] = flags[i]! >> 1;
@@ -85,6 +87,9 @@ export function decodeFrame(buf: ArrayBuffer, fmt: FrameFormat): Frame {
     speedIndex: view.getUint8(10),
     n,
     id: id.slice(),
+    seg: seg.slice(),
+    s,
+    lat,
     x,
     y,
     z,
@@ -94,4 +99,18 @@ export function decodeFrame(buf: ArrayBuffer, fmt: FrameFormat): Frame {
     brake,
     cls,
   };
+}
+
+/** Fill the world pose of every vehicle by placing it on the lane geometry (in place). */
+export function placeFrame(f: Frame, placer: LanePlacer): Frame {
+  const pose: Pose = { x: 0, y: 0, z: 0, heading: 0, pitch: 0 };
+  for (let i = 0; i < f.n; i++) {
+    placer.place(f.seg[i]!, f.s[i]!, f.lat[i]!, pose);
+    f.x[i] = pose.x;
+    f.y[i] = pose.y;
+    f.z[i] = pose.z;
+    f.heading[i] = pose.heading;
+    f.pitch[i] = pose.pitch;
+  }
+  return f;
 }

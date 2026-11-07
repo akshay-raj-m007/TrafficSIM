@@ -26,7 +26,7 @@ from trafficsim.engine.presets import DEMO_KPI_LAYOUT
 from trafficsim.network.types import Network
 from trafficsim.server import protocol
 from trafficsim.server.config import Settings
-from trafficsim.server.frames import FrameEncoder
+from trafficsim.server.frames import FrameEncoder, segment_table
 from trafficsim.server.pacing import StepPacer
 from trafficsim.server.session_config import SessionParams
 from trafficsim.server.stats import StreamStats
@@ -74,6 +74,7 @@ class LiveSession:
                 self.sim.scenario.duration_s,
                 self.epoch,
                 self.encoder.fmt,
+                segment_table(self.sim.lg),
             )  # fmt: skip
         )
         await self._send_bytes(self.encoder.encode(self.epoch, protocol.speed_index(self.speed)))

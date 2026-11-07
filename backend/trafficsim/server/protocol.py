@@ -61,7 +61,7 @@ def speed_index(speed: float) -> int:
 
 def hello(
     session_id: str, dt: float, tick_hz: float, params, duration_s: float, epoch: int,
-    fmt: FrameFormat,
+    fmt: FrameFormat, segments: list[dict],
 ) -> dict:  # fmt: skip
     return {
         "type": "hello",
@@ -80,6 +80,7 @@ def hello(
             for c in VEHICLE_CLASSES
         ],
         "frame": fmt.to_dict(),
+        "segments": segments,  # frame segment index -> lane / connector id, length, successors
         "lane_change_blend_s": LC_BLEND_S,
         "kpi_defs": KPI_DEFS,
     }
