@@ -48,10 +48,13 @@ def _candidates(vs: VehicleState, lg: LaneGraph, tick: int):
     eligible = (~lg.is_conn[vs.seg]) & (vs.tail < 0) & (vs.lc_timer >= LC_COOLDOWN_S)
     # No lane changes within the comfortable stopping distance (+ s0) of a junction
     # stop line: the vehicle may already be committed there (solid lines before stop
-    # lines). Uses each class's own b and s0; no new parameter.
+    # lines). Uses each class's own b and s0; no new parameter. Exception: a vehicle in a
+    # lane that does not lead onward for its route (off != 0) cannot enter the junction, so
+    # it is not committed and must stay free to leave (else it blocks that lane for ever).
     c = vs.cls
     to_line = lg.length[vs.seg] - vs.s
-    eligible &= ~(lg.ends_at_junction[vs.seg] & (to_line < vs.v * vs.v / (2 * B[c]) + S0[c]))
+    committed = lg.ends_at_junction[vs.seg] & (to_line < vs.v * vs.v / (2 * B[c]) + S0[c])
+    eligible &= ~(committed & (vs.off == 0))
     decides_now = (vs.vid + tick) % DECISION_EVERY_STEPS == 0
     eligible &= (vs.off != 0) | decides_now
     base = np.flatnonzero(eligible)
