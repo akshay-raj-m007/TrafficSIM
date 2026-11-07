@@ -59,15 +59,14 @@ def input_digest(net: Network, lg) -> str:
 
 def all_route_roads(net: Network) -> list[tuple[str, ...]]:
     """The fastest route (road sequence) of every ordered origin-destination zone pair."""
-    from trafficsim.network.routing import fastest_route, grade_separated_roads
+    from trafficsim.network.routing import fastest_route
 
     out: list[tuple[str, ...]] = []
-    for closed in (frozenset(), grade_separated_roads(net)):  # flyover open, then closed
-        for o in net.zones:
-            for d in net.zones:
-                route = tuple(fastest_route(net, o.id, d.id, closed)) if o.id != d.id else None
-                if route and route not in out:
-                    out.append(route)
+    for o in net.zones:  # the fully open network: the reference of every delay
+        for d in net.zones:
+            route = tuple(fastest_route(net, o.id, d.id)) if o.id != d.id else None
+            if route and route not in out:
+                out.append(route)
     return out
 
 
@@ -75,6 +74,29 @@ def all_keys(net: Network) -> list[tuple[tuple[str, ...], int]]:
     from trafficsim.engine.vehicle import VEHICLE_CLASSES
 
     return [(r, c) for r in all_route_roads(net) for c in range(len(VEHICLE_CLASSES))]
+
+
+class DelayReference:
+    """Free-flow time of a vehicle's trip: the fastest route on the fully open network for its
+    (origin, destination) and class, whatever route it actually takes (so a detour forced by a
+    closure is delay). None until the engine has measured it."""
+
+    def __init__(self, net: Network, ref: FreeFlowReference) -> None:
+        self.net, self.ref = net, ref
+        self._roads: dict[tuple[str, str], tuple[str, ...]] = {}
+
+    def roads(self, pair: tuple[str, str]) -> tuple[str, ...]:
+        if pair not in self._roads:
+            from trafficsim.network.routing import fastest_route
+
+            route = fastest_route(self.net, *pair)
+            if route is None:
+                raise ValueError(f"no route from {pair[0]} to {pair[1]}")
+            self._roads[pair] = tuple(route)
+        return self._roads[pair]
+
+    def free_flow(self, pair: tuple[str, str], cls: int) -> float | None:
+        return self.ref.get(self.roads(pair), cls)
 
 
 def reference_for(net: Network, lg=None) -> FreeFlowReference:

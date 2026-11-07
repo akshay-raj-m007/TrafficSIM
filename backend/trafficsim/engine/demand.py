@@ -102,7 +102,7 @@ class Demand:
         """Entry-queue vehicles take the route table's current routes (after a closure)."""
         for z in self.zones:
             for q in z.queue:
-                origin, dest = self.rt.od[q.route][:2]
+                origin, dest = self.rt.pair[q.route]
                 q.route = self.rt.add(self.net, self.lg, origin, dest)
 
     def class_indices(self) -> list[int]:

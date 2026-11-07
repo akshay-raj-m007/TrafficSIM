@@ -23,7 +23,10 @@ NEXT_EXIT = -2  # end of route: the vehicle leaves the network at the segment en
 @dataclass
 class RouteTable:
     roads: list[tuple[str, ...]] = field(default_factory=list)
-    od: list[tuple[str, str]] = field(default_factory=list)
+    od: list[tuple[str, ...]] = field(default_factory=list)
+    # (origin zone, destination zone) of every route; re-routes inherit it. ('', '') for the
+    # explicit routes of calibration and free-flow measurement. Delay is measured per pair.
+    pair: list[tuple[str, str]] = field(default_factory=list)
     index: dict[tuple[str, ...], int] = field(default_factory=dict)
     closed: frozenset[str] = frozenset()  # roads new routes must avoid (a closed flyover)
     good: list[list[np.ndarray]] = field(default_factory=list)  # [route][rpos] -> bool/lane
@@ -35,7 +38,7 @@ class RouteTable:
         roads = fastest_route(net, origin, dest, self.closed)
         if roads is None:
             raise ValueError(f"no route from {origin} to {dest}")
-        return self.add_explicit(lg, tuple(roads), key)
+        return self.add_explicit(lg, tuple(roads), key, (origin, dest))
 
     def reroute(self, net: Network, lg: LaneGraph, route: int, rpos: int) -> int | None:
         """Route for a vehicle on road ``rpos`` of ``route``: the roads it has used so far,
@@ -48,9 +51,12 @@ class RouteTable:
         new = roads[: rpos + 1] + tuple(rest[1:])
         if new == roads:
             return route
-        return self.add_explicit(lg, new, ("reroute", *new))
+        return self.add_explicit(lg, new, ("reroute", *new), self.pair[route])
 
-    def add_explicit(self, lg: LaneGraph, roads: tuple[str, ...], key: tuple[str, ...]) -> int:
+    def add_explicit(
+        self, lg: LaneGraph, roads: tuple[str, ...], key: tuple[str, ...],
+        pair: tuple[str, str] = ("", ""),
+    ) -> int:  # fmt: skip
         """Register a given road sequence (e.g. a two-road calibration route that ends,
         and leaves the network, at the end of its last road)."""
         if key in self.index:
@@ -58,6 +64,7 @@ class RouteTable:
         k = len(self.roads)
         self.roads.append(tuple(roads))
         self.od.append(key)
+        self.pair.append(pair)
         self.index[key] = k
         good = []
         for rpos, rid in enumerate(roads):

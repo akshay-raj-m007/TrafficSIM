@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from trafficsim.engine.changes import apply_change, check_change
+from trafficsim.engine.changes import apply_due, schedule_change
 from trafficsim.engine.constants import DT, STEPS_PER_SECOND, time_of
 from trafficsim.engine.demand import Demand
 from trafficsim.engine.dynamics import accelerations
@@ -68,7 +68,6 @@ class Simulation:
         self._pending: list[tuple[int, Change]] = []
         self.rerouted = 0  # vehicles re-routed by a flyover change
         self.grandfathered_vids: set[int] = set()  # too close to the diverge to re-route (closure)
-        self.ref_route: dict[int, int] = {}  # vid -> route its free-flow reference comes from
         self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
         self.gates = JunctionGates(network, self.lg)
@@ -138,34 +137,13 @@ class Simulation:
 
     # ---------------------------------------------------------- live changes
     def schedule(self, change: Change, tick: int | None = None) -> int:
-        """Queue a change for the start of ``tick`` (default: the next step). Validates now
-        (ValueError with a clear message), applies it before phase 1 of that tick, and logs
-        it in ``change_log`` with the tick it was applied at. Returns that tick."""
-        at = self.tick if tick is None else tick
-        if at < self.tick:
-            raise ValueError(f"cannot change the past: tick {at} < current tick {self.tick}")
-        if at > self._total_ticks:
-            raise ValueError(
-                f"tick {at} is after the end of the run (tick {self._total_ticks}): "
-                "the change would never be applied"
-            )
-        check_change(self, change)
-        if hasattr(change, "open"):
-            self.flyover_pending = change.open
-        self._pending.append((at, change))
-        self._pending.sort(key=lambda p: p[0])  # stable: same-tick changes keep their order
-        return at
+        """Queue a change for the start of ``tick`` (default: the next step); see changes.py."""
+        return schedule_change(self, change, tick)
 
     @property
     def all_changes(self) -> list[tuple[int, Change]]:
         """Applied changes followed by the queued ones (what an export must contain)."""
         return self.change_log + self._pending
-
-    def _apply_due(self) -> None:
-        while self._pending and self._pending[0][0] <= self.tick:
-            _, change = self._pending.pop(0)
-            apply_change(self, change)
-            self.change_log.append((self.tick, change))
 
     # ------------------------------------------------------------- stepping
     def step(self) -> bool:
@@ -173,7 +151,7 @@ class Simulation:
         if self.done:
             return False
         if self._pending:
-            self._apply_due()
+            apply_due(self)
         t = self.time_s
         vs, lg = self.vehicles, self.lg
         for ctrl in self.signals:

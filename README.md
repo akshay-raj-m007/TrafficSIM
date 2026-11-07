@@ -72,9 +72,10 @@ on the deck or a ramp finishes its trip. A vehicle upstream of the diverge that 
 lane changes it cannot make in the distance left (lanes to cross x 3 s lane-change cooldown
 x speed limit) keeps its flyover route (it is "grandfathered"): stranding it at the end of
 a lane that no longer leads anywhere would block the lane. Reopening applies the same rule in
-reverse. A vehicle keeps the free-flow reference of the route it was *inserted* on, so a
-detour forced on a vehicle already in the network counts as delay; a vehicle inserted after
-the closure gets the closed-network route (and its free-flow time) as reference.
+reverse. **Delay is measured against the fastest free-flow route on the fully open network**
+for the vehicle's origin, destination and class, for everyone (re-routed or inserted after the
+closure alike), so the extra time a closure causes counts as delay (a lone car forced onto the
+surface takes 27 s longer than on the flyover and shows 27 s of delay; tested).
 
 **Every live change is logged with the tick it was applied at**, changes apply at a tick
 boundary before the first phase of that tick, and `Simulation.change_log` plus the seed
@@ -344,9 +345,10 @@ demand. Throughput is a flow: completed trips that *exit* inside the window.
 
 **Unfinished trips are counted, not dropped.** The primary metric, **mean delay**, covers
 every cohort vehicle. A completed trip contributes its measured delay
-`(t_exit - t_generated) - free_flow(route, class)` (waiting in the entry queue included; the
-free-flow time is the engine-measured table of the route the vehicle was first given, so a
-detour forced by a closure counts as delay). A vehicle still in the network or still waiting
+`(t_exit - t_generated) - free_flow(origin, destination, class)` (waiting in the entry queue
+included; the free-flow time is the engine-measured time of the fastest route on the fully
+OPEN network for that origin and destination, whatever route the vehicle took, so a detour
+forced by a closure counts as delay). A vehicle still in the network or still waiting
 at an entry at the end contributes the lower bound `max(0, (t_end - t_generated) - free_flow)`:
 its final delay can only be larger. Dropping them would flatter the scenario that traps more
 vehicles. Always shown beside it: delay of completed trips only, and the numbers of completed

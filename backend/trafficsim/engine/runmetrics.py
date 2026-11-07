@@ -12,11 +12,14 @@ Window and cohort (written down once, README "A/B comparison"):
   * throughput counts completed trips that EXIT inside the window (a flow);
   * queues use the 1 s samples taken inside the window.
 
+Delay is measured against the fastest free-flow route on the fully OPEN network for the
+vehicle's origin and destination and class, whatever route it takes, so the extra time a
+closure causes is delay (engine/freeflow.py ``DelayReference``).
+
 Unfinished trips are not dropped. ``mean_delay_s`` (the primary metric) covers every
 cohort vehicle: a completed trip contributes (t_exit - t_gen) - free_flow, an unfinished one
 (in the network or waiting at an entry) the lower bound max(0, (t_end - t_gen) - free_flow):
-its final delay can only be larger. Delay includes waiting at the entry, and uses the
-free-flow time of the route the vehicle was first given (engine/freeflow.py).
+its final delay can only be larger. Delay includes waiting at the entry.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from trafficsim.engine.constants import STEPS_PER_SECOND, ticks_for
-from trafficsim.engine.freeflow import all_keys, reference_for
+from trafficsim.engine.freeflow import DelayReference, all_keys, reference_for
 from trafficsim.engine.loop import Simulation
 from trafficsim.engine.presets import DEMO_KPI_LAYOUT
 from trafficsim.engine.queues import QueueMeter
@@ -34,7 +37,7 @@ from trafficsim.engine.scenario import Scenario
 from trafficsim.network.routing import fastest_route, grade_separated_roads
 from trafficsim.network.types import Network
 
-METRICS_VERSION = 1  # bump when a definition changes: cached / shipped results go stale
+METRICS_VERSION = 2  # bump when a definition changes: cached / shipped results go stale
 SAMPLE_EVERY_STEPS = STEPS_PER_SECOND  # queue samples and flyover tracking every 1 s
 J1_APPROACHES = ("J1_W", "J1_E", "J1_N", "J1_S")
 J2_APPROACHES = ("J2_W", "J2_E", "J2_N")
@@ -134,25 +137,23 @@ def run_metrics(net: Network, scenario: Scenario, warmup_s: float) -> dict:
             q1.append(max(q[i][1] for i in j1))
             q2.append(max(q[i][1] for i in j2))
 
-    def ff(route: int, cls: int) -> float:
-        v = ref.get(rt.roads[route], cls)
-        if v is None:
-            raise RuntimeError(f"no free-flow time for {rt.roads[route]} class {cls}")
-        return v
+    delay_ref = DelayReference(net, ref)
 
-    trips = [
-        Trip(e.t_gen, e.t_exit, ff(sim.ref_route.get(e.vid, e.route), e.cls),
-             rt.od[sim.ref_route.get(e.vid, e.route)][:2], e.vid)
-        for e in sim.log.exits
-    ]  # fmt: skip
+    def trip(t_gen: float, t_exit: float | None, route: int, cls: int, vid: int) -> Trip:
+        pair = rt.pair[route]
+        ff = delay_ref.free_flow(pair, cls)
+        if ff is None:
+            raise RuntimeError(f"no free-flow time for {pair} class {cls}")
+        return Trip(t_gen, t_exit, ff, pair, vid)
+
+    trips = [trip(e.t_gen, e.t_exit, e.route, e.cls, e.vid) for e in sim.log.exits]
     vs = sim.vehicles
-    for i in range(vs.n):
-        r = sim.ref_route.get(int(vs.vid[i]), int(vs.route[i]))
-        trips.append(Trip(float(vs.t_gen[i]), None, ff(r, int(vs.cls[i])), rt.od[r][:2],
-                          int(vs.vid[i])))  # fmt: skip
+    trips += [
+        trip(float(vs.t_gen[i]), None, int(vs.route[i]), int(vs.cls[i]), int(vs.vid[i]))
+        for i in range(vs.n)
+    ]
     waiting = [q for z in sim.demand.zones for q in z.queue]
-    for q in waiting:
-        trips.append(Trip(q.t_gen, None, ff(q.route, q.cls), rt.od[q.route][:2], -1))
+    trips += [trip(q.t_gen, None, q.route, q.cls, -1) for q in waiting]
     out = summarise(trips, warmup_s, sim.time_s, used, flyover_pairs(net), len(waiting))
     out.update(
         j1_queue_max_m=max(q1), j1_queue_mean_m=float(np.mean(q1)),

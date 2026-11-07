@@ -82,14 +82,12 @@ def _arrivals(sim):
     rt = sim.routes
     out = []
     for e in sim.log.exits:
-        r = sim.ref_route.get(e.vid, e.route)
-        out.append((e.t_gen, e.cls, *rt.od[r][:2]))
+        out.append((e.t_gen, e.cls, *rt.pair[e.route]))
     vs = sim.vehicles
     for i in range(vs.n):
-        r = sim.ref_route.get(int(vs.vid[i]), int(vs.route[i]))
-        out.append((float(vs.t_gen[i]), int(vs.cls[i]), *rt.od[r][:2]))
+        out.append((float(vs.t_gen[i]), int(vs.cls[i]), *rt.pair[int(vs.route[i])]))
     for z in sim.demand.zones:
-        out += [(q.t_gen, q.cls, *rt.od[q.route][:2]) for q in z.queue]
+        out += [(q.t_gen, q.cls, *rt.pair[q.route]) for q in z.queue]
     return sorted(out)
 
 
@@ -107,3 +105,30 @@ def test_paired_seeds_give_identical_arrivals_whatever_the_control(net):
         runs.append(_arrivals(sim))
     assert len(runs[0]) > 150
     assert all(r == runs[0] for r in runs[1:])
+
+
+def test_a_closure_detour_counts_as_delay_against_the_open_network_route(net):
+    """Delay is measured against the fastest route on the OPEN network, so a lone car that has
+    to take the surface because the flyover is closed shows the detour as delay."""
+    from trafficsim.engine.freeflow import DelayReference, reference_for
+
+    times = {}
+    for open_ in (True, False):
+        sim = Simulation(
+            net,
+            Scenario(duration_s=500.0, signal_control="uncontrolled", flyover_open=open_),
+        )
+        sim.place_vehicle("W", "E", "car", 0, 20.0, 10.0)
+        while not sim.log.exits and sim.step():
+            pass
+        e = sim.log.exits[0]
+        times[open_] = e.t_exit - e.t_ins
+        ref = DelayReference(net, reference_for(net, sim.lg))
+        ref.ref.request([(ref.roads(("W", "E")), e.cls)], background=False)
+        times[f"ff{open_}"] = ref.free_flow(sim.routes.pair[e.route], e.cls)
+    assert times["ffTrue"] == times["ffFalse"]  # one reference for everybody
+    assert times[True] - times["ffTrue"] < 5.0  # open: about free flow (it entered at speed)
+    assert times[False] - times["ffFalse"] > times[True] - times["ffTrue"] + 5.0  # the detour
+    print(f"\n[detour] open {times[True]:.1f} s, closed {times[False]:.1f} s, open-route free "
+          f"flow {times['ffTrue']:.1f} s -> delay {times[True] - times['ffTrue']:.1f} s vs "
+          f"{times[False] - times['ffFalse']:.1f} s")  # fmt: skip

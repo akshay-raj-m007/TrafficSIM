@@ -15,7 +15,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from trafficsim.engine.detectors import Detectors, DetectorSpec
-from trafficsim.engine.freeflow import reference_for
+from trafficsim.engine.freeflow import DelayReference, reference_for
 from trafficsim.engine.params.control import (
     DETECTOR_WINDOW_S,
     KPI_RECENT_WINDOW_S,
@@ -58,13 +58,17 @@ class KpiHub:
         self.ref = None
         if layout:  # the free-flow reference is only needed when delay is reported
             self.ref = reference_for(sim.network, sim.lg)
+            self.delay_ref = DelayReference(sim.network, self.ref)
             self.request_reference()
 
     def request_reference(self) -> None:
-        """Ask for the free-flow time of every route in use (after routes were added)."""
+        """Ask for the free-flow time of every origin-destination pair in use (open network)."""
         if self.ref:
             sim = self.sim
-            self.ref.request([(r, c) for r in sim.routes.roads for c in sim.demand.class_indices()])
+            pairs = dict.fromkeys(p for p in sim.routes.pair if p != ("", ""))
+            self.ref.request(
+                [(self.delay_ref.roads(p), c) for p in pairs for c in sim.demand.class_indices()]
+            )
 
     # ------------------------------------------------------------- per step
     def observe(self, vs, s_before, t_now: float) -> None:
@@ -86,8 +90,7 @@ class KpiHub:
         self._exit_ptr = len(exits)
         self._pending = []
         for e in waiting:
-            route = sim.ref_route.get(e.vid, e.route)  # a re-routed vehicle keeps its reference
-            ff = self.ref.get(sim.routes.roads[route], e.cls) if self.ref else None
+            ff = self.delay_ref.free_flow(sim.routes.pair[e.route], e.cls) if self.ref else None
             if ff is None:
                 self._pending.append(e)
                 continue

@@ -16,8 +16,9 @@ changes at most one lane per cooldown). That vehicle keeps its flyover route
 ("grandfathered"): stranding it at the end of a lane that no longer leads anywhere would
 block the lane. Reopening applies the same rule in reverse.
 
-A vehicle's free-flow reference stays the one of the route it was inserted on, so a
-detour forced on a vehicle already in the network counts as delay.
+Delay is measured against the fastest free-flow route on the fully OPEN network for the
+vehicle's origin and destination (engine/freeflow.py ``DelayReference``), so the extra time a
+closure causes counts as delay for everyone, re-routed or not.
 """
 
 from __future__ import annotations
@@ -43,6 +44,32 @@ def apply_change(sim, change: Change) -> None:
         set_flyover(sim, change.open)
     else:  # pragma: no cover - the type union is closed
         raise TypeError(f"unknown change {change!r}")
+
+
+def schedule_change(sim, change: Change, tick: int | None = None) -> int:
+    """Validate now (ValueError with a clear message), queue for the start of ``tick``, apply it
+    before phase 1 of that tick and log it with the tick it was applied at. Returns that tick."""
+    at = sim.tick if tick is None else tick
+    if at < sim.tick:
+        raise ValueError(f"cannot change the past: tick {at} < current tick {sim.tick}")
+    if at > sim._total_ticks:
+        raise ValueError(
+            f"tick {at} is after the end of the run (tick {sim._total_ticks}): "
+            "the change would never be applied"
+        )
+    check_change(sim, change)
+    if isinstance(change, SetFlyover):
+        sim.flyover_pending = change.open
+    sim._pending.append((at, change))
+    sim._pending.sort(key=lambda p: p[0])  # stable: same-tick changes keep their order
+    return at
+
+
+def apply_due(sim) -> None:
+    while sim._pending and sim._pending[0][0] <= sim.tick:
+        _, change = sim._pending.pop(0)
+        apply_change(sim, change)
+        sim.change_log.append((sim.tick, change))
 
 
 def check_change(sim, change: Change) -> None:
@@ -107,7 +134,6 @@ def reroute_active(sim, closing: bool) -> None:
             if closing:
                 sim.grandfathered_vids.add(int(vs.vid[i]))
             continue
-        sim.ref_route.setdefault(int(vs.vid[i]), route)
         vs.route[i] = new
         if not lg.is_conn[seg]:
             refresh_lane_cache(vs, lg, rt, i)
