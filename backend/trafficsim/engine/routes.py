@@ -3,7 +3,8 @@
 A route is the fastest free-flow sequence of roads from an origin zone's entry road to a
 destination zone's exit road (``network.routing.fastest_route``). Along a road, the
 lanes that lead onward to the route's next road are the route's *good lanes* there;
-a vehicle in any other lane must change lanes before the lane ends (mandatory change).
+a vehicle in any other lane must change lanes before the lane ends (mandatory change). On a road
+that leads to a junction approach the good lanes are also those that enter a good lane there.
 """
 
 from __future__ import annotations
@@ -66,12 +67,25 @@ class RouteTable:
         self.od.append(key)
         self.pair.append(pair)
         self.index[key] = k
-        good = []
-        for rpos, rid in enumerate(roads):
-            segs = lg.road_segs[rid]
-            good.append(np.array([next_seg(lg, self, k, rpos, sg) != NEXT_NONE for sg in segs]))
-            if not good[-1].any():
-                raise ValueError(f"route {key}: no lane of {rid} leads onward")
+        good: list[np.ndarray] = [np.empty(0, dtype=bool)] * len(roads)
+        for rpos in range(len(roads) - 1, -1, -1):  # backwards: the next road's lanes are known
+            segs = lg.road_segs[roads[rpos]]
+            nxt = [next_seg(lg, self, k, rpos, sg) for sg in segs]
+            leads = np.array([n != NEXT_NONE for n in nxt])
+            if not leads.any():
+                raise ValueError(f"route {key}: no lane of {roads[rpos]} leads onward")
+            good[rpos] = leads
+            if rpos + 1 < len(roads) and lg.ends_at_junction[lg.road_segs[roads[rpos + 1]][0]]:
+                # The next road is a junction approach, where the lane decides the movement: a
+                # lane is good only if it enters a good lane there (otherwise the vehicle would
+                # arrive in a turn-only lane it must leave, in a queue it cannot see yet).
+                enters = [
+                    int(lg.lane_index[lg.conn_to[n] if lg.is_conn[n] else n]) for n in nxt if n >= 0
+                ]
+                ahead = good[rpos + 1]
+                entry = np.array([n >= 0 and bool(ahead[enters.pop(0)]) for n in nxt])
+                if (leads & entry).any():
+                    good[rpos] = leads & entry
         self.good.append(good)
         return k
 

@@ -3,10 +3,10 @@
 Two main lane groups meet at the diverge:
   * the SURFACE group (``surface_lanes`` per direction, ``surface_width_m``): the road through J1;
   * the FLYOVER / through group (``flyover_lanes``, ``flyover_width_m``): the ramps, the deck,
-    the section east of the merge (the flyover lanes plus the single J1 link lane, which ends
-    at the lane drop) and J2's major road.
-The J1 link lane (3.0 m, or the flyover width if that is narrower: it merges into a lane of that
-width), the cross street (3.25 m) and J2's minor road (2.75 m) keep their widths. The west
+    the flyover lanes of the section east of the merge, and J2's major road.
+East of J1 the surface group continues as the link lanes (same count, width and position), which
+join the flyover lanes at the merge and end at the lane drop. The cross street (3.25 m) and J2's
+minor road (2.75 m) keep their widths. The west
 arterial therefore has surface + flyover lanes per direction. The default (2 + 2 lanes, 3.5 m)
 is the original demo network, reproduced exactly.
 

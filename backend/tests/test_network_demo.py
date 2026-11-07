@@ -10,7 +10,13 @@ from trafficsim.network.serialize import network_to_dict
 
 
 def test_has_roads_with_1_2_3_and_4_lanes(net):
-    assert {1, 2, 3, 4} <= validate.lane_counts(net)
+    """The default has 1, 2 and 4 lanes (the link east of J1 follows the surface group, so the
+    old 3-lane section is now 4 lanes); 3-lane roads appear with 3 surface or flyover lanes."""
+    from trafficsim.network.demo import build_demo_network
+    from trafficsim.network.structure import Structure
+
+    assert {1, 2, 4} <= validate.lane_counts(net)
+    assert 3 in validate.lane_counts(build_demo_network(Structure(surface_lanes=3)))
 
 
 def test_two_junctions_one_signalised_one_give_way(net):
@@ -22,11 +28,11 @@ def test_two_junctions_one_signalised_one_give_way(net):
     assert {net.lane(c.from_lane).road_id for c in yielding} >= {"n2_in"}
 
 
-def test_lane_drop_three_to_two(net):
+def test_lane_drop_four_to_two(net):
     dropped = validate.dropped_lanes(net)
-    assert dropped == ["eb_e3:0"]
+    assert dropped == ["eb_e3:0", "eb_e3:1"]  # the two link lanes end
     road = net.road_of(dropped[0])
-    assert road.n_lanes == 3
+    assert road.n_lanes == 4
     nxt = {net.road_of(c.to_lane).n_lanes for ln in road.lanes for c in net.successors(ln.id)}
     assert nxt == {2}
 
@@ -88,7 +94,7 @@ def test_adjacent_lane_centrelines_are_exactly_half_widths_apart(net):
 
 def test_widths_vary_across_network(net):
     widths = {ln.width_m for r in net.roads for ln in r.lanes}
-    assert widths == {2.75, 3.0, 3.25, 3.5}
+    assert widths == {2.75, 3.25, 3.5}
 
 
 def test_links_join_coincident_endpoints(net):

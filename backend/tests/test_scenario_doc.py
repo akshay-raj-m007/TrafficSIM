@@ -35,7 +35,7 @@ def test_presets_differ_in_exactly_what_they_say():
     for other in ("flyover_closed", "j2_before"):  # same demand as the default
         assert p[other]["initial"]["demand"] == d["initial"]["demand"]
     n2 = {(r["origin"], r["destination"]): r["veh_per_h"] for r in d["initial"]["demand"]}
-    assert n2[("N2", "W")] == 30 and n2[("N2", "E")] == 234  # 0.8 x measured capacities
+    assert n2[("N2", "W")] == 14 and n2[("N2", "E")] == 230  # 0.8 x measured capacities
 
 
 def test_rush_hour_hits_the_target_critical_flow_ratio():

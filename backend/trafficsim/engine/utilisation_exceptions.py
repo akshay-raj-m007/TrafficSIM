@@ -21,6 +21,7 @@ class UtilisationException:
     reason: str
     pattern: re.Pattern[str]
     flyover: bool | None = None  # applies only with the flyover open / closed; None = always
+    middle_lanes: bool = False  # the pattern names a lane index k that must be 1 <= k <= S - 2
 
 
 EXCEPTIONS: tuple[UtilisationException, ...] = (
@@ -33,6 +34,17 @@ EXCEPTIONS: tuple[UtilisationException, ...] = (
         "the exception applies only while it is open.",
         re.compile(r"^(eb_surf_w:\d+>eb_surf_e:\d+|wb_surf_e:\d+>wb_surf_w:\d+)$"),
         flyover=True,
+    ),
+    UtilisationException(
+        "surface_through_lanes",
+        "The middle surface lanes (index 1 to S-2, with 3 or 4 surface lanes) on the west road "
+        "and both J1 approaches: they lead only to the surface through movement, which has no "
+        "demand while the flyover is open (the flyover is the fastest route), so lane planning "
+        "keeps vehicles out of them; with 2 lanes there is no middle lane. Used as soon as the "
+        "flyover is closed.",
+        re.compile(r"^(eb_w4|eb_surf_w|wb_surf_e):(\d+)$"),
+        flyover=True,
+        middle_lanes=True,
     ),
     UtilisationException(
         "flyover_closed_structure",
@@ -52,11 +64,14 @@ EXCEPTIONS: tuple[UtilisationException, ...] = (
 )
 
 
-def explain(segment_id: str, flyover_open: bool) -> UtilisationException | None:
+def explain(
+    segment_id: str, flyover_open: bool, surface_lanes: int = 2
+) -> UtilisationException | None:
     """The exception that allows ``segment_id`` to be empty, or None if none does."""
     for e in EXCEPTIONS:
         if e.flyover is not None and e.flyover != flyover_open:
             continue
-        if e.pattern.match(segment_id):
+        m = e.pattern.match(segment_id)
+        if m and (not e.middle_lanes or 1 <= int(m.group(2)) <= surface_lanes - 2):
             return e
     return None

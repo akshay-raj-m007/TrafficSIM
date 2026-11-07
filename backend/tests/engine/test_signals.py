@@ -37,9 +37,9 @@ def test_intergreens_follow_ite_formulas(net):
 def test_saturation_flow_is_measured_per_movement(net):
     sat = saturation_flows(net, DEFAULT_MIX, "J1")
     cars = saturation_flows(net, (("car", 1.0),), "J1")
-    for cid in ("eb_surf_w:1>eb_surf_e:0", "n1_in:0>s1_out:0", "eb_surf_w:0>n1_out:0"):
+    for cid in ("eb_surf_w:1>eb_surf_e:1", "n1_in:0>s1_out:0", "eb_surf_w:0>n1_out:0"):
         print(f"\n[saturation] {cid}: mixed {sat[cid]:.0f} veh/h, cars only {cars[cid]:.0f} veh/h")
-    through = cars["eb_surf_w:1>eb_surf_e:0"]
+    through = cars["eb_surf_w:1>eb_surf_e:1"]
     assert 1200 < through < 2100  # one lane of cars from a standing queue
     assert cars["eb_surf_w:0>n1_out:0"] < through  # tight left turn discharges slower
 

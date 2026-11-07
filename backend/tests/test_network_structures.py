@@ -20,7 +20,8 @@ from trafficsim.network.demo_corridor import DECK_THICKNESS, MIN_CLEARANCE
 from trafficsim.network.routing import fastest_route
 from trafficsim.network.structure import LANES_RANGE, WIDTH_RANGE_M, Structure
 
-FIXTURE = Path(__file__).parent / "fixtures" / "default_network.json"
+FIXTURE = Path(__file__).parent / "fixtures" / "default_network.json"  # before the link change
+CURRENT = Path(__file__).parent / "fixtures" / "default_network_link.json"  # since
 LANES = range(LANES_RANGE[0], LANES_RANGE[1] + 1)
 W_MIN, W_MAX = WIDTH_RANGE_M
 CORNERS = [Structure(2, s, f, ws, wf) for s, f in itertools.product((1, 4), repeat=2)
@@ -29,24 +30,37 @@ ALL = [Structure(2, s, f, ws, wf) for s, f in itertools.product(LANES, repeat=2)
        for ws, wf in itertools.product((W_MIN, 3.5, W_MAX), repeat=2)]  # fmt: skip
 
 
-def test_the_default_structure_reproduces_the_original_networks_exactly():
-    """Every coordinate, id and attribute equals the network built before the structure was
-    parametrised (fingerprint taken from the pre-change code, both J2 variants)."""
-    expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
+LINK_ROADS = {"eb_surf_e", "wb_surf_e", "eb_e3", "wb_e3"}  # now follow the surface group
+
+
+def test_the_link_change_touched_only_the_link_roads_and_their_connectors():
+    """The default network used to have one 3.0 m lane east of J1; it now continues the surface
+    lanes. Compared with the fingerprint of the network from before that change (and before the
+    structure was parametrised), every other road, lane, connector and junction is identical."""
+    old = json.loads(FIXTURE.read_text(encoding="utf-8"))
     for lanes in (1, 2):
-        got = fingerprint(build_demo_network(lanes))
-        for part in ("roads", "connectors", "junctions"):
-            bad = [
-                k
-                for k in expected[str(lanes)][part]
-                if got[part].get(k) != expected[str(lanes)][part][k]
-            ]
-            assert not bad and set(got[part]) == set(expected[str(lanes)][part]), (
-                lanes,
-                part,
-                bad[:5],
-            )
-        assert got == expected[str(lanes)]
+        net = build_demo_network(lanes)
+        got, was = fingerprint(net), old[str(lanes)]
+        assert {r for r in was["roads"] if got["roads"].get(r) != was["roads"][r]} == LINK_ROADS
+
+        def on_link(cid: str) -> bool:  # a connector id is "road:lane>road:lane"
+            return any(part.split(":")[0] in LINK_ROADS for part in cid.split(">"))
+
+        assert all(  # every old connector away from the link roads is bit-identical
+            got["connectors"].get(c) == was["connectors"][c]
+            for c in was["connectors"]
+            if not on_link(c)
+        )
+        assert all(on_link(c) for c in got["connectors"] if c not in was["connectors"])
+        assert set(was["junctions"]) == set(got["junctions"])
+        assert set(was["roads"]) == set(got["roads"])
+
+
+def test_the_default_structure_is_stable():
+    """Fingerprint of the current default networks (both J2 variants)."""
+    expected = json.loads(CURRENT.read_text(encoding="utf-8"))
+    for lanes in (1, 2):
+        assert fingerprint(build_demo_network(lanes)) == expected[str(lanes)], lanes
     assert build_demo_network() is build_demo_network(Structure())  # one cached object
 
 
@@ -106,15 +120,15 @@ def _check(st: Structure) -> None:
     assert (lanes["eb_w4"], lanes["wb_w4"]) == (s + f, s + f)
     assert (lanes["eb_surf_w"], lanes["wb_surf_w"]) == (s, s)
     assert lanes["eb_flyover"] == lanes["eb_ramp_up"] == lanes["wb_ramp_dn"] == f
-    assert (lanes["eb_e3"], lanes["wb_e3"], lanes["eb_e2"], lanes["wb_in"]) == (f + 1, f + 1, f, f)
+    assert (lanes["eb_e3"], lanes["wb_e3"], lanes["eb_e2"], lanes["wb_in"]) == (s + f, s + f, f, f)
+    assert (lanes["eb_surf_e"], lanes["wb_surf_e"]) == (s, s)  # the link follows the surface group
     widths = {r.id: {ln.width_m for ln in r.lanes} for r in net.roads}
     assert widths["eb_surf_w"] == {st.surface_width_m} and widths["eb_flyover"] == {
         st.flyover_width_m
     }
-    assert widths["eb_e3"] == {st.flyover_width_m} and widths["eb_surf_e"] == {
-        min(3.0, st.flyover_width_m)
-    }
-    assert validate.dropped_lanes(net) == ["eb_e3:0"]  # the lane drop is still one lane
+    assert widths["eb_surf_e"] == widths["wb_surf_e"] == {st.surface_width_m}
+    assert widths["eb_e3"] == {st.surface_width_m, st.flyover_width_m}
+    assert validate.dropped_lanes(net) == [f"eb_e3:{k}" for k in range(s)]  # the link lanes end
     assert not validate.grade_separation_violations(net)
     assert not validate.clearance_violations(net, DECK_THICKNESS, MIN_CLEARANCE)
     assert not _lateral_overlaps(net)

@@ -1,28 +1,70 @@
 {
-  "format": {
-    "s_scale_m": 0.01,
-    "lat_scale_m": 0.05,
-    "speed_scale_mps": 0.1,
-    "header_bytes": 12,
-    "bytes_per_vehicle": 9
+ "format": {
+  "s_scale_m": 0.01,
+  "lat_scale_m": 0.05,
+  "speed_scale_mps": 0.1,
+  "header_bytes": 12,
+  "bytes_per_vehicle": 9
+ },
+ "expected": {
+  "header": {
+   "phase": 2,
+   "state": 1,
+   "epoch": 7,
+   "tick": 123456,
+   "n": 5,
+   "speed_index": 3
   },
-  "expected": {
-    "header": {
-      "phase": 2,
-      "state": 1,
-      "epoch": 7,
-      "tick": 123456,
-      "n": 5,
-      "speed_index": 3
-    },
-    "vehicles": {
-      "id": [3.0, 1.0, 40000.0, 12.0, 999.0],
-      "seg": [0.0, 5.0, 65535.0, 17.0, 40.0],
-      "s": [0.0, 12.34, 549.99, 3.5, 655.35],
-      "lat": [0.0, -1.75, 1.75, 0.05, 6.35],
-      "speed": [0.0, 13.9, 16.7, 25.4, 25.5],
-      "cls": [0.0, 1.0, 2.0, 3.0, 0.0],
-      "brake": [true, false, true, false, false]
-    }
+  "vehicles": {
+   "id": [
+    3.0,
+    1.0,
+    40000.0,
+    12.0,
+    999.0
+   ],
+   "seg": [
+    0.0,
+    5.0,
+    65535.0,
+    17.0,
+    40.0
+   ],
+   "s": [
+    0.0,
+    12.34,
+    549.99,
+    3.5,
+    655.35
+   ],
+   "lat": [
+    0.0,
+    -1.75,
+    1.75,
+    0.05,
+    6.35
+   ],
+   "speed": [
+    0.0,
+    13.9,
+    16.7,
+    25.4,
+    25.5
+   ],
+   "cls": [
+    0.0,
+    1.0,
+    2.0,
+    3.0,
+    0.0
+   ],
+   "brake": [
+    true,
+    false,
+    true,
+    false,
+    false
+   ]
   }
+ }
 }

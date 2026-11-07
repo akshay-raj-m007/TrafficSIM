@@ -7,7 +7,7 @@ Contains every element the brief requires:
     lane and a right-turn lane (a flared approach, so a waiting right-turner, which must
     cross the whole major road, does not block left-turners); the exit lane is single.
   * Flyover with diverge/merge ramps; through traffic chooses it by destination.
-  * Roads with 1, 2, 3 and 4 lanes; a 3→2 lane drop (bottleneck) at x=900.
+  * Roads with 1-4 lanes; a lane drop (bottleneck, 4→2 by default) at x=900.
   * Left / through / right turning movements at both junctions.
 """
 
@@ -62,15 +62,20 @@ def _add_j1_turns(b: NetworkBuilder, st: Structure, d: Derived) -> None:
         if k == 0:
             t("J1", "eb_surf_w", 0, "n1_out", 0, "left")
         if k > 0 or s == 1:
-            t("J1", "eb_surf_w", k, "eb_surf_e", 0, "through")
+            t("J1", "eb_surf_w", k, "eb_surf_e", k, "through")
         if k == far:
             t("J1", "eb_surf_w", k, "s1_out", 1, "right")
-    # East arm (westbound approach, single narrow lane).
-    t("J1", "wb_surf_e", 0, "s1_out", 0, "left")
-    t("J1", "wb_surf_e", 0, "wb_surf_w", far, "through")
-    t("J1", "wb_surf_e", 0, "n1_out", 1, "right")
+    # East arm (westbound approach, S lanes), the same rule: kerb lane left, the others straight,
+    # the last lane straight and right; one lane does everything.
+    for k in range(s):
+        if k == 0:
+            t("J1", "wb_surf_e", 0, "s1_out", 0, "left")
+        if k > 0 or s == 1:
+            t("J1", "wb_surf_e", k, "wb_surf_w", k, "through")
+        if k == far:
+            t("J1", "wb_surf_e", k, "n1_out", 1, "right")
     # North arm (southbound approach).
-    t("J1", "n1_in", 0, "eb_surf_e", 0, "left")
+    t("J1", "n1_in", 0, "eb_surf_e", 0, "left")  # left turns enter the kerb lane
     t("J1", "n1_in", 0, "s1_out", 0, "through")
     t("J1", "n1_in", 1, "s1_out", 1, "through")
     t("J1", "n1_in", 1, "wb_surf_w", far, "right")
@@ -78,7 +83,7 @@ def _add_j1_turns(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     t("J1", "s1_in", 0, "wb_surf_w", 0, "left")
     t("J1", "s1_in", 0, "n1_out", 0, "through")
     t("J1", "s1_in", 1, "n1_out", 1, "through")
-    t("J1", "s1_in", 1, "eb_surf_e", 0, "right")
+    t("J1", "s1_in", 1, "eb_surf_e", far, "right")  # right turns enter the median-side lane
     h = d.j1_half_y
     b.junction("J1", "signalised", (-J1_HALF_X, J1_HALF_X), (-h, h))
 
@@ -113,7 +118,7 @@ def _lanes(n: int) -> str:
 
 def _add_zones_and_labels(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     s, f, wf = st.surface_lanes, st.flyover_lanes, st.flyover_width_m
-    y3 = MEDIAN_HALF + (f + 1) * wf + 4.5  # label height above the (F+1)-lane section
+    y3 = MEDIAN_HALF + f * wf + s * st.surface_width_m + 4.5  # above the (S+F)-lane section
     b.zone("W", "eb_w4", "wb_w4")
     b.zone("E", "wb_in", "eb_out")
     b.zone("N1", "n1_in", "n1_out")
@@ -124,11 +129,11 @@ def _add_zones_and_labels(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     b.annotate(f"Flyover · deck +{DECK_Z:g} m", 120, MEDIAN_HALF + f * wf / 2, DECK_Z + 3)
     b.annotate("Diverge", -450, d.j1_half_y)
     b.annotate("Merge", X_MERGE, y3)
-    b.annotate(f"Lane drop {f + 1}→{f}", X_DROP - 50, y3)
+    b.annotate(f"Lane drop {s + f}→{f}", X_DROP - 50, y3)
     b.annotate(_lanes(s + f), X_WEST + 250, d.j1_half_y)
-    b.annotate(_lanes(f + 1), 650, y3)
+    b.annotate(_lanes(s + f), 650, y3)
     b.annotate(_lanes(f), 1000, d.major_half + 4.0)
-    b.annotate(f"1 lane · {d.link_width:.1f} m", 220, d.link_y + 4.25)
+    b.annotate(f"{_lanes(s)} · {st.surface_width_m:g} m", 220, d.kerb_centre_y + 4.25)
     b.annotate("Minor road · 2.75 m", J2_X + 14, 200)
     b.annotate("Cross street · 3.25 m", 14, 250)
 

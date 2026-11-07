@@ -3,6 +3,8 @@
     policy_rush    Webster vs pure max-pressure vs thresholded max-pressure, rush hour
     flyover_rush   flyover open vs closed (from the start), rush hour
     surface_closed surface road 3 lanes x 3.5 m vs 2 lanes x 2.75 m, flyover closed, rush hour
+    flyover_width  flyover group 2 lanes x 3.5 m vs 2 lanes x 2.75 m, flyover open, rush hour
+    flyover_lanes  flyover group 2 lanes vs 1 lane (3.5 m), flyover open, rush hour
 
 Parameters are fixed here, before any result was seen: 10 paired runs, seeds 1-10, 900 s,
 warm-up 300 s, default model. ``tools/gen_experiments.py`` runs them and writes
@@ -18,6 +20,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Final
 
+from trafficsim.engine.presets import RUSH_SCALE
 from trafficsim.engine.runmetrics import METRICS_VERSION
 from trafficsim.engine.sourcedigest import source_digest
 from trafficsim.network.structure import Structure
@@ -44,6 +47,13 @@ def _surface(name: str, lanes: int, width_m: float) -> dict:
     return doc
 
 
+def _flyover(name: str, lanes: int, width_m: float) -> dict:
+    """Rush hour, flyover open, flyover group of the given size (surface road unchanged)."""
+    doc = _rush(name)
+    doc["structure"] |= {"flyover_lanes": lanes, "flyover_width_m": width_m}
+    return doc
+
+
 def definitions() -> dict[str, dict]:
     webster = _rush("Webster", policy="fixed_webster")
     mp = _rush("Max-pressure", policy="max_pressure")
@@ -52,7 +62,7 @@ def definitions() -> dict[str, dict]:
         "policy_rush": {
             "title": "Signal policy at rush hour",
             "description": "Webster (fixed-time) against pure max-pressure and thresholded "
-            "max-pressure at J1, rush-hour demand (every flow x1.11). Difference = B - A.",
+            f"max-pressure at J1, rush-hour demand (every flow x{RUSH_SCALE}). Difference = B - A.",
             "comparisons": [
                 ("Webster vs max-pressure", webster, mp),
                 ("Webster vs thresholded max-pressure", webster, mpt),
@@ -81,6 +91,30 @@ def definitions() -> dict[str, dict]:
                     "Surface 3 x 3.5 m vs 2 x 2.75 m, flyover closed",
                     _surface("Surface 3 lanes x 3.5 m", 3, 3.5),
                     _surface("Surface 2 lanes x 2.75 m", 2, 2.75),
+                )
+            ],  # fmt: skip
+        },
+        "flyover_width": {
+            "title": "Flyover width alone at rush hour",
+            "description": "Flyover group 2 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B), "
+            "flyover open, rush-hour demand: the width alone, same lane count. Difference = B - A.",
+            "comparisons": [
+                (
+                    "Flyover 2 x 3.5 m vs 2 x 2.75 m",
+                    _flyover("Flyover 2 lanes x 3.5 m", 2, 3.5),
+                    _flyover("Flyover 2 lanes x 2.75 m", 2, 2.75),
+                )
+            ],  # fmt: skip
+        },
+        "flyover_lanes": {
+            "title": "Flyover lane count at rush hour",
+            "description": "Flyover group 2 lanes (A) against 1 lane (B), both 3.5 m, flyover "
+            "open, rush-hour demand. Difference = B - A.",
+            "comparisons": [
+                (
+                    "Flyover 2 lanes vs 1 lane",
+                    _flyover("Flyover 2 lanes", 2, 3.5),
+                    _flyover("Flyover 1 lane", 1, 3.5),
                 )
             ],  # fmt: skip
         },

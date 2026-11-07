@@ -91,9 +91,9 @@ export function StructureEditor({ running, text, draft, errors, serverErrors, on
         </p>
       ))}
       <p className="hint">
-        West arterial = surface + flyover lanes; east of the merge the flyover lanes plus the J1
-        link lane (3.0 m, or the flyover width if narrower). Lanes {LANES_RANGE[0]}–{LANES_RANGE[1]}
-        , widths {WIDTH_RANGE_M[0]}–{WIDTH_RANGE_M[1].toFixed(1)} m.
+        West arterial = surface + flyover lanes; east of J1 the surface lanes continue as link lanes
+        (same count and width) that join the flyover lanes at the merge. Lanes {LANES_RANGE[0]}–
+        {LANES_RANGE[1]}, widths {WIDTH_RANGE_M[0]}–{WIDTH_RANGE_M[1].toFixed(1)} m.
       </p>
     </section>
   );

@@ -32,7 +32,7 @@ RING_DENSITIES, RING_S, RING_FROM_S = (30, 45, 60, 70, 80), 900.0, 600.0
 EMPIRICAL_WAVE_KMH = (-20.0, -10.0)
 FD_DENSITIES, FD_S = (20, 30, 40, 50, 55, 60, 65), 600.0
 CAPACITY_RANGE = (1800.0, 2400.0)
-J1_THROUGH = ("eb_surf_w:1>eb_surf_e:0", "wb_surf_e:0>wb_surf_w:1", "n1_in:0>s1_out:0")
+J1_THROUGH = ("eb_surf_w:1>eb_surf_e:1", "wb_surf_e:1>wb_surf_w:1", "n1_in:0>s1_out:0")
 J2_S = 900.0
 
 

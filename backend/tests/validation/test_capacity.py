@@ -49,7 +49,7 @@ def test_free_flow_capacity_from_fundamental_diagram():
 def test_stop_line_saturation_flow(net):
     cars = saturation_flows(net, (("car", 1.0),), "J1")
     mixed = saturation_flows(net, DEFAULT_MIX, "J1")
-    through = ("eb_surf_w:1>eb_surf_e:0", "wb_surf_e:0>wb_surf_w:1", "n1_in:0>s1_out:0")
+    through = ("eb_surf_w:1>eb_surf_e:1", "wb_surf_e:1>wb_surf_w:1", "n1_in:0>s1_out:0")
     print("\n[capacity] J1 saturation flow, veh/h per lane (cars only / default mix)")
     for c in through:
         print(f"   through {c:26s} {cars[c]:6.0f} / {mixed[c]:6.0f}")

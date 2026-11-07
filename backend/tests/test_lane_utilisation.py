@@ -37,19 +37,24 @@ def _run(name):
     structure, extra = CASES[name]
     net = build_demo_network() if structure is None else build_demo_network(structure)
     sc = Scenario(seed=1, duration_s=DURATION_S, demand=DEFAULT_DEMAND, **extra)
-    return measure(net, sc, WARMUP_S), extra.get("flyover_open", True)
+    return measure(net, sc, WARMUP_S), extra.get("flyover_open", True), net
 
 
 @pytest.mark.slow  # each case simulates 900 s (about 20 s)
 @pytest.mark.parametrize("name", list(CASES))
 def test_every_open_lane_carries_vehicles_unless_listed(name):
-    rows, flyover_open = _run(name)
-    empty = [r for r in rows if not r.used and explain(r.id, flyover_open) is None]
+    rows, flyover_open, net = _run(name)
+    s = net.road("eb_surf_w").n_lanes
+    empty = [r for r in rows if not r.used and explain(r.id, flyover_open, s) is None]
     for r in empty:
         print(f"[{name}] EMPTY {r.id}: cause {r.cause}, route demand {r.demand_h:.0f} veh/h")
     assert not empty, [r.id for r in empty]
     # a listed exception that is not actually empty is not an exception: keep the list honest
-    used_listed = [r.id for r in rows if r.used and explain(r.id, flyover_open)]
+    # (connectors only: a middle lane may be used by lane-changing traffic and still be empty in
+    # its far parts, so a lane in the list is allowed to be used; a connector is not)
+    used_listed = [
+        r.id for r in rows if r.used and r.road is None and explain(r.id, flyover_open, s)
+    ]
     assert not used_listed, f"listed as exception but carrying traffic: {used_listed}"
 
 
@@ -57,7 +62,7 @@ def test_every_open_lane_carries_vehicles_unless_listed(name):
 @pytest.mark.parametrize("name", ["default", "flyover_closed"])
 def test_no_empty_lane_is_unexplained(name):
     """Every empty segment has a computed cause, and none is a lane-choice problem."""
-    rows, _ = _run(name)
+    rows, _, _ = _run(name)
     assert [r.id for r in rows if r.cause == "unexplained"] == []
 
 

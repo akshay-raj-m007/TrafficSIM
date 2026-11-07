@@ -35,14 +35,15 @@ DEMO_DEMAND: tuple[OdFlow, ...] = (
 
 # J2 minor-road demand of the default scenario, from MEASURED capacities
 # (``tools/measure_j2_capacity.py``: both movements saturated under the default major-road
-# demand, seeds 1-3, 900 s, first 300 s excluded): the left turn serves 292 veh/h on
-# average (per seed 366, 312, 198), the right turn 38 veh/h (6, 96, 12). Each default flow
-# is 0.8 x its measured capacity, so the default demo is not overloaded on average. (Both
-# vary a lot between seeds: on the weakest seed 234 veh/h left is above capacity.)
-# Before the cross-street <-> arterial flows were added these were 214 / 37 veh/h.
+# demand, seeds 1-3, 900 s, first 300 s excluded): the left turn serves 288 veh/h on
+# average (per seed 396, 306, 162), the right turn 18 veh/h (18, 18, 18). Each default flow
+# is 0.8 x its measured capacity, so the default demo is not overloaded on average. (The left
+# turn varies a lot between seeds: on the weakest seed 230 veh/h is above capacity.)
+# History: 214 / 37 veh/h before the cross-street <-> arterial flows, 234 / 30 before the
+# link east of J1 followed the surface lanes.
 J2_MINOR_UTILISATION = 0.8
-J2_MINOR_LEFT_VEH_H = 234  # N2 -> E,  0.8 x 292
-J2_MINOR_RIGHT_VEH_H = 30  # N2 -> W,  0.8 x 38
+J2_MINOR_LEFT_VEH_H = 230  # N2 -> E,  0.8 x 288
+J2_MINOR_RIGHT_VEH_H = 14  # N2 -> W,  0.8 x 18
 
 DEFAULT_DEMAND: tuple[OdFlow, ...] = tuple(
     OdFlow(f.origin, f.destination, J2_MINOR_RIGHT_VEH_H)
@@ -54,10 +55,10 @@ DEFAULT_DEMAND: tuple[OdFlow, ...] = tuple(
 )
 
 # "Rush hour": every flow scaled so that J1's critical flow ratio Y (from the measured
-# saturation flows) is 0.85 instead of the default demand's 0.763. Y is linear in the
+# saturation flows) is 0.85 instead of the default demand's 0.676. Y is linear in the
 # flows, so the factor is 0.85 / 0.649 (tests/test_presets.py recomputes Y).
 RUSH_TARGET_Y = 0.85
-DEFAULT_Y = 0.763
+DEFAULT_Y = 0.676
 RUSH_SCALE = round(RUSH_TARGET_Y / DEFAULT_Y, 2)
 
 
@@ -69,7 +70,7 @@ DEMO_KPI_LAYOUT = KpiLayout(
         DetectorSpec("E_IN", "East entry (westbound)", "wb_in", 250.0),
         DetectorSpec("FLY_EB", "Flyover eastbound", "eb_flyover", 270.0),
         DetectorSpec("FLY_WB", "Flyover westbound", "wb_flyover", 270.0),
-        DetectorSpec("DROP_3", "Eastbound 3-lane section", "eb_e3", 225.0),
+        DetectorSpec("DROP_3", "Eastbound section east of the merge", "eb_e3", 225.0),
         DetectorSpec("J1_W", "J1 west approach", "eb_surf_w", 405.0),
         DetectorSpec("J1_E", "J1 east approach", "wb_surf_e", 405.0),
         DetectorSpec("J1_N", "J1 north approach", "n1_in", 350.0),
