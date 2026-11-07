@@ -55,6 +55,52 @@ export interface ChartsMsg {
   mfd: [number, number, number, boolean][]; // t [s], density [veh/km/lane], flow [veh/h/lane], flyover open
   queue: [number, number, number][]; // t [s], J1 and J2 longest queue [m]
 }
+/** The inspected vehicle (backend server/inspector.py); `gone` once it has left the network. */
+export interface VehicleLiveMsg {
+  type: 'vehicle';
+  gone: false;
+  id: number;
+  vid: number;
+  t: number;
+  class: string;
+  idm: {
+    length_m: number;
+    width_m: number;
+    v0_mps: number;
+    T_s: number;
+    a_mps2: number;
+    b_mps2: number;
+    s0_m: number;
+  };
+  mobil: {
+    politeness: number;
+    threshold_mps2: number;
+    keep_left_bias_mps2: number;
+    b_safe_mps2: number;
+    cooldown_s: number;
+  };
+  origin: string;
+  destination: string;
+  route: string[];
+  road: string | null;
+  lane: string;
+  s_m: number;
+  speed_mps: number;
+  acc_mps2: number;
+  t_gen: number;
+  t_ins: number;
+  free_flow_s: number | null;
+  delay_s: number | null;
+  lane_changes: number;
+}
+export interface VehicleGoneMsg {
+  type: 'vehicle';
+  gone: true;
+  id: number;
+  t_exit: number | null;
+  lane_changes: number;
+}
+export type VehicleMsg = VehicleLiveMsg | VehicleGoneMsg;
 export type ServerMsg =
   | HelloMsg
   | KpiMsg
@@ -66,4 +112,5 @@ export type ServerMsg =
   | BuildingMsg
   | RejectedMsg
   | ScenarioMsg
-  | ChartsMsg;
+  | ChartsMsg
+  | VehicleMsg;

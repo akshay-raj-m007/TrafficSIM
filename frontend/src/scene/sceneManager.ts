@@ -18,6 +18,8 @@ import { FrameInterpolator } from './interpolator';
 import { LanePlacer, tryBuildPlacer } from './laneGeometry';
 import { LaneFlowLayer } from './laneFlow';
 import { disposeTree } from './meshUtil';
+import { installDebug } from './debugHooks';
+import { attachPicking } from './picking';
 import { buildLanes, buildMarkings } from './roads';
 import { VehicleLayer } from './vehicles';
 
@@ -47,6 +49,13 @@ export class SceneManager {
   private hello: HelloMsg | null = null;
   private renderTick = 0; // fractional simulation tick last drawn (diagnostics)
   private raf = 0;
+  private follow = false;
+  /** Called with the frame id of the clicked vehicle (null: clicked empty space). */
+  private onPick: ((frameId: number | null) => void) | null = null;
+
+  setPickHandler(fn: ((frameId: number | null) => void) | null): void {
+    this.onPick = fn;
+  }
   private resizeObs: ResizeObserver;
 
   constructor(private container: HTMLElement) {
@@ -75,26 +84,32 @@ export class SceneManager {
       this.vehicles.group,
       ...this.groundAndGrid(),
     );
-    // Diagnostics for the smoothness measurement (headless browser): rendered positions.
-    (window as unknown as { __trafficDebug: unknown }).__trafficDebug = {
-      probe: (n: number) => ({
-        tick: this.renderTick,
-        cars: this.vehicles.probe(n),
-      }),
-      drawn: () => [...this.vehicles.drawn],
-      overflow: () => this.vehicles.overflow,
-      laneFlow: () => ({
-        visible: this.laneFlow.group.visible,
-        segments: this.laneFlow.segments,
-        carrying: this.laneFlow.carrying,
-      }),
-    };
-
+    installDebug({
+      camera: this.camera,
+      canvas: this.renderer.domElement,
+      vehicles: this.vehicles,
+      laneFlow: this.laneFlow,
+      tick: () => this.renderTick,
+    });
+    attachPicking(this.renderer.domElement, this.camera, (rc) =>
+      this.onPick?.(this.vehicles.pickId(rc)),
+    );
     this.view('overview');
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(container);
     this.resize();
     this.loop();
+  }
+
+  /** The vehicle to highlight (frame id) or null. */
+  setSelected(frameId: number | null): void {
+    this.vehicles.selected = frameId;
+    if (frameId === null) this.follow = false;
+  }
+
+  /** Keep the camera on the selected vehicle (same viewing offset, target moves with it). */
+  setFollow(on: boolean): void {
+    this.follow = on;
   }
 
   private groundAndGrid(): THREE.Object3D[] {
@@ -183,6 +198,12 @@ export class SceneManager {
     const state = this.interp?.sample(performance.now()) ?? null;
     if (state) this.renderTick = state.tick;
     this.vehicles.update(state);
+    const at = this.vehicles.selectedPosition;
+    if (this.follow && at) {
+      const move = at.clone().sub(this.controls.target);
+      this.camera.position.add(move);
+      this.controls.target.copy(at);
+    }
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
   };

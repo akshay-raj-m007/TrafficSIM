@@ -47,6 +47,8 @@ export function parseServerMessage(raw: string): ServerMsg | null {
       return isNum(o.col0) && Array.isArray(o.cols) && Array.isArray(o.corridors)
         ? (o as unknown as ServerMsg)
         : null;
+    case 'vehicle':
+      return isNum(o.id) && typeof o.gone === 'boolean' ? (o as unknown as ServerMsg) : null;
     case 'scenario':
       return typeof o.scenario === 'object' && o.scenario !== null
         ? (o as unknown as ServerMsg)

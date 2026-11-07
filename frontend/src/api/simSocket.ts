@@ -136,6 +136,11 @@ export class SimSocket {
     return () => set.delete(fn as (msg: never) => void);
   }
 
+  /** Select a vehicle (frame id) for the `vehicle` stream, or null to stop it. */
+  inspect(id: number | null): void {
+    this.send({ type: 'inspect', id });
+  }
+
   setCharts(on: boolean): void {
     this.send({ type: 'charts', on });
   }
