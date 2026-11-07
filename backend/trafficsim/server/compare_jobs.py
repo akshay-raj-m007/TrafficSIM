@@ -157,8 +157,10 @@ class CompareManager:
             wall = time.perf_counter() - job.t0
             cpu = sum(results[sp["key"]]["cpu_s"] for sp in todo)
             workers = default_workers(self.limits)
-            cost = {"cpu_s": round(cpu, 1), "wall_s": round(wall, 1), "workers": workers,
-                    "cached_runs": job.cached, "computed_runs": len(todo)}  # fmt: skip
+            all_cpu = sum(r["cpu_s"] for r in results.values())  # also for cached runs
+            cost = {"cpu_s": round(cpu, 1), "run_cpu_s": round(all_cpu, 1),
+                    "wall_s": round(wall, 1), "workers": workers, "cached_runs": job.cached,
+                    "computed_runs": len(todo)}  # fmt: skip
             job.result = assemble(v, results, cost)
             job.state = "done"
         except Exception as exc:  # report, never hang the poller

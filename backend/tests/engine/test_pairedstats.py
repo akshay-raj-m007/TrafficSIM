@@ -62,6 +62,11 @@ def test_undefined_pairs_are_dropped_from_that_metric_and_counted():
     one = paired_difference([1.0], [2.0])
     assert one["ci_lo"] is None and one["significant"] is None  # no spread, no interval
     assert paired_difference([None], [None])["diff"] is None
+    # one side defined, the other never: the defined side still shows its own mean
+    half = paired_difference([1.0, 3.0], [None, None])
+    assert (
+        half["mean_a"] == 2.0 and half["mean_b"] is None and half["diff"] is None and half["n"] == 0
+    )
 
 
 def test_wider_with_fewer_runs():

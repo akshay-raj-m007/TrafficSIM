@@ -132,3 +132,32 @@ select { background: var(--bg); color: var(--text); border: 1px solid var(--bord
 .ed-radio input { width: auto; }
 .ed-log { margin: 4px 0; padding-left: 18px; font-size: 11px; }
 input[aria-invalid='true'] { border-color: var(--danger); }
+
+/* tabs and the compare view */
+.tabs { display: flex; gap: 4px; margin-right: 16px; }
+.tabs button { text-transform: capitalize; }
+.app--compare .panel, .app--compare .centre { display: none; }
+.compare { grid-column: 1 / -1; grid-row: 2; overflow-y: auto; padding: 16px 24px; display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 24px; align-items: start; background: var(--bg); }
+.cmp-pickers { display: grid; gap: 8px; }
+.cmp-picker { border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+.cmp-picker legend { color: var(--muted); padding: 0 6px; }
+.cmp-run { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-top: 8px; }
+.cmp-run button { grid-column: 1 / -1; }
+.cmp-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+.cmp-progress progress { width: 100%; }
+.cmp-exps { display: flex; flex-direction: column; gap: 6px; }
+.cmp-meta { display: grid; grid-template-columns: 50px 1fr; gap: 2px 10px; margin: 6px 0 10px; font-size: 12px; }
+.cmp-meta dt { color: var(--muted); }
+.cmp-meta dd { margin: 0; }
+.cmp-result { margin-bottom: 32px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cmp-table th { text-align: right; color: var(--muted); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.cmp-table th:first-child, .cmp-table td:first-child, .cmp-table th:last-child, .cmp-table td:last-child { text-align: left; }
+.cmp-table td { text-align: right; padding: 4px 8px; font-family: var(--mono); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--panel-2); }
+.cmp-table td:first-child, .cmp-table td:last-child { font-family: inherit; }
+.cmp-row { cursor: pointer; }
+.cmp-row:hover { background: var(--panel-2); }
+.cmp-significant td:last-child { color: #68d391; }
+.cmp-not-significant td:last-child { color: var(--amber); }
+.cmp-seeds table { width: auto; margin: 2px 0 8px 24px; }
+.cmp-seeds td, .cmp-seeds th { padding: 1px 12px; text-align: right; }

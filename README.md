@@ -47,6 +47,8 @@ docker run --rm -p 8000:8000 trafficsim   # http://localhost:8000
 | `GET /api/health` | status, `dt`, active / max / rejected sessions |
 | `GET /api/network?j2_minor_lanes=1\|2` | the network geometry (metres; x east, y north, z up) |
 | `GET /api/presets` | the four named scenarios (documents) with a one-line description each |
+| `POST /api/compare`, `GET /api/compare/{id}`, `DELETE /api/compare/{id}`, `GET /api/compare/limits` | start an A/B comparison (422 with per-field errors, 429 when the job cap is reached), poll its progress and result, cancel, read the server limits |
+| `GET /api/experiments[/{id}]` | the precomputed built-in experiments |
 | `POST /api/scenario/validate` | validate a scenario document: `{valid, errors: [{path, message}]}` |
 | `WS /ws/sim` | live session. Server to client: `hello` (class sizes, frame format, segment table, the scenario document in force, network key), binary vehicle frames (only when the simulation advanced), `kpi` and `stats` (once per second), `applied` / `rejected` (answers to `apply` and `reset`), `scenario` (answer to `export`), `busy`. Client to server: `set_speed` (0, 0.25, 0.5, 1, 2, 5, 10), `reset` (`seed`, or `preset` [+ `seed`], or a whole `scenario` document), `apply` (one live change), `export`, `ping`. Close code 1013 when full. Optional query parameters `seed`, `signal` (`fixed_webster`, `max_pressure`, `max_pressure_threshold`, `uncontrolled`) and `demand_scale` (0.25 to 3) are an experiment seam |
 
@@ -312,6 +314,188 @@ therefore changed (displayed green = effective green + l1 - e): they now sum wit
 intergreens to exactly the cycle (tested). The fixed-time plan is computed from the demand in
 force when it is selected and does not follow later demand changes (that is what fixed-time
 means).
+
+## A/B comparison (Compare tab)
+
+Pick scenario A and B (a preset, the editor's current settings, or an imported JSON file),
+3, 5 or 10 runs, a duration and a warm-up. The backend runs every (scenario, seed) headless,
+in a process pool, with no WebSocket frames, and reports for each metric the mean of A, the
+mean of B, the difference **B - A** and its 95% confidence interval, with the per-seed values
+one click away. If the interval includes zero the table says "NOT significant with N runs".
+
+**Paired runs.** Run *i* of A and of B use the same seed `base + i`. Arrivals (time, class,
+destination) are drawn from the `spawn`, `vehicle_class` and `route` streams *when a vehicle
+is generated*, never when it is inserted, and no stream is used for driver behaviour, so with
+the same demand and mix A and B receive identical arrivals whatever the signals, flyover or
+lane layout (`tests/engine/test_runmetrics.py` compares the arrival lists of four variants).
+If A and B differ in demand or mix the result says "arrivals are not paired".
+
+**Warm-up (default 300 s, configurable).** The longest free-flow trip in the network is 242 s,
+so by 300 s the first vehicles have left and every route carries traffic. Statistics use the
+window [warm-up, duration) only.
+
+**Cohort rule for trips that cross the warm-up boundary.** Trip-level metrics (delay, travel
+time, flyover share) use the vehicles *generated at or after the warm-up end* that *had at
+least their own free-flow trip time left before the end* (a vehicle generated a minute before
+the end cannot have finished and would count as "zero delay"). The second condition depends
+only on the generation time and the route, never on the outcome, so it treats A and B alike;
+excluded vehicles are counted ("too young") and still appear in throughput and unserved
+demand. Throughput is a flow: completed trips that *exit* inside the window.
+
+**Unfinished trips are counted, not dropped.** The primary metric, **mean delay**, covers
+every cohort vehicle. A completed trip contributes its measured delay
+`(t_exit - t_generated) - free_flow(route, class)` (waiting in the entry queue included; the
+free-flow time is the engine-measured table of the route the vehicle was first given, so a
+detour forced by a closure counts as delay). A vehicle still in the network or still waiting
+at an entry at the end contributes the lower bound `max(0, (t_end - t_generated) - free_flow)`:
+its final delay can only be larger. Dropping them would flatter the scenario that traps more
+vehicles. Always shown beside it: delay of completed trips only, and the numbers of completed
+and unfinished trips. Travel-time percentiles cover completed trips only (so p90 is biased
+low for the worse scenario).
+
+| Metric | Definition |
+|---|---|
+| mean delay (primary) | above; seconds per cohort vehicle |
+| mean delay, completed only | cohort trips that finished |
+| travel time p50 / p90 | `t_exit - t_generated` of completed cohort trips, linear-interpolated percentiles |
+| throughput | completed trips with `t_exit` inside the window, per hour |
+| unserved demand | vehicles waiting in entry queues at the end |
+| unfinished trips | cohort vehicles not finished at the end (in network or waiting) |
+| queue (J1: 4 approaches, J2: 3) | the existing queue measurement: a vehicle is queued below 5 mi/h (2.2 m/s), the queue is the unbroken chain from the stop line whose links are at most 7.0 m (the largest IDM crawling gap, derived), length = stop line to the rear of the last vehicle, per approach the longest lane; sampled every 1 s inside the window; per junction the *longest approach queue*, reported as its maximum and its time average |
+| flyover share | of completed cohort trips whose OD pair's open-network fastest route uses the flyover (W-E, E-W, W-N2, N2-W), the share that travelled on the deck; a closure gives 0 and the denominator is the same in A and B |
+
+**Statistics.** With d_i = B_i - A_i over the n paired seeds, the interval is
+`mean(d) +- t(0.975, n-1) * sd / sqrt(n)` with df = n-1 (t = 4.303, 2.776, 2.262 for 3, 5, 10
+runs). The Student-t quantile is computed in `engine/pairedstats.py` and tested against
+`scipy.stats.t.ppf`, `scipy.stats.ttest_rel` and a worked example. Runs where a metric is
+undefined are dropped from that metric only and the table says so. About a dozen metrics are
+compared at once with unadjusted intervals, so a single "significant" among them should be
+read with care. Overloaded scenarios (queues that keep growing) do not settle, so their numbers
+depend on how long they are run: the duration, warm-up and demand are shown with every result.
+
+**Server cost and limits.** Jobs run in a background process pool with a progress bar; at most
+`COMPARE_MAX_JOBS` (default 1) run at once, further requests get HTTP 429; `COMPARE_MAX_RUNS`
+(10), `COMPARE_MAX_DURATION_S` (1800) and `COMPARE_WORKERS` (default min(4, cores-1)) restrict
+a hosted server; invalid requests are errors, never clamped. Finished runs are cached on disk
+by a hash of (scenario document, seed, duration, warm-up, metric definition version, model
+digest), so the same comparison never runs twice and comparisons that share runs pay once.
+The two built-in experiments are precomputed (`tools/gen_experiments.py`, stored in
+`trafficsim/data/experiments/`, stale when the model digest changes) and served instantly.
+
+### Built-in experiments (10 paired runs, seeds 1-10, 900 s, warm-up 300 s, rush-hour demand)
+
+Parameters were fixed before any result was seen. Rush hour is every default flow x1.31
+(4,796 veh/h in total; J1 critical flow ratio 0.850). All figures are in the Compare tab
+(stored results, served instantly); the tables below are generated from the same files.
+Everything that is not significant is shown.
+
+**Reading the tables.**
+- *Signal policy.* Thresholded max-pressure and Webster are **not distinguishable on the primary
+  metric** (mean delay -3.3 s, interval [-6.8, +0.2] crosses zero). The secondary metrics point
+  both ways (thresholded: lower completed-trip delay and p50, higher p90 and higher maximum J1
+  queue), and with a dozen metrics compared at once these four "significant" ones should be read
+  with care. Pure max-pressure is clearly worse than both (delay +20.9 s against Webster,
+  throughput -364 veh/h, J1 queue maximum +112 m); this is the textbook rule's switching loss
+  showing up (it switches every ~8 s). The J2 rows and the unserved-demand row are *identical
+  in every run* for all three policies: everything that reaches J2 comes over the flyover
+  (W-E, E-W, W-N2, N2-W all use it), which bypasses J1, so J1's policy cannot reach it.
+- *Flyover.* Closing the flyover at rush hour overloads J1 and the scenario does not settle in
+  900 s. Mean delay rises by 134 s and 394 more vehicles per run are unfinished. Beware the
+  travel-time rows of the closed case: only 57 of its 566 cohort trips complete (the short
+  ones), so its p50 is *lower* than the open case's and its p90 interval is huge; that is
+  survivorship, not a benefit, which is why the unfinished count and the lower-bound delay sit
+  beside them. Mean delay of completed trips only is not significant (57 trips, large spread).
+  The westbound surface queue grows back past J2 (J2 longest approach queue maximum +217 m).
+  Flyover share of the closed case is undefined: no eligible long trip completes in any seed.
+
+#### Signal policy at rush hour
+
+Webster (fixed-time) against pure max-pressure and thresholded max-pressure at J1, rush-hour demand (every flow x1.31). Difference = B - A.
+
+**Webster vs max-pressure** (A = Webster, B = Max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (470 completed, 114 unfinished), B 584 (409 completed, 175 unfinished))
+
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 62.6 | 83.6 | +20.9 | [+16.2, +25.7] | **significant** |
+| Mean delay, completed trips only [s] | 53.9 | 64.7 | +10.8 | [+5.7, +15.9] | **significant** |
+| Travel time p50 (completed) [s] | 188.1 | 188.7 | +0.7 | [-0.6, +2.0] | not significant |
+| Travel time p90 (completed) [s] | 287.9 | 321.3 | +33.4 | [+9.9, +56.9] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4234 | 3870 | -364 | [-423, -305] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.6 | 0.6 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 113.9 | 175.0 | +61.1 | [+50.3, +71.9] | **significant** |
+| J1 longest approach queue, maximum [m] | 105.9 | 218.2 | +112.3 | [+85.5, +139.1] | **significant** |
+| J1 longest approach queue, time average [m] | 62.8 | 102.5 | +39.8 | [+30.0, +49.5] | **significant** |
+| J2 longest approach queue, maximum [m] | 145.0 | 145.0 | 0.0 | [0.0, 0.0] | identical in every run |
+| J2 longest approach queue, time average [m] | 79.7 | 79.7 | -0.0 | [-0.0, +0.0] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
+
+**Webster vs thresholded max-pressure** (A = Webster, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (470 completed, 114 unfinished), B 584 (469 completed, 115 unfinished))
+
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 62.6 | 59.3 | -3.3 | [-6.8, +0.2] | not significant |
+| Mean delay, completed trips only [s] | 53.9 | 49.8 | -4.1 | [-7.4, -0.7] | **significant** |
+| Travel time p50 (completed) [s] | 188.1 | 185.3 | -2.8 | [-4.1, -1.6] | **significant** |
+| Travel time p90 (completed) [s] | 287.9 | 299.5 | +11.7 | [+0.8, +22.5] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4234 | 4216 | -18 | [-55, +19] | not significant |
+| Unserved demand (waiting at entries at the end) [veh] | 0.6 | 0.6 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 113.9 | 115.4 | +1.5 | [-4.6, +7.6] | not significant |
+| J1 longest approach queue, maximum [m] | 105.9 | 129.3 | +23.4 | [+4.0, +42.8] | **significant** |
+| J1 longest approach queue, time average [m] | 62.8 | 68.5 | +5.7 | [-3.4, +14.8] | not significant |
+| J2 longest approach queue, maximum [m] | 145.0 | 145.0 | +0.0 | [-0.0, +0.0] | not significant |
+| J2 longest approach queue, time average [m] | 79.7 | 79.7 | -0.0 | [-0.0, +0.0] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
+
+**Max-pressure vs thresholded max-pressure** (A = Max-pressure, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (409 completed, 175 unfinished), B 584 (469 completed, 115 unfinished))
+
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 83.6 | 59.3 | -24.3 | [-27.3, -21.3] | **significant** |
+| Mean delay, completed trips only [s] | 64.7 | 49.8 | -14.9 | [-19.5, -10.2] | **significant** |
+| Travel time p50 (completed) [s] | 188.7 | 185.3 | -3.5 | [-4.9, -2.1] | **significant** |
+| Travel time p90 (completed) [s] | 321.3 | 299.5 | -21.7 | [-44.1, +0.7] | not significant |
+| Throughput (completed trips in window) [veh/h] | 3870 | 4216 | +346 | [+308, +385] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.6 | 0.6 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 175.0 | 115.4 | -59.6 | [-65.7, -53.5] | **significant** |
+| J1 longest approach queue, maximum [m] | 218.2 | 129.3 | -88.9 | [-106.5, -71.4] | **significant** |
+| J1 longest approach queue, time average [m] | 102.5 | 68.5 | -34.1 | [-38.8, -29.3] | **significant** |
+| J2 longest approach queue, maximum [m] | 145.0 | 145.0 | +0.0 | [-0.0, +0.0] | not significant |
+| J2 longest approach queue, time average [m] | 79.7 | 79.7 | -0.0 | [-0.0, +0.0] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
+
+#### Flyover open vs closed at rush hour
+
+The flyover open against closed from the start, rush-hour demand. Difference = closed - open.
+
+**Flyover open vs closed** (A = Flyover open, B = Flyover closed; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4796 veh/h; per run, mean cohort A 584 (470 completed, 114 unfinished), B 566 (57 completed, 508 unfinished))
+
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 62.6 | 196.3 | +133.7 | [+118.8, +148.5] | **significant** |
+| Mean delay, completed trips only [s] | 53.9 | 71.5 | +17.6 | [-4.6, +39.8] | not significant |
+| Travel time p50 (completed) [s] | 188.1 | 102.3 | -85.7 | [-88.9, -82.6] | **significant** |
+| Travel time p90 (completed) [s] | 287.9 | 332.6 | +44.7 | [-95.0, +184.4] | not significant |
+| Throughput (completed trips in window) [veh/h] | 4234 | 1723 | -2511 | [-2756, -2266] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.6 | 151.3 | +150.7 | [+136.9, +164.5] | **significant** |
+| Unfinished trips (cohort, at the end) [veh] | 113.9 | 508.5 | +394.6 | [+355.1, +434.1] | **significant** |
+| J1 longest approach queue, maximum [m] | 105.9 | 372.0 | +266.0 | [+245.1, +287.0] | **significant** |
+| J1 longest approach queue, time average [m] | 62.8 | 227.4 | +164.6 | [+157.2, +172.0] | **significant** |
+| J2 longest approach queue, maximum [m] | 145.0 | 361.7 | +216.7 | [+163.7, +269.6] | **significant** |
+| J2 longest approach queue, time average [m] | 79.7 | 78.5 | -1.1 | [-40.7, +38.4] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | - | - | - | undefined (no usable pair) |
+
+
+### CPU cost of a comparison (measured, `tools/gen_experiments.py`, 4 worker processes)
+
+| Comparison | runs | CPU time | wall time |
+|---|---:|---:|---:|
+| 10 runs x 2 scenarios, 900 s, default demand | 20 | 572 s (28.6 s per run) | 150 s |
+| 10 runs x 2 scenarios, 900 s, rush-hour demand | 20 | 649 s (32.4 s per run) | 171 s |
+
+A run costs about 3% of the simulated time in CPU (28-32 s for 900 s). On a single core a
+10-run comparison is about 10 CPU-minutes; on the 0.1-CPU Render tier it would take over an hour
+and a half, which is why the built-in experiments ship precomputed and custom comparisons are
+limited by configuration (`COMPARE_MAX_RUNS`, `COMPARE_MAX_DURATION_S`, `COMPARE_MAX_JOBS`).
 
 ## Project rules
 

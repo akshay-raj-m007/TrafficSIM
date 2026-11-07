@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from trafficsim.server import experiments
 from trafficsim.server.compare_jobs import CompareBusy, CompareManager, RunCache
 from trafficsim.server.compare_spec import (
     ALLOWED_RUNS,
@@ -24,6 +25,20 @@ from trafficsim.server.config import Settings
 def register(app: FastAPI, settings: Settings) -> CompareManager:
     manager = CompareManager(settings.compare, RunCache(settings.cache_dir))
     lim = settings.compare
+    for exp_id in experiments.definitions():  # shipped runs also serve custom comparisons
+        if (doc := experiments.stored(exp_id)) is not None:
+            manager.cache.memory.update(doc["runs"])
+
+    @app.get("/api/experiments")
+    def list_experiments() -> list[dict]:
+        return experiments.listing()
+
+    @app.get("/api/experiments/{exp_id}")
+    def get_experiment(exp_id: str) -> JSONResponse:
+        doc = experiments.stored(exp_id)
+        if doc is None:
+            return JSONResponse({"detail": "unknown or not generated experiment"}, status_code=404)
+        return JSONResponse(doc | {"stale": experiments.is_stale(doc)})
 
     @app.get("/api/compare/limits")
     def limits() -> dict:

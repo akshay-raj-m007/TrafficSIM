@@ -81,6 +81,11 @@ def t_ppf(q: float, df: float) -> float:
     return 0.5 * (lo + hi)
 
 
+def _defined_mean(values: list[float | None]) -> float | None:
+    got = [x for x in values if x is not None]
+    return sum(got) / len(got) if got else None
+
+
 def paired_difference(a: list[float | None], b: list[float | None]) -> dict:
     """Mean A, mean B, difference B - A and its 95 % paired-t interval (see module doc)."""
     if len(a) != len(b):
@@ -88,10 +93,12 @@ def paired_difference(a: list[float | None], b: list[float | None]) -> dict:
     pairs = [(x, y) for x, y in zip(a, b, strict=True) if x is not None and y is not None]
     n = len(pairs)
     out: dict = {"n": n, "per_seed": [{"a": x, "b": y} for x, y in zip(a, b, strict=True)]}
-    if n == 0:
-        return out | {"mean_a": None, "mean_b": None, "diff": None, "ci_lo": None, "ci_hi": None,
-                      "df": None, "t_crit": None, "p": None, "significant": None,
-                      "identical": None}  # fmt: skip
+    if n == 0:  # no usable pair: each side still shows its own defined values, no difference
+        return out | {
+            "mean_a": _defined_mean(a), "mean_b": _defined_mean(b), "diff": None,
+            "ci_lo": None, "ci_hi": None, "df": None, "t_crit": None, "p": None,
+            "significant": None, "identical": None,
+        }  # fmt: skip
     d = [y - x for x, y in pairs]
     mean_a, mean_b = sum(x for x, _ in pairs) / n, sum(y for _, y in pairs) / n
     mean = sum(d) / n

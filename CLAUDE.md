@@ -105,3 +105,22 @@ Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 
   (15 s minimum green, switching threshold derived from the lost time of a switch; fixed
   before any comparison, not tunable on results).
 
+
+## Step 3 / 4a additions
+- **Live changes** (`engine/changes.py`, `Simulation.schedule`/`change_log`): demand, mix, J1 policy,
+  flyover open/closed, applied at a tick boundary and logged; same seed + same log = same run
+  (`tests/engine/test_live_changes.py`). Closing the flyover re-routes what can still choose and
+  grandfathers vehicles too close to the diverge (README).
+- **Scenario JSON** (`server/scenario_doc.py`, version 1): validated, no clamping, errors with paths;
+  presets in `server/presets_doc.py`; J2 default demand from measured capacities
+  (`tools/measure_j2_capacity.py`).
+- **Frame format v2**: vehicles sent as (segment, arc length, lateral), placed on the lane graph in
+  the browser (`frontend/src/scene/laneGeometry.ts`); fixtures from `tools/gen_golden_frame.py`.
+- **A/B comparison**: metrics `engine/runmetrics.py` (definitions in the README), paired t
+  `engine/pairedstats.py` (checked against SciPy), service `server/compare_*.py` (process pool,
+  per-run cache in `backend/.cache/compare`, job cap, limits via env). Built-in experiments are
+  committed in `trafficsim/data/experiments/`; they go stale when the model digest or
+  `METRICS_VERSION` changes: regenerate with `python tools/gen_experiments.py` (about 15 min on 4
+  cores). Committed tables now come in two variants (J2 minor approach 2 lanes / 1 lane):
+  `python tools/gen_freeflow.py` and `tools/gen_calibration.py` write both.
+- Frontend: `npm run build` after changes; Prettier style is single quotes, 100 columns.

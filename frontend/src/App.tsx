@@ -7,7 +7,9 @@ import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
 import { Header } from './ui/Header';
 import type { PresetInfo } from './ui/editor/SeedBar';
+import { CompareView } from './ui/compare/CompareView';
 import { ScenarioPanel } from './ui/ScenarioPanel';
+import { restartDoc } from './ui/scenarioDraft';
 import { TelemetryPanel } from './ui/TelemetryPanel';
 
 interface FrameInfo {
@@ -43,6 +45,7 @@ export function App() {
   const [rateHz, setRateHz] = useState(0);
   const [rttMs, setRttMs] = useState<number | undefined>();
   const [pendingSpeed, setPendingSpeed] = useState<number | null>(null);
+  const [view, setView] = useState<'simulate' | 'compare'>('simulate');
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
   const [presets, setPresets] = useState<Record<string, PresetInfo>>({});
   const [applyErrors, setApplyErrors] = useState<Problem[]>([]);
@@ -124,7 +127,7 @@ export function App() {
   const speeds = hello?.speeds;
   const frameSpeed = speeds?.[frame.speedIndex];
   return (
-    <div className="app">
+    <div className={`app app--${view}`}>
       <Header
         status={status}
         tick={frame.tick}
@@ -136,6 +139,8 @@ export function App() {
         done={stats?.done}
         onSpeed={onSpeed}
         onReset={onReset}
+        view={view}
+        onView={setView}
       />
       <ScenarioPanel
         network={network}
@@ -154,6 +159,12 @@ export function App() {
         onExport={() => sockRef.current?.exportScenario()}
         onImport={(raw) => sockRef.current?.resetTo({ scenario: raw as ScenarioDoc })}
       />
+      {view === 'compare' && (
+        <CompareView
+          presets={presets}
+          current={doc ? restartDoc(doc, doc.structure.j2_minor_lanes, doc.seed) : null}
+        />
+      )}
       <main className="centre">
         <SceneView network={network} classes={hello?.classes ?? []} managerRef={sceneRef} />
         {status === 'busy' && (

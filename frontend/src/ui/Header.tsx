@@ -14,6 +14,8 @@ export interface HeaderProps {
   done?: boolean;
   onSpeed(speed: number): void;
   onReset(seed: number): void;
+  view: 'simulate' | 'compare';
+  onView(v: 'simulate' | 'compare'): void;
 }
 
 const STATUS_TEXT: Record<ConnStatus, string> = {
@@ -33,6 +35,20 @@ export function Header(p: HeaderProps) {
       <div className="brand">
         <span className="brand__name">TrafficSIM</span>
         <span className="brand__sub">agent-based traffic workbench · IDM + MOBIL</span>
+      </div>
+      <div className="tabs" role="tablist" aria-label="View">
+        {(['simulate', 'compare'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={p.view === v}
+            className={p.view === v ? 'is-active' : ''}
+            onClick={() => p.onView(v)}
+          >
+            {v}
+          </button>
+        ))}
       </div>
       <div className="speed" role="group" aria-label="Simulation speed">
         {speeds.map((k) => (

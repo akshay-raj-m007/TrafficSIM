@@ -193,7 +193,7 @@ def assemble(v: Validated, results: dict[str, dict], cost: dict) -> dict:
             "mean_counts": {s: mean_counts(per_side[s]) for s in "ab"}, "cost": cost,
         },
         "metrics": rows,
-        "runs": {s: [{"seed": sd, **{k: r[k] for k in ("metrics", "cpu_s")}}
+        "runs": {s: [{"seed": sd, **{k: r[k] for k in ("key", "metrics", "cpu_s")}}
                      for sd, r in zip(v.seeds, per_side[s], strict=True)] for s in "ab"},
         "note": MULTIPLE_COMPARISONS_NOTE,
     }  # fmt: skip
