@@ -95,6 +95,9 @@ class ClientHandlers:
                             live_scenario.export_doc(self.setup, self.sim)))  # fmt: skip
                     except ScenarioError as exc:
                         await self._send(protocol.rejected("export", exc.items))
+                elif isinstance(msg, protocol.Charts):
+                    self.charts_on = msg.on
+                    self.charts_seen = {}  # a new request starts from the whole history
                 elif isinstance(msg, protocol.Ping):
                     await self._send(protocol.pong(msg.id))
         except WebSocketDisconnect:

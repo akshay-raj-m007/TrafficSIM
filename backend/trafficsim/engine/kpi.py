@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 
+from trafficsim.engine.charts import ChartMeter
 from trafficsim.engine.detectors import Detectors, DetectorSpec
 from trafficsim.engine.freeflow import DelayReference, reference_for
 from trafficsim.engine.laneflow import LaneFlow
@@ -50,6 +51,7 @@ class KpiHub:
     def __init__(self, sim, layout: KpiLayout | None) -> None:
         self.sim = sim
         self.lane_flow = LaneFlow(sim.lg.n)
+        self.charts = ChartMeter(sim)
         self.detectors = Detectors(sim.lg, layout.detectors) if layout else None
         self.queues = QueueMeter(sim.lg, layout.approaches) if layout else None
         self._q_hist: deque[tuple[float, list[float]]] = deque()
@@ -81,11 +83,16 @@ class KpiHub:
 
     def observe_segments(self, vs, tick: int) -> None:
         self.lane_flow.observe(vs, tick)  # after the transfers: where each vehicle now is
+        self.charts.observe(vs, tick)
 
     def sample(self, t_now: float) -> None:
         if not self.queues:
             return
-        self._q_hist.append((t_now, [q[1] for q in self.queues.measure(self.sim.vehicles)]))
+        lens = [q[1] for q in self.queues.measure(self.sim.vehicles)]
+        self.charts.sample_queues(
+            t_now, {sp.id: x for sp, x in zip(self.queues.specs, lens, strict=True)}
+        )
+        self._q_hist.append((t_now, lens))
         while self._q_hist and self._q_hist[0][0] <= t_now - DETECTOR_WINDOW_S:
             self._q_hist.popleft()
 

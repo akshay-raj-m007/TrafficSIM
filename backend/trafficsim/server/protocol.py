@@ -1,14 +1,15 @@
 """WebSocket message schemas.
 
 Client -> server (JSON, validated with pydantic): set_speed, reset (seed / preset / scenario
-document), apply (a live change), export, ping.
+document), apply (a live change), export, charts (on / off), ping.
 Server -> client:
   * binary frames: vehicle poses, see ``frames.py`` (sent only when the simulation advanced)
   * JSON ``hello`` (session description, vehicle class dimensions, frame format),
     ``kpi`` (measured KPIs, at most once per wall second), ``stats`` (streaming/server
     measurements, once per wall second), ``applied`` / ``rejected`` (answer to ``apply``
     and to an invalid ``reset``), ``scenario`` (answer to ``export``), ``busy``, ``pong``,
-    ``error``.
+    ``error``, ``charts`` (only while asked for: MFD points, corridor speed columns and queue
+    samples not yet sent, see engine/charts.py).
 """
 
 from __future__ import annotations
@@ -68,12 +69,19 @@ class Export(BaseModel):
     type: Literal["export"]
 
 
+class Charts(BaseModel):
+    """Start / stop the 1 Hz ``charts`` stream (the first message carries the whole history)."""
+
+    type: Literal["charts"]
+    on: bool
+
+
 class Ping(BaseModel):
     type: Literal["ping"]
     id: int
 
 
-ClientMsg = SetSpeed | Reset | Apply | Export | Ping
+ClientMsg = SetSpeed | Reset | Apply | Export | Charts | Ping
 ClientMessage = Annotated[ClientMsg, Field(discriminator="type")]
 _client_adapter: TypeAdapter[ClientMsg] = TypeAdapter(ClientMessage)
 
@@ -135,6 +143,10 @@ def busy(max_sessions: int) -> dict:
         "sessions_max": max_sessions,
         "message": "Server busy: all simulation slots are in use. Please try again shortly.",
     }
+
+
+def charts(since: dict) -> dict:
+    return {"type": "charts", **since}
 
 
 def pong(ping_id: int) -> dict:

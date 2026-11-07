@@ -55,6 +55,8 @@ class LiveSession(ClientHandlers):
         self.sim = None  # built in run(), in a worker thread
         self.encoder = None
         self.building = False
+        self.charts_on = False  # the results drawer is open: stream the chart measurements
+        self.charts_seen: dict = {}  # cursors of what this session has received
         self._build_task: asyncio.Task | None = None
 
     async def _build(self, setup, reason: str, new_epoch: bool = True) -> None:
@@ -65,6 +67,7 @@ class LiveSession(ClientHandlers):
             await self._send(protocol.building(reason, setup.name))
             sim, encoder = await asyncio.to_thread(build_session, setup)
             self.setup, self.sim, self.encoder, self.network = setup, sim, encoder, setup.network
+            self.charts_seen = {}  # new simulation: history starts again
             if new_epoch:
                 self.epoch = (self.epoch + 1) & 255
             await self._hello()
@@ -146,6 +149,8 @@ class LiveSession(ClientHandlers):
                 agg["vehicles"] = sim.active
                 last_aux = now
                 await self._send(protocol.kpi(sim.kpi_snapshot()))
+                if self.charts_on:
+                    await self._send(protocol.charts(sim.kpis.charts.since(self.charts_seen)))
                 await self._send(
                     protocol.stats(sim.time_s, sim.tick, self.speed, sim.done, lag_ms, agg)
                 )
