@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from trafficsim.engine.changes import apply_change, check_change
 from trafficsim.engine.constants import DT, STEPS_PER_SECOND, time_of
 from trafficsim.engine.demand import Demand
 from trafficsim.engine.dynamics import accelerations
@@ -35,10 +36,11 @@ from trafficsim.engine.params.control import (
 from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
-from trafficsim.engine.scenario import Scenario
+from trafficsim.engine.scenario import Change, Scenario
 from trafficsim.engine.signals import make_controllers
 from trafficsim.engine.transfer import TransferLog, advance_segments
 from trafficsim.engine.vehicle import CLASS_INDEX, VehicleState
+from trafficsim.network.routing import grade_separated_roads
 from trafficsim.network.types import Network
 
 SAMPLE_EVERY_STEPS = round(QUEUE_SAMPLE_PERIOD_S * STEPS_PER_SECOND)
@@ -55,6 +57,18 @@ class Simulation:
         self.rng = RngStreams(scenario.seed)
         self.lg = compile_network(network)
         self.routes = RouteTable()
+        self.flyover_open = scenario.flyover_open
+        if not self.flyover_open:
+            self.routes.closed = grade_separated_roads(network)
+        self.flyover_pending = self.flyover_open  # state after the queued changes
+        self.current_demand = scenario.demand
+        self.current_mix = scenario.vehicle_mix
+        self.policy = scenario.signal_control
+        self.change_log: list[tuple[int, Change]] = []
+        self._pending: list[tuple[int, Change]] = []
+        self.rerouted = 0  # vehicles re-routed by a flyover change
+        self.grandfathered_vids: set[int] = set()  # too close to the diverge to re-route (closure)
+        self.ref_route: dict[int, int] = {}  # vid -> route its free-flow reference comes from
         self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
         self.gates = JunctionGates(network, self.lg)
@@ -71,6 +85,8 @@ class Simulation:
         self.kpis = KpiHub(self, kpi_layout)
         self.tick: int = 0
         self._total_ticks = scenario.total_ticks
+        for tick, change in scenario.changes:
+            self.schedule(change, tick)
 
     # ----------------------------------------------------------------- clock
     @property
@@ -120,11 +136,34 @@ class Simulation:
         rows = np.flatnonzero(self.vehicles.vid == vid)
         return int(rows[0]) if rows.size else None
 
+    # ---------------------------------------------------------- live changes
+    def schedule(self, change: Change, tick: int | None = None) -> int:
+        """Queue a change for the start of ``tick`` (default: the next step). Validates now
+        (ValueError with a clear message), applies it before phase 1 of that tick, and logs
+        it in ``change_log`` with the tick it was applied at. Returns that tick."""
+        at = self.tick if tick is None else tick
+        if at < self.tick:
+            raise ValueError(f"cannot change the past: tick {at} < current tick {self.tick}")
+        check_change(self, change)
+        if hasattr(change, "open"):
+            self.flyover_pending = change.open
+        self._pending.append((at, change))
+        self._pending.sort(key=lambda p: p[0])  # stable: same-tick changes keep their order
+        return at
+
+    def _apply_due(self) -> None:
+        while self._pending and self._pending[0][0] <= self.tick:
+            _, change = self._pending.pop(0)
+            apply_change(self, change)
+            self.change_log.append((self.tick, change))
+
     # ------------------------------------------------------------- stepping
     def step(self) -> bool:
         """Advance one DT. Returns False (and does nothing) once the scenario has ended."""
         if self.done:
             return False
+        if self._pending:
+            self._apply_due()
         t = self.time_s
         vs, lg = self.vehicles, self.lg
         for ctrl in self.signals:

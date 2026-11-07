@@ -32,10 +32,17 @@ def free_flow_time(net: Network, road_id: str) -> float:
     return r.length_m / r.speed_limit_mps
 
 
-def fastest_route(net: Network, origin_zone: str, destination_zone: str) -> list[str] | None:
-    """Sequence of road ids from the origin's entry road to the destination's exit road."""
-    start = net.zone(origin_zone).entry_road
-    goal = net.zone(destination_zone).exit_road
+def grade_separated_roads(net: Network) -> frozenset[str]:
+    """Roads of the flyover: the deck and its ramps (what "flyover closed" removes)."""
+    return frozenset(r.id for r in net.roads if r.kind in ("flyover", "ramp"))
+
+
+def shortest_road_path(
+    net: Network, start: str, goal: str, closed: frozenset[str] = frozenset()
+) -> list[str] | None:
+    """Fastest road sequence from road ``start`` to road ``goal`` avoiding ``closed`` roads.
+
+    ``start`` itself may be closed (a vehicle already on it finishes its trip)."""
     graph = road_graph(net)
     dist = {start: free_flow_time(net, start)}
     prev: dict[str, str] = {}
@@ -50,12 +57,23 @@ def fastest_route(net: Network, origin_zone: str, destination_zone: str) -> list
                 path.append(prev[path[-1]])
             return path[::-1]
         for nxt, t_conn in graph[rid]:
+            if nxt in closed:
+                continue
             nd = d + t_conn + free_flow_time(net, nxt)
             if nd < dist.get(nxt, float("inf")):
                 dist[nxt] = nd
                 prev[nxt] = rid
                 heapq.heappush(heap, (nd, nxt))
     return None
+
+
+def fastest_route(
+    net: Network, origin_zone: str, destination_zone: str, closed: frozenset[str] = frozenset()
+) -> list[str] | None:
+    """Sequence of road ids from the origin's entry road to the destination's exit road."""
+    return shortest_road_path(
+        net, net.zone(origin_zone).entry_road, net.zone(destination_zone).exit_road, closed
+    )
 
 
 def route_free_flow_time(net: Network, route: list[str]) -> float:

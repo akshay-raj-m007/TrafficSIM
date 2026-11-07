@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from trafficsim.engine.lanegraph import LaneGraph
-from trafficsim.network.routing import fastest_route
+from trafficsim.network.routing import fastest_route, shortest_road_path
 from trafficsim.network.types import Network
 
 NEXT_NONE = -1  # this lane does not lead toward the route's next road
@@ -24,19 +24,33 @@ NEXT_EXIT = -2  # end of route: the vehicle leaves the network at the segment en
 class RouteTable:
     roads: list[tuple[str, ...]] = field(default_factory=list)
     od: list[tuple[str, str]] = field(default_factory=list)
-    index: dict[tuple[str, str], int] = field(default_factory=dict)
+    index: dict[tuple[str, ...], int] = field(default_factory=dict)
+    closed: frozenset[str] = frozenset()  # roads new routes must avoid (a closed flyover)
     good: list[list[np.ndarray]] = field(default_factory=list)  # [route][rpos] -> bool/lane
 
     def add(self, net: Network, lg: LaneGraph, origin: str, dest: str) -> int:
-        key = (origin, dest)
+        key = (origin, dest, *sorted(self.closed)) if self.closed else (origin, dest)
         if key in self.index:
             return self.index[key]
-        roads = fastest_route(net, origin, dest)
+        roads = fastest_route(net, origin, dest, self.closed)
         if roads is None:
             raise ValueError(f"no route from {origin} to {dest}")
         return self.add_explicit(lg, tuple(roads), key)
 
-    def add_explicit(self, lg: LaneGraph, roads: tuple[str, ...], key: tuple[str, str]) -> int:
+    def reroute(self, net: Network, lg: LaneGraph, route: int, rpos: int) -> int | None:
+        """Route for a vehicle on road ``rpos`` of ``route``: the roads it has used so far,
+        then the fastest way to the same exit avoiding the closed roads. The route index of
+        the new sequence (shared by identical reroutes), or None if there is no way on."""
+        roads = self.roads[route]
+        rest = shortest_road_path(net, roads[rpos], roads[-1], self.closed)
+        if rest is None:
+            return None
+        new = roads[: rpos + 1] + tuple(rest[1:])
+        if new == roads:
+            return route
+        return self.add_explicit(lg, new, ("reroute", *new))
+
+    def add_explicit(self, lg: LaneGraph, roads: tuple[str, ...], key: tuple[str, ...]) -> int:
         """Register a given road sequence (e.g. a two-road calibration route that ends,
         and leaves the network, at the end of its last road)."""
         if key in self.index:

@@ -58,8 +58,13 @@ class KpiHub:
         self.ref = None
         if layout:  # the free-flow reference is only needed when delay is reported
             self.ref = reference_for(sim.network, sim.lg)
-            keys = [(r, c) for r in sim.routes.roads for c in sim.demand.class_indices()]
-            self.ref.request(keys)
+            self.request_reference()
+
+    def request_reference(self) -> None:
+        """Ask for the free-flow time of every route in use (after routes were added)."""
+        if self.ref:
+            sim = self.sim
+            self.ref.request([(r, c) for r in sim.routes.roads for c in sim.demand.class_indices()])
 
     # ------------------------------------------------------------- per step
     def observe(self, vs, s_before, t_now: float) -> None:
@@ -81,7 +86,8 @@ class KpiHub:
         self._exit_ptr = len(exits)
         self._pending = []
         for e in waiting:
-            ff = self.ref.get(sim.routes.roads[e.route], e.cls) if self.ref else None
+            route = sim.ref_route.get(e.vid, e.route)  # a re-routed vehicle keeps its reference
+            ff = self.ref.get(sim.routes.roads[route], e.cls) if self.ref else None
             if ff is None:
                 self._pending.append(e)
                 continue

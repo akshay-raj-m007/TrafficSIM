@@ -56,6 +56,61 @@ DEFAULT_MIX: tuple[tuple[str, float], ...] = (
 )
 
 
+def check_mix(mix: tuple[tuple[str, float], ...]) -> None:
+    """Validate vehicle-class shares (no clamping, no renormalising: wrong input is an error)."""
+    names = [n for n, _ in mix]
+    unknown = [n for n in names if n not in CLASS_INDEX]
+    if unknown:
+        raise ValueError(f"unknown vehicle classes in mix: {unknown}")
+    if len(set(names)) != len(names):
+        raise ValueError("duplicate class in vehicle mix")
+    shares = [s for _, s in mix]
+    if any(s < 0 for s in shares) or abs(sum(shares) - 1.0) > 1e-9:
+        raise ValueError(
+            f"vehicle mix shares must be non-negative and sum to 1 (they sum to {sum(shares)!r})"
+        )
+
+
+# ---- live changes: applied at a tick boundary, logged with that tick (engine/changes.py) ----
+@dataclass(frozen=True, slots=True)
+class SetDemand:
+    """Replace the whole origin-destination demand table."""
+
+    flows: tuple[OdFlow, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SetMix:
+    """New class shares for vehicles generated from now on."""
+
+    mix: tuple[tuple[str, float], ...]
+
+    def __post_init__(self) -> None:
+        check_mix(self.mix)
+
+
+@dataclass(frozen=True, slots=True)
+class SetPolicy:
+    """Switch J1's signal controller (takes over at the next phase boundary)."""
+
+    policy: SignalControl
+
+    def __post_init__(self) -> None:
+        if self.policy not in get_args(SignalControl) or self.policy == "uncontrolled":
+            raise ValueError(f"unknown signal policy {self.policy!r}")
+
+
+@dataclass(frozen=True, slots=True)
+class SetFlyover:
+    """Open or close the flyover (deck and ramps) for new route choices."""
+
+    open: bool
+
+
+Change = SetDemand | SetMix | SetPolicy | SetFlyover
+ChangeLog = tuple[tuple[int, Change], ...]  # (tick, change), ticks non-decreasing
+
+
 @dataclass(frozen=True, slots=True)
 class Scenario:
     seed: int = 42
@@ -64,18 +119,15 @@ class Scenario:
     vehicle_mix: tuple[tuple[str, float], ...] = field(default=DEFAULT_MIX)
     signal_control: SignalControl = "fixed_webster"
     incidents: tuple[Incident, ...] = ()
+    flyover_open: bool = True
+    changes: ChangeLog = ()  # live changes to replay: same seed + same log = same run
 
     def __post_init__(self) -> None:
         ticks_for(self.duration_s)  # validates multiple of DT
-        names = [n for n, _ in self.vehicle_mix]
-        unknown = [n for n in names if n not in CLASS_INDEX]
-        if unknown:
-            raise ValueError(f"unknown vehicle classes in mix: {unknown}")
-        if len(set(names)) != len(names):
-            raise ValueError("duplicate class in vehicle mix")
-        shares = [s for _, s in self.vehicle_mix]
-        if any(s < 0 for s in shares) or abs(sum(shares) - 1.0) > 1e-9:
-            raise ValueError("vehicle mix shares must be non-negative and sum to 1")
+        check_mix(self.vehicle_mix)
+        ticks = [t for t, _ in self.changes]
+        if ticks != sorted(ticks) or any(t < 0 for t in ticks):
+            raise ValueError("change log ticks must be non-negative and non-decreasing")
         if self.signal_control not in get_args(SignalControl):
             raise ValueError(f"unknown signal control {self.signal_control!r}")
 

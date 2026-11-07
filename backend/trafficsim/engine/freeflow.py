@@ -57,13 +57,15 @@ def input_digest(net: Network, lg) -> str:
 
 def all_route_roads(net: Network) -> list[tuple[str, ...]]:
     """The fastest route (road sequence) of every ordered origin-destination zone pair."""
-    from trafficsim.network.routing import fastest_route
+    from trafficsim.network.routing import fastest_route, grade_separated_roads
 
-    out = []
-    for o in net.zones:
-        for d in net.zones:
-            if o.id != d.id:
-                out.append(tuple(fastest_route(net, o.id, d.id)))
+    out: list[tuple[str, ...]] = []
+    for closed in (frozenset(), grade_separated_roads(net)):  # flyover open, then closed
+        for o in net.zones:
+            for d in net.zones:
+                route = tuple(fastest_route(net, o.id, d.id, closed)) if o.id != d.id else None
+                if route and route not in out:
+                    out.append(route)
     return out
 
 

@@ -18,7 +18,7 @@ import numpy as np
 from trafficsim.engine.lanegraph import LaneGraph
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable, next_seg, refresh_lane_cache
-from trafficsim.engine.scenario import Scenario
+from trafficsim.engine.scenario import OdFlow, Scenario
 from trafficsim.engine.vehicle import CLASS_INDEX, LEN, S0, T, VehicleState
 from trafficsim.network.types import Network
 
@@ -34,34 +34,76 @@ class Queued:
 
 @dataclass
 class _Zone:
+    zone_id: str
     entry_road: str
     rate_vps: float
     routes: np.ndarray  # route index per destination
     cum_p: np.ndarray  # cumulative destination probabilities
     next_t: float
     queue: deque[Queued]
+    flows: tuple = ()  # the OdFlows currently in force from this zone
+    ever_active: bool = False
 
 
 class Demand:
     def __init__(
         self, net: Network, lg: LaneGraph, rt: RouteTable, sc: Scenario, rng: RngStreams
     ) -> None:
-        self.lg, self.rt, self.rng = lg, rt, rng
-        self.cls_idx = np.array([CLASS_INDEX[n] for n, _ in sc.vehicle_mix])
-        self.cls_cum = np.cumsum([p for _, p in sc.vehicle_mix])
-        self.zones: list[_Zone] = []
-        for z in net.zones:  # network order: deterministic
-            flows = [f for f in sc.demand if f.origin == z.id and f.veh_per_h > 0]
-            if not flows:
-                continue
-            rate = sum(f.veh_per_h for f in flows) / SECONDS_PER_HOUR
-            routes = np.array([rt.add(net, lg, f.origin, f.destination) for f in flows])
-            cum = np.cumsum([f.veh_per_h for f in flows]) / (rate * SECONDS_PER_HOUR)
-            first = float(rng.spawn.exponential(1.0 / rate))
-            self.zones.append(_Zone(z.entry_road, rate, routes, cum, first, deque()))
+        self.net, self.lg, self.rt, self.rng = net, lg, rt, rng
+        self.set_mix(sc.vehicle_mix)
+        # Every zone exists (rate 0 until it has demand) so demand can change live. A zone
+        # without flows draws nothing, so runs without live changes are unchanged.
+        self.zones: list[_Zone] = [
+            _Zone(z.id, z.entry_road, 0.0, np.array([], dtype=int), np.array([]), np.inf, deque())
+            for z in net.zones  # network order: deterministic
+        ]
+        self.set_demand(sc.demand, 0.0)
         self.generated = 0
         self.inserted = 0
         self.next_vid = 0
+
+    def set_mix(self, mix: tuple[tuple[str, float], ...]) -> None:
+        """Class shares for arrivals from now on (the scenario validates the shares)."""
+        self.cls_idx = np.array([CLASS_INDEX[n] for n, _ in mix])
+        self.cls_cum = np.cumsum([p for _, p in mix])
+
+    def set_demand(self, flows: tuple[OdFlow, ...], t_now: float) -> None:
+        """Replace the whole OD demand. A zone whose total rate changes redraws its next
+        arrival as ``t_now + Exp(new rate)`` from the spawn stream (valid because the
+        exponential is memoryless); a zone whose rate is unchanged keeps its next arrival."""
+        zone_ids = {z.zone_id for z in self.zones}
+        for f in flows:
+            if f.origin not in zone_ids or f.destination not in zone_ids:
+                raise ValueError(f"demand {f.origin}->{f.destination}: unknown zone")
+        for z in self.zones:
+            z.flows = tuple(f for f in flows if f.origin == z.zone_id and f.veh_per_h > 0)
+            rate = sum(f.veh_per_h for f in z.flows) / SECONDS_PER_HOUR
+            changed = rate != z.rate_vps
+            z.rate_vps = rate
+            self.refresh_routes(z)
+            if changed:
+                z.next_t = (
+                    t_now + float(self.rng.spawn.exponential(1.0 / rate)) if rate > 0 else np.inf
+                )
+            z.ever_active = z.ever_active or rate > 0
+
+    def refresh_routes(self, z: _Zone | None = None) -> None:
+        """(Re)assign each zone's destination routes from the route table's current closures."""
+        for zz in [z] if z else self.zones:
+            if not zz.flows:
+                zz.routes, zz.cum_p = np.array([], dtype=int), np.array([])
+                continue
+            zz.routes = np.array(
+                [self.rt.add(self.net, self.lg, f.origin, f.destination) for f in zz.flows]
+            )
+            zz.cum_p = np.cumsum([f.veh_per_h for f in zz.flows]) / (zz.rate_vps * SECONDS_PER_HOUR)
+
+    def remap_queued(self) -> None:
+        """Entry-queue vehicles take the route table's current routes (after a closure)."""
+        for z in self.zones:
+            for q in z.queue:
+                origin, dest = self.rt.od[q.route][:2]
+                q.route = self.rt.add(self.net, self.lg, origin, dest)
 
     def class_indices(self) -> list[int]:
         """Indices of the vehicle classes that can occur (positive share in the mix)."""
@@ -73,7 +115,7 @@ class Demand:
         return sum(len(z.queue) for z in self.zones)
 
     def queued_by_zone(self) -> dict[str, int]:
-        return {z.entry_road: len(z.queue) for z in self.zones}
+        return {z.entry_road: len(z.queue) for z in self.zones if z.ever_active or z.queue}
 
     def generate(self, t_now: float) -> None:
         """Move every arrival with arrival time <= t_now into its zone's queue."""
