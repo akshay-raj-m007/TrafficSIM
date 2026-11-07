@@ -1,6 +1,6 @@
 # TrafficSIM — project state 6: lane utilisation
 
-Continues `project_state_5.md`. Written 7 Nov 2026. Triggered by watching the 3D view: the road under
+Continues `project_state_5.md`. Written Sat 7 Nov 2026, 17:30 IST. **Deadline: Mon 9 Nov 2026, 18:08 IST** (about 48 h left when this was written; 17:29 IST was the time of writing, not the deadline). Triggered by watching the 3D view: the road under
 the flyover east of J1 carried no vehicle, and the 144 structure tests only prove that routes exist.
 
 ## What was done (in the order of the review request)
