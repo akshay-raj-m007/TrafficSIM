@@ -32,10 +32,10 @@ export function SeedBar({
   onExport,
   onImport,
 }: Props) {
-  const [seedText, setSeedText] = useState('');
+  const [seedText, setSeedText] = useState<string | null>(null); // null: not edited, show the running seed
   const [fileError, setFileError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const text = seedText === '' ? String(seed) : seedText;
+  const text = seedText ?? String(seed);
   const ok = isSeed(text);
 
   const readFile = async (f: File | undefined) => {
@@ -80,7 +80,7 @@ export function SeedBar({
       <button
         type="button"
         disabled={disabled || !presets[preset]}
-        onClick={() => onPreset(preset, seedText === '' || !ok ? null : Number(text))}
+        onClick={() => onPreset(preset, seedText === null || !ok ? null : Number(text))}
       >
         Load preset (restarts)
       </button>

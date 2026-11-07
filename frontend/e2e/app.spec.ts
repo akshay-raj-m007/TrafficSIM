@@ -172,3 +172,15 @@ test('the compare view shows a stored experiment and runs a small live compariso
   });
   expect(ink).toBeGreaterThan(500);
 });
+
+test('the seed field can be emptied with backspace and retyped', async ({ page }) => {
+  const seed = page.getByLabel('Seed', { exact: true });
+  await seed.click();
+  await seed.press('End');
+  for (let i = 0; i < 6; i++) await seed.press('Backspace');
+  await expect(seed).toHaveValue(''); // it used to refill with the running seed
+  await expect(page.getByText('seed must be a whole number')).toBeVisible();
+  await seed.fill('777');
+  await expect(seed).toHaveValue('777');
+  await expect(page.getByText('seed must be a whole number')).toHaveCount(0);
+});
