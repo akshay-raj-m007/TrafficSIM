@@ -9,7 +9,7 @@ mostly empty. This tool separates the two things that changed since then, in a 2
 
   demand  old = 12 flows, J2 minor 214 / 37 veh/h, rush x1.31
           new = + N1/S1 -> E/W at 60 veh/h each, J2 minor 234 / 30, rush x1.11
-  bias    old = keep-left bias 0.2 m/s^2   new = 0.1 m/s^2 (= the MOBIL threshold)
+  bias    old = keep-left bias 0.2 m/s^2   new = 0.12 m/s^2 (README, "Lane utilisation")
 
 "old / old" reproduces the first result with today's code otherwise (it includes the stop-line
 fix). The bias is set inside each worker process; reference tables are measured per bias in a
@@ -36,7 +36,7 @@ OLD_DEMAND = (  # DEMO_DEMAND before the cross-street <-> arterial flows, J2 min
 )  # fmt: skip
 OLD_RUSH_SCALE = 1.31
 ARMS = {"A": (3, 3.5), "B": (2, 2.75)}  # surface lanes, lane width [m]
-CELLS = [("new", 0.1), ("old", 0.2), ("old", 0.1), ("new", 0.2)]  # (demand, bias)
+CELLS = [("new", 0.12), ("old", 0.2), ("old", 0.12), ("new", 0.2)]  # (demand, bias)
 SHOWN = ("mean_delay_s", "throughput_veh_h", "unfinished_veh", "j1_queue_max_m",
          "j1_queue_mean_m", "tt_p50_s")  # fmt: skip
 
@@ -96,7 +96,7 @@ def main() -> None:
 
     t0 = time.perf_counter()
     with ProcessPoolExecutor(max_workers=4) as pool:
-        prep = {("prepare", "new", b, a, 0) for b in (0.1, 0.2) for a in ARMS}
+        prep = {("prepare", "new", b, a, 0) for b in (0.12, 0.2) for a in ARMS}
         list(pool.map(work, sorted(prep)))
         print(f"tables ready ({time.perf_counter() - t0:.0f} s)", flush=True)
         tasks = [("run", d, b, a, s) for d, b in CELLS for a in ARMS for s in SEEDS]

@@ -124,3 +124,17 @@ Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 
   cores). Committed tables now come in two variants (J2 minor approach 2 lanes / 1 lane):
   `python tools/gen_freeflow.py` and `tools/gen_calibration.py` write both.
 - Frontend: `npm run build` after changes; Prettier style is single quotes, 100 columns.
+
+## Lane utilisation round
+- **Rule:** under the default demand every lane and junction connector open to traffic carries
+  vehicles, except those listed with a reason in `engine/utilisation_exceptions.py` (and in the
+  README, "Lane utilisation"). `tests/test_lane_utilisation.py` fails on an unlisted empty one, for
+  the default structure and the extremes. Report tool: `python tools/lane_utilisation.py`
+  (`engine/utilisation.py`: arrivals/h by transfer and by lane change, occupancy, share, computed cause).
+- **Default demand** now includes N1/S1 -> E/W (60 veh/h each): without them the surface road east of J1
+  had no demand. J2 minor demand, J1 Y (0.763) and the rush factor (x1.11) were re-derived with the same rules.
+- **Keep-left bias** `KEEP_LEFT_BIAS_MPS2` = 0.12: must exceed the MOBIL threshold (else an overtaker
+  never returns to the kerb lane) and stay small (else the median lane starves); evidence in the README.
+- **Lane flow overlay:** `engine/laneflow.py` (arrivals per segment over 5 min) -> `kpi.lane_flow` -> a
+  "lane flow" toggle in the 3D view (`frontend/src/scene/laneFlow.ts`, `flowColor.ts`).
+
