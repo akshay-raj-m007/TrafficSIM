@@ -12,7 +12,14 @@ from dataclasses import dataclass, replace
 
 from pydantic import TypeAdapter, ValidationError
 
-from trafficsim.engine.scenario import Change, Scenario
+from trafficsim.engine.scenario import (
+    Change,
+    Scenario,
+    SetDemand,
+    SetFlyover,
+    SetMix,
+    SetPolicy,
+)
 from trafficsim.network.demo import build_demo_network
 from trafficsim.network.types import Network
 from trafficsim.server.presets_doc import preset
@@ -44,9 +51,25 @@ class Setup:
     def network(self) -> Network:
         return build_demo_network(self.minor_lanes)  # cached per structure
 
-    def with_seed(self, seed: int) -> Setup:
-        """Same initial settings (no live changes), new seed."""
-        return replace(self, scenario=replace(self.scenario, seed=seed, changes=()))
+    def folded(self, sim, seed: int | None = None) -> Setup:
+        """The settings in force now (the initial ones with every live change applied) as the
+        new initial settings, no change log, optionally a new seed. This is what a reset keeps."""
+        sc = self.scenario
+        demand, mix, policy, flyover = sc.demand, sc.vehicle_mix, sc.signal_control, sc.flyover_open
+        for _, c in sim.all_changes:
+            if isinstance(c, SetDemand):
+                demand = c.flows
+            elif isinstance(c, SetMix):
+                mix = c.mix
+            elif isinstance(c, SetPolicy):
+                policy = c.policy
+            elif isinstance(c, SetFlyover):
+                flyover = c.open
+        new = replace(
+            sc, seed=sc.seed if seed is None else seed, demand=demand, vehicle_mix=mix,
+            signal_control=policy, flyover_open=flyover, changes=(),
+        )  # fmt: skip
+        return replace(self, scenario=new)
 
 
 def from_params(p: SessionParams) -> Setup:

@@ -165,12 +165,16 @@ export const problemsAt = (errors: Problem[], prefix: string): Problem[] =>
 
 /** The document that restarts the run with the settings in force now (the change log is
  *  folded into the initial settings), the given seed and structure. */
-export function restartDoc(doc: ScenarioDoc, j2MinorLanes: 1 | 2, seed: number): ScenarioDoc {
+export function restartDoc(
+  doc: ScenarioDoc,
+  structure: ScenarioDoc['structure'],
+  seed: number,
+): ScenarioDoc {
   const live = currentLive(doc);
   return {
     ...doc,
     seed,
-    structure: { j2_minor_lanes: j2MinorLanes },
+    structure: { ...structure },
     initial: {
       demand: live.demand,
       mix: live.mix,

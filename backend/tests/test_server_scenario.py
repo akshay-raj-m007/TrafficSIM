@@ -139,3 +139,25 @@ def test_export_then_import_round_trips_the_document(client):
         assert hello["scenario"] == doc  # the replayed log is the log
         _send(ws, type="export")
         assert next_json(ws, "scenario")["scenario"] == doc
+
+
+def test_a_seed_only_reset_keeps_the_live_edits_like_the_panel_reset(client):
+    """Header and panel resets are the same: live edits become the new initial settings."""
+    with client.websocket_connect(WS) as ws:
+        hello_and_format(ws)
+        _send(ws, type="set_speed", speed=0)
+        _send(ws, type="apply", change={"type": "set_flyover", "open": False})
+        next_json(ws, "applied")
+        _send(ws, type="apply", change={"type": "set_policy", "policy": "max_pressure"})
+        next_json(ws, "applied")
+        mix = {"car": 20, "truck_bus": 40, "two_wheeler": 30, "cav": 10}
+        _send(ws, type="apply", change={"type": "set_mix", "mix": mix})
+        next_json(ws, "applied")
+        _send(ws, type="reset", seed=77)  # what the header button sends for a seed-only reset
+        h = next_json(ws, "hello")
+        doc = h["scenario"]
+        assert doc["seed"] == 77 and doc["changes"] == []  # new log
+        assert (
+            doc["initial"]["flyover_open"] is False and doc["initial"]["policy"] == "max_pressure"
+        )
+        assert doc["initial"]["mix"] == mix

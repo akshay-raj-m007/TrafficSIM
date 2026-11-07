@@ -1,11 +1,5 @@
-import { useMemo, useState } from 'react';
-import type {
-  LiveChange,
-  LoggedChange,
-  Policy,
-  Problem,
-  ScenarioDoc,
-} from '../api/scenarioTypes';
+import { useMemo } from 'react';
+import type { LiveChange, LoggedChange, Policy, Problem, ScenarioDoc } from '../api/scenarioTypes';
 import type { NetworkData } from '../api/types';
 import { ChangeLog } from './editor/ChangeLog';
 import { DemandEditor } from './editor/DemandEditor';
@@ -14,7 +8,7 @@ import { MixEditor } from './editor/MixEditor';
 import { SeedBar, type PresetInfo } from './editor/SeedBar';
 import { StructureEditor } from './editor/StructureEditor';
 import { summarise } from './networkSummary';
-import { currentLive, problemsAt, restartDoc } from './scenarioDraft';
+import { currentLive, problemsAt } from './scenarioDraft';
 
 export interface ScenarioEditorProps {
   network: NetworkData | null;
@@ -26,7 +20,9 @@ export interface ScenarioEditorProps {
   stepsPerSecond: number;
   disabled: boolean;
   onApply(change: LiveChange): void;
-  onResetTo(doc: ScenarioDoc): void;
+  structure: ScenarioDoc['structure']; // the structure draft (applies on reset)
+  onStructure(s: ScenarioDoc['structure']): void;
+  onReset(seed: number): void; // the one reset, shared with the header
   onPreset(name: string, seed: number | null): void;
   onExport(): void;
   onImport(doc: unknown): void;
@@ -39,7 +35,6 @@ export function ScenarioPanel(p: ScenarioEditorProps) {
 
 function ScenarioPanelBody(p: ScenarioEditorProps) {
   const { doc } = p;
-  const [j2, setJ2] = useState<1 | 2>(doc?.structure.j2_minor_lanes ?? 2);
   const summary = useMemo(() => (p.network ? summarise(p.network) : null), [p.network]);
   const live = doc ? currentLive(doc) : null;
   const changes: LoggedChange[] = doc?.changes ?? [];
@@ -58,7 +53,7 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
         presets={p.presets}
         errors={p.resetErrors}
         disabled={p.disabled}
-        onReset={(seed) => doc && p.onResetTo(restartDoc(doc, j2, seed))}
+        onReset={p.onReset}
         onPreset={p.onPreset}
         onExport={p.onExport}
         onImport={p.onImport}
@@ -67,9 +62,9 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
         <>
           <StructureEditor
             running={doc.structure.j2_minor_lanes}
-            value={j2}
+            value={p.structure.j2_minor_lanes}
             errors={problemsAt(p.resetErrors, 'structure')}
-            onChange={setJ2}
+            onChange={(j2) => p.onStructure({ ...p.structure, j2_minor_lanes: j2 })}
           />
           <DemandEditor
             live={live.demand}

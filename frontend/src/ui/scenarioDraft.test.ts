@@ -130,7 +130,7 @@ describe('restarting folds the change log into the initial settings', () => {
       },
       changes: [{ tick: 5, type: 'set_flyover', open: false }],
     };
-    const r = restartDoc(doc, 1, 77);
+    const r = restartDoc(doc, { j2_minor_lanes: 1 }, 77);
     expect(r.changes).toEqual([]);
     expect(r.initial.flyover_open).toBe(false);
     expect([r.seed, r.structure.j2_minor_lanes]).toEqual([77, 1]);

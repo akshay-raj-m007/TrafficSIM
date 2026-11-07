@@ -38,7 +38,9 @@ export function Legend({ classes }: { classes: VehicleClassInfo[] }) {
         <span className="dot dot--left" /> left <span className="dot dot--through" /> through{' '}
         <span className="dot dot--right" /> right
       </div>
-      <div className="legend__block legend__note">1 unit = 1 m · left-hand traffic · grid 100 m</div>
+      <div className="legend__block legend__note">
+        1 unit = 1 m · left-hand traffic · grid 100 m
+      </div>
     </div>
   );
 }

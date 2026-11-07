@@ -144,7 +144,7 @@ class LiveSession:
             elif msg.preset is not None:
                 setup = live_scenario.from_preset(msg.preset, msg.seed)
             else:
-                setup = self.setup.with_seed(msg.seed) if msg.seed is not None else self.setup
+                setup = self.setup.folded(self.sim, msg.seed)  # keeps the live edits
         except KeyError as exc:
             await self._send(
                 protocol.rejected("reset", [{"path": "preset", "message": str(exc.args[0])}])

@@ -47,6 +47,7 @@ export function App() {
   const [pendingSpeed, setPendingSpeed] = useState<number | null>(null);
   const [view, setView] = useState<'simulate' | 'compare'>('simulate');
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
+  const [structure, setStructure] = useState<ScenarioDoc['structure']>({ j2_minor_lanes: 2 });
   const [presets, setPresets] = useState<Record<string, PresetInfo>>({});
   const [applyErrors, setApplyErrors] = useState<Problem[]>([]);
   const [resetErrors, setResetErrors] = useState<Problem[]>([]);
@@ -86,6 +87,7 @@ export function App() {
         sceneRef.current?.setSession(h);
         setHello(h);
         setDoc(h.scenario);
+        if (h.scenario) setStructure(h.scenario.structure);
         setApplyErrors([]);
         setResetErrors([]);
         setKpi(null);
@@ -118,7 +120,15 @@ export function App() {
     setPendingSpeed(k);
     sockRef.current?.setSpeed(k);
   }, []);
-  const onReset = useCallback((seed: number) => sockRef.current?.reset(seed), []);
+  // The one reset: keeps the live edits, applies the structure draft, takes the seed. The
+  // header button and the panel button both call it.
+  const onReset = useCallback(
+    (seed: number) => {
+      if (doc) sockRef.current?.resetTo({ scenario: restartDoc(doc, structure, seed) });
+      else sockRef.current?.reset(seed);
+    },
+    [doc, structure],
+  );
   const onApply = useCallback((c: LiveChange) => {
     setApplyErrors([]);
     sockRef.current?.applyChange(c);
@@ -152,7 +162,9 @@ export function App() {
         stepsPerSecond={hello?.steps_per_second ?? 10}
         disabled={status !== 'open'}
         onApply={onApply}
-        onResetTo={(d) => sockRef.current?.resetTo({ scenario: d })}
+        structure={structure}
+        onStructure={setStructure}
+        onReset={onReset}
         onPreset={(name, seed) =>
           sockRef.current?.resetTo(seed === null ? { preset: name } : { preset: name, seed })
         }
@@ -162,7 +174,7 @@ export function App() {
       {view === 'compare' && (
         <CompareView
           presets={presets}
-          current={doc ? restartDoc(doc, doc.structure.j2_minor_lanes, doc.seed) : null}
+          current={doc ? restartDoc(doc, doc.structure, doc.seed) : null}
         />
       )}
       <main className="centre">
