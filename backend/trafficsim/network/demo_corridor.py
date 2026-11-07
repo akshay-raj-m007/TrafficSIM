@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from trafficsim.network import geometry as geo
 from trafficsim.network.builder import NetworkBuilder
-from trafficsim.network.demo_geometry import MEDIAN_HALF, W_LINK, Derived
+from trafficsim.network.demo_geometry import MEDIAN_HALF, Derived
 from trafficsim.network.structure import Structure
 
 # Longitudinal layout [m]
@@ -56,7 +56,7 @@ def add_corridor(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     _corr(b, "eb_ramp_up", "ramp", X_DIVERGE, X_DECK_START, fly, MEDIAN_HALF, 50, 0.0, DECK_Z)
     _corr(b, "eb_flyover", "flyover", X_DECK_START, X_DECK_END, fly, MEDIAN_HALF, 60, DECK_Z)
     _corr(b, "eb_ramp_dn", "ramp", X_DECK_END, X_MERGE, fly, MEDIAN_HALF, 50, DECK_Z, 0.0)
-    _corr(b, "eb_surf_e", "surface", J1_HALF_X, X_MERGE, [W_LINK], d.link_inner, 40)
+    _corr(b, "eb_surf_e", "surface", J1_HALF_X, X_MERGE, [d.link_width], d.link_inner, 40)
     _corr(b, "eb_e3", "surface", X_MERGE, X_DROP, sect3, MEDIAN_HALF, 50)
     _corr(b, "eb_e2", "surface", X_DROP, j2w, fly, MEDIAN_HALF, 50)
     _corr(b, "eb_out", "surface", j2e, X_EAST, fly, MEDIAN_HALF, 50)
@@ -65,7 +65,7 @@ def add_corridor(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     _corr(b, "wb_in", "surface", X_EAST, j2e, fly, MEDIAN_HALF, 50)
     _corr(b, "wb_e2", "surface", j2w, X_DROP, fly, MEDIAN_HALF, 50)
     _corr(b, "wb_e3", "surface", X_DROP, X_MERGE, sect3, MEDIAN_HALF, 50)
-    _corr(b, "wb_surf_e", "surface", X_MERGE, J1_HALF_X, [W_LINK], d.link_inner, 40)
+    _corr(b, "wb_surf_e", "surface", X_MERGE, J1_HALF_X, [d.link_width], d.link_inner, 40)
     _corr(b, "wb_ramp_up", "ramp", X_MERGE, X_DECK_END, fly, MEDIAN_HALF, 50, 0.0, DECK_Z)
     _corr(b, "wb_flyover", "flyover", X_DECK_END, X_DECK_START, fly, MEDIAN_HALF, 60, DECK_Z)
     _corr(b, "wb_ramp_dn", "ramp", X_DECK_START, X_DIVERGE, fly, MEDIAN_HALF, 50, DECK_Z, 0.0)

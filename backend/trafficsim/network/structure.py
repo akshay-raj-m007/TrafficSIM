@@ -5,9 +5,10 @@ Two main lane groups meet at the diverge:
   * the FLYOVER / through group (``flyover_lanes``, ``flyover_width_m``): the ramps, the deck,
     the section east of the merge (the flyover lanes plus the single J1 link lane, which ends
     at the lane drop) and J2's major road.
-The J1 link lane (3.0 m), the cross street (3.25 m) and J2's minor road (2.75 m) keep their
-widths. The west arterial therefore has surface + flyover lanes per direction. The default
-(2 + 2 lanes, 3.5 m) is the original demo network, reproduced exactly.
+The J1 link lane (3.0 m, or the flyover width if that is narrower: it merges into a lane of that
+width), the cross street (3.25 m) and J2's minor road (2.75 m) keep their widths. The west
+arterial therefore has surface + flyover lanes per direction. The default (2 + 2 lanes, 3.5 m)
+is the original demo network, reproduced exactly.
 
 Ranges (checked with a message, never clamped): 1-4 lanes per group; lane width 2.5-4.0 m.
 2.5 m is the width of the widest vehicle (truck / bus, engine/vehicle.py); 4.0 m is above the

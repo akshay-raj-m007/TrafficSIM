@@ -128,7 +128,7 @@ def _add_zones_and_labels(b: NetworkBuilder, st: Structure, d: Derived) -> None:
     b.annotate(_lanes(s + f), X_WEST + 250, d.j1_half_y)
     b.annotate(_lanes(f + 1), 650, y3)
     b.annotate(_lanes(f), 1000, d.major_half + 4.0)
-    b.annotate("1 lane · 3.0 m", 220, d.link_y + 4.25)
+    b.annotate(f"1 lane · {d.link_width:.1f} m", 220, d.link_y + 4.25)
     b.annotate("Minor road · 2.75 m", J2_X + 14, 200)
     b.annotate("Cross street · 3.25 m", 14, 250)
 

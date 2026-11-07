@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from trafficsim.network.structure import Structure
 
 MEDIAN_HALF = 1.0  # half-width of the central median
-W_LINK = 3.0  # the single narrow J1 link lane (fixed)
+W_LINK = 3.0  # the single narrow J1 link lane; narrower if the flyover group is (see below)
 # J1 box half-height = the larger of (kerb-lane centre + rise) and (link-lane centre + clearance);
 # both equal 20 m for the default structure (13.25 + 6.75 and 9.75 + 10.25).
 J1_KERB_RISE_M = 6.75
@@ -29,7 +29,9 @@ J2_STOP_RISE_2LANE_M = 8.75
 @dataclass(frozen=True)
 class Derived:
     surf_inner: float  # distance of the surface lanes' median edge from the reference line
-    link_inner: float  # same for the single link lane
+    link_width: float  # the link lane merges into the first lane east of the merge, whose
+    # width is the flyover width: wider than that it would overlap the ramps, so min(3.0, Wf)
+    link_inner: float  # distance of the link lane's median edge from the reference line
     kerb_centre_y: float  # centre of the surface kerb lane
     link_y: float  # centre of the link lane
     j1_half_y: float  # J1 box half-height (cross-street arms start here)
@@ -42,14 +44,16 @@ class Derived:
     def of(cls, st: Structure) -> Derived:
         s, f, ws, wf = st.surface_lanes, st.flyover_lanes, st.surface_width_m, st.flyover_width_m
         surf_inner = MEDIAN_HALF + f * wf
-        link_inner = surf_inner + wf / 2 - W_LINK / 2
+        link_width = min(W_LINK, wf)
+        link_inner = surf_inner + wf / 2 - link_width / 2
         kerb_centre_y = surf_inner + (s - 1) * ws + ws / 2
         link_y = surf_inner + wf / 2
         major_half = MEDIAN_HALF + f * wf
         j2_kerb_y = MEDIAN_HALF + (f - 1) * wf + wf / 2
         stop_rise = J2_STOP_RISE_2LANE_M if st.j2_minor_lanes > 1 else J2_EXIT_RISE_M
         return cls(
-            surf_inner=surf_inner, link_inner=link_inner, kerb_centre_y=kerb_centre_y,
+            surf_inner=surf_inner, link_width=link_width, link_inner=link_inner,
+            kerb_centre_y=kerb_centre_y,
             link_y=link_y,
             j1_half_y=max(kerb_centre_y + J1_KERB_RISE_M, link_y + J1_LINK_CLEARANCE_M),
             major_half=major_half, j2_kerb_y=j2_kerb_y, j2_exit_y=j2_kerb_y + J2_EXIT_RISE_M,

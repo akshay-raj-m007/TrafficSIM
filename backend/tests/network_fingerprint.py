@@ -8,7 +8,9 @@ import numpy as np
 def _h(*parts) -> str:
     h = hashlib.sha256()
     for p in parts:
-        h.update(np.ascontiguousarray(p).tobytes() if isinstance(p, np.ndarray) else repr(p).encode())
+        h.update(
+            np.ascontiguousarray(p).tobytes() if isinstance(p, np.ndarray) else repr(p).encode()
+        )
     return h.hexdigest()[:16]
 
 
