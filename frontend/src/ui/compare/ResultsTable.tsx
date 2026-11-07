@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ComparisonResult, MetricRow } from '../../api/compareTypes';
+import { DistributionChart } from './DistributionChart';
 import {
   droppedRuns,
   duration,
@@ -87,6 +88,9 @@ export function ResultsTable({ result, title }: { result: ComparisonResult; titl
         Overloaded scenarios (queues that keep growing) do not settle: their numbers depend on how
         long you run, so the duration above belongs to every figure below.
       </p>
+      {result.distributions && (
+        <DistributionChart a={result.distributions.a} b={result.distributions.b} />
+      )}
       <table className="cmp-table">
         <thead>
           <tr>

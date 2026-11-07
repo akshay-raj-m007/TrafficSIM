@@ -180,3 +180,6 @@ input[aria-invalid='true'] { border-color: var(--danger); }
 .chart__spacetime { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .chart__controls { display: flex; gap: 12px; align-items: center; padding: 0 8px 4px; font-size: 11px; color: var(--muted); }
 .chart__ramp { width: 90px; height: 8px; border-radius: 2px; background: linear-gradient(90deg, #f43f5e, #fbbf24, #22d3ee); }
+
+.cmp-dist { margin: 8px 0 12px; }
+.cmp-dist__canvas { width: 100%; height: 230px; display: block; background: #0b0f14; border: 1px solid var(--border); border-radius: 4px; }

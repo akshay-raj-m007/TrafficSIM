@@ -151,6 +151,7 @@ test('the compare view shows a stored experiment and runs a small live compariso
   await page.getByRole('button', { name: /Flyover open vs closed/ }).click();
   await expect(page.locator('.cmp-table')).toBeVisible();
   await expect(page.locator('.cmp-row')).toHaveCount(12);
+  await expect(page.getByTestId('distribution-chart').first()).toBeVisible();
 
   await page.getByText('Duration, s').locator('..').locator('input').fill('150');
   await page.getByText('Warm-up excluded, s').locator('..').locator('input').fill('30');
@@ -161,4 +162,13 @@ test('the compare view shows a stored experiment and runs a small live compariso
   await expect(page.locator('progress')).toBeVisible();
   await expect(page.locator('.cmp-meta')).toContainText('3 paired runs', { timeout: 150_000 });
   await expect(page.locator('.cmp-row').first()).toBeVisible();
+  // the pooled travel-time distributions are drawn (coloured pixels on the canvas)
+  const ink = await page.getByTestId('distribution-chart').first().evaluate((el) => {
+    const c = el as HTMLCanvasElement;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i]! + d[i + 1]! + d[i + 2]! > 200) n++;
+    return n;
+  });
+  expect(ink).toBeGreaterThan(500);
 });

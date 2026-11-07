@@ -50,6 +50,15 @@ export interface Cost {
   computed_runs: number;
 }
 
+/** Travel times of the completed trips of one side, pooled over its runs (compare_dist.py). */
+export interface Distribution {
+  n: number;
+  bin_s: number;
+  counts: number[];
+  overflow: number;
+  box: { min: number; q1: number; median: number; q3: number; p90: number; max: number } | null;
+}
+
 export interface ComparisonResult {
   meta: {
     runs: number;
@@ -65,6 +74,7 @@ export interface ComparisonResult {
     cost: Cost;
   };
   metrics: MetricRow[];
+  distributions?: { a: Distribution; b: Distribution };
   note: string;
 }
 
