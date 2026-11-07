@@ -138,3 +138,14 @@ Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 
 - **Lane flow overlay:** `engine/laneflow.py` (arrivals per segment over 5 min) -> `kpi.lane_flow` -> a
   "lane flow" toggle in the 3D view (`frontend/src/scene/laneFlow.ts`, `flowColor.ts`).
 
+## Step 4b: results made visible
+- **Charts** (results drawer): `engine/charts.py` measures (Edie) the network MFD, a 10 m x 1 s speed field of four
+  corridors (surface/flyover x eastbound/westbound) and J1/J2 queues; sent as a `charts` message at 1 Hz only while the
+  drawer is open (`{"type":"charts","on":true}`). The frontend draws what it receives (`frontend/src/ui/charts/`), nothing
+  is computed there. The meter is read-only: never let it touch the dynamics.
+- **Inspector**: `server/inspector.py` + `ui/InspectorHost.tsx`; frame ids are `vid mod 65536`.
+- **Compare** results carry pooled travel-time distributions (`server/compare_dist.py`, `METRICS_VERSION` 3).
+- **Validation tab**: `tools/gen_validation.py` -> `data/validation.json` (stale when the engine source changes; a test
+  fails, regenerate: about 2 min). Experiments: three built in (`policy_rush`, `flyover_rush`, `surface_closed`).
+- If a decision of the user's fails a test: ask before changing it.
+
