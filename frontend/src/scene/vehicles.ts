@@ -55,6 +55,15 @@ export class VehicleLayer {
     this.group.add(this.highlight);
   }
 
+  /** Select the vehicle to highlight (frame id), or null; deselecting takes effect at once. */
+  select(frameId: number | null): void {
+    this.selected = frameId;
+    if (frameId === null) {
+      this.selectedPosition = null;
+      this.highlight.visible = false;
+    }
+  }
+
   /** Frame id of the vehicle under the ray, or null. */
   pickId(raycaster: THREE.Raycaster): number | null {
     // the cached bounding sphere may date from an empty buffer: refresh it for this click

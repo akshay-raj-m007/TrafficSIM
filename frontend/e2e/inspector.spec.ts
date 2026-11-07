@@ -10,6 +10,8 @@ const dbg = <T>(page: Page, fn: (d: Dbg) => T) =>
 /** Click vehicles on screen until one is picked (they move a little between measure and click). */
 async function pickAVehicle(page: Page) {
   const canvas = page.locator('.viewport__canvas canvas');
+  // the camera may still sit where "follow" left it: start from the J1 view
+  await page.getByRole('button', { name: 'J1', exact: true }).click();
   for (let attempt = 0; attempt < 12; attempt++) {
     const pts = await dbg(page, (d) => d.screenPoints(8));
     const box = (await canvas.boundingBox())!;

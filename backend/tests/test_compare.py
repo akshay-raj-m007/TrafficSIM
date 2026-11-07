@@ -207,7 +207,10 @@ def test_a_process_pool_gives_the_same_numbers_as_running_inline(tmp_path):
                      factory=lambda n: ProcessPoolExecutor(max_workers=n))  # fmt: skip
     job = wait(pooled.submit(req("default", "default", runs=3)))
     got = next(r for r in job.result["runs"]["a"] if r["seed"] == spec["seed"])
-    assert got["metrics"] == inline["metrics"]
+    samples = inline["metrics"]["tt_samples_s"]  # kept in the cache, pooled into distributions
+    assert samples and "tt_samples_s" not in got["metrics"]
+    assert got["metrics"] == {k: x for k, x in inline["metrics"].items() if k != "tt_samples_s"}
+    assert sum(job.result["distributions"]["a"]["counts"]) <= job.result["distributions"]["a"]["n"]
 
 
 @pytest.mark.slow

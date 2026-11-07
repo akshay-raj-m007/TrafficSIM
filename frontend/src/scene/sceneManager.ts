@@ -103,7 +103,7 @@ export class SceneManager {
 
   /** The vehicle to highlight (frame id) or null. */
   setSelected(frameId: number | null): void {
-    this.vehicles.selected = frameId;
+    this.vehicles.select(frameId);
     if (frameId === null) this.follow = false;
   }
 
