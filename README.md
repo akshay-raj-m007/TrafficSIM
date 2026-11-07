@@ -262,7 +262,13 @@ base64 bytes of 0.1 m/s), and nothing while the drawer is closed. The drawer red
 `tests/test_charts.py` checks the Edie sums against an independent recomputation, MFD points against the definitions,
 that a scripted vehicle traces its corridor forward from end to end (flyover open and closed), the increments, and the
 WebSocket stream; the browser test checks that every MFD and queue point the drawer holds is one the server sent.
-Cost: FPS_AND_COST
+Cost: the meter takes 0.22 ms per simulation step, 5.4% of a 4.1 ms step at about 200 vehicles (measured; above the 3% I aimed
+for, not optimised further; it runs whether or not the drawer is open, so the history is there when it is opened).
+Render frame rate (`frontend/tools/measure_fps.mjs`: headless Chrome with a software GL, 1600 x 900, 5x, J1 view, 20 s per
+mode, two rounds, drawer closed against each tab open): closed 11.3 and 9.6 fps (mean 10.5), MFD 10.7 and 9.7,
+space-time 9.8 and 9.2, queues 9.6 and 9.0 (mean of the open modes 9.7). The vehicle count grew from 135 to 203 during
+the run, which lowers every later number, so the drawer costs at most about 8% and that is not separable from the drift;
+the absolute values are a software renderer's, not a GPU's.
 
 **Compare: travel-time distributions.** Each comparison now shows, above the intervals, the pooled travel times of the
 completed trips of A and B as histograms (% of each side's completed trips per 10 s) and box plots (quartiles, median,
