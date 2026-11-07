@@ -15,6 +15,13 @@ from trafficsim.engine.params.control import DETECTOR_MIN_END_CLEARANCE_M
 from trafficsim.engine.queues import ApproachSpec
 from trafficsim.engine.scenario import OdFlow
 
+# Cross street <-> arterial trips (N1/S1 to E/W). Without them no route used the surface
+# road between J1 and the merge (the flyover is the fastest way for W<->E trips), so its lanes
+# stood empty under the default demand (found by tools/lane_utilisation.py). 60 veh/h per
+# flow (240 veh/h in total, against 600 veh/h of N1<->S1 through traffic), chosen as a modest
+# round value before looking at any KPI; checked: no jam on seeds 1-4, J1 below saturation.
+CROSS_ARTERIAL_VEH_H = 60
+
 DEMO_DEMAND: tuple[OdFlow, ...] = (
     OdFlow("W", "E", 1100), OdFlow("E", "W", 900),
     OdFlow("W", "N1", 200), OdFlow("W", "S1", 150),
@@ -22,17 +29,20 @@ DEMO_DEMAND: tuple[OdFlow, ...] = (
     OdFlow("N1", "S1", 300), OdFlow("S1", "N1", 300),
     OdFlow("N2", "W", 100), OdFlow("N2", "E", 100),
     OdFlow("E", "N2", 80), OdFlow("W", "N2", 80),
+    OdFlow("N1", "E", CROSS_ARTERIAL_VEH_H), OdFlow("S1", "E", CROSS_ARTERIAL_VEH_H),
+    OdFlow("N1", "W", CROSS_ARTERIAL_VEH_H), OdFlow("S1", "W", CROSS_ARTERIAL_VEH_H),
 )  # fmt: skip
 
 # J2 minor-road demand of the default scenario, from MEASURED capacities
 # (``tools/measure_j2_capacity.py``: both movements saturated under the default major-road
-# demand, seeds 1-3, 900 s, first 300 s excluded): the left turn serves 268 veh/h on
-# average (per seed 342, 282, 180), the right turn 46 veh/h (72, 24, 42). Each default flow
-# is 0.8 x its measured capacity, so the default demo is not overloaded on average. (The
-# left turn varies a lot between seeds: on the weakest seed 214 veh/h is above capacity.)
+# demand, seeds 1-3, 900 s, first 300 s excluded): the left turn serves 292 veh/h on
+# average (per seed 366, 312, 198), the right turn 38 veh/h (6, 96, 12). Each default flow
+# is 0.8 x its measured capacity, so the default demo is not overloaded on average. (Both
+# vary a lot between seeds: on the weakest seed 234 veh/h left is above capacity.)
+# Before the cross-street <-> arterial flows were added these were 214 / 37 veh/h.
 J2_MINOR_UTILISATION = 0.8
-J2_MINOR_LEFT_VEH_H = 214  # N2 -> E,  0.8 x 268
-J2_MINOR_RIGHT_VEH_H = 37  # N2 -> W,  0.8 x 46
+J2_MINOR_LEFT_VEH_H = 234  # N2 -> E,  0.8 x 292
+J2_MINOR_RIGHT_VEH_H = 30  # N2 -> W,  0.8 x 38
 
 DEFAULT_DEMAND: tuple[OdFlow, ...] = tuple(
     OdFlow(f.origin, f.destination, J2_MINOR_RIGHT_VEH_H)
@@ -44,10 +54,10 @@ DEFAULT_DEMAND: tuple[OdFlow, ...] = tuple(
 )
 
 # "Rush hour": every flow scaled so that J1's critical flow ratio Y (from the measured
-# saturation flows) is 0.85 instead of the default demand's 0.649. Y is linear in the
+# saturation flows) is 0.85 instead of the default demand's 0.763. Y is linear in the
 # flows, so the factor is 0.85 / 0.649 (tests/test_presets.py recomputes Y).
 RUSH_TARGET_Y = 0.85
-DEFAULT_Y = 0.649
+DEFAULT_Y = 0.763
 RUSH_SCALE = round(RUSH_TARGET_Y / DEFAULT_Y, 2)
 
 

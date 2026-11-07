@@ -44,7 +44,7 @@ def definitions() -> dict[str, dict]:
         "policy_rush": {
             "title": "Signal policy at rush hour",
             "description": "Webster (fixed-time) against pure max-pressure and thresholded "
-            "max-pressure at J1, rush-hour demand (every flow x1.31). Difference = B - A.",
+            "max-pressure at J1, rush-hour demand (every flow x1.11). Difference = B - A.",
             "comparisons": [
                 ("Webster vs max-pressure", webster, mp),
                 ("Webster vs thresholded max-pressure", webster, mpt),

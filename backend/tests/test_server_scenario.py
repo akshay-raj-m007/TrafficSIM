@@ -33,7 +33,7 @@ def test_hello_carries_the_scenario_document_and_the_network_key(client):
         assert hello["network"]["j2_minor_lanes"] == 2
         n2 = {(r["origin"], r["destination"]): r["veh_per_h"]
               for r in hello["scenario"]["initial"]["demand"]}  # fmt: skip
-        assert n2[("N2", "W")] == 37 and n2[("N2", "E")] == 214
+        assert n2[("N2", "W")] == 30 and n2[("N2", "E")] == 234
 
 
 def test_presets_and_validation_endpoints(client):
