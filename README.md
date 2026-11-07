@@ -89,18 +89,20 @@ renormalised; every problem comes back as `{path, message}` (for example
 `initial.mix: shares sum to 97, must be exactly 100`), and unknown fields are rejected.
 Export and import are buttons in the panel; importing an export gives the same document back.
 
-**Presets:** `default`; `rush_hour` (every flow x1.11, which takes J1's critical flow ratio Y
-from 0.763 to 0.847, both from the measured saturation flows; the unbounded Webster cycle would then
-be 378 s, the applied one stays at the 120 s cap; before the cross-street <-> arterial flows were
-added: x1.31, Y 0.649 -> 0.850); `flyover_closed`; `j2_before` (one shared minor lane, otherwise the
-default).
+**Presets:** `default`; `rush_hour` (every flow x1.26, which takes J1's critical flow ratio Y
+from 0.676 to 0.851, both from the measured saturation flows; the unbounded Webster cycle would then
+be 389 s, the applied one stays at the 120 s cap; rush hour totals 4,906 veh/h). History of the
+factor: x1.31 (Y 0.649 -> 0.850) before the cross-street <-> arterial flows, x1.11 (Y 0.763 -> 0.847)
+with them, x1.26 since the link east of J1 follows the surface lanes (J1's east arm has the surface
+lanes, so the flow per lane and Y drop); `flyover_closed`; `j2_before` (one shared minor lane,
+otherwise the default).
 
 **Default J2 minor demand, from measured capacities** (`tools/measure_j2_capacity.py`, both
 movements saturated under the default major-road demand, seeds 1-3, 900 s, first 300 s
-excluded): left turn served 366, 312, 198 veh/h (mean 292), right turn 6, 96, 12 veh/h
-(mean 38). Each default flow is 0.8 x the measured mean: **234 veh/h left, 30 veh/h right**
-(before the cross-street flows: 214 / 37). Both vary a lot between seeds, so on the weakest seed
-234 left is above its capacity.
+excluded): left turn served 396, 306, 162 veh/h (mean 288), right turn 18, 18, 18 veh/h
+(mean 18). Each default flow is 0.8 x the measured mean: **230 veh/h left, 14 veh/h right**
+(history: 214 / 37 before the cross-street flows, 234 / 30 before the link followed the surface
+lanes). The left turn varies a lot between seeds, so on the weakest seed 230 is above its capacity.
 
 ### Structure: lane counts and widths (applies on reset)
 
@@ -112,21 +114,29 @@ running network, and an out-of-range value is an error next to its field, never 
 - the **flyover / through group** (ramps, deck, the section east of the merge, J2's major road):
   `flyover_lanes`, `flyover_width_m`.
 
-The west arterial has surface + flyover lanes; east of the merge the flyover lanes plus the single
-J1 link lane (3.0 m, or the flyover width if that is narrower: it merges into a lane of that
-width), which ends at the lane drop. The cross street (3.25 m) and J2's minor road (2.75 m) keep
-their widths. The J1 turn rules are generated per approach and lane count (kerb lane left, middle
-lanes through, last lane through and right; one lane does everything), J2's right turn enters the
+The west arterial has surface + flyover lanes. **East of J1 the surface group continues as the link
+lanes (the same count, width and position as the surface lanes: the setting means what it says
+downstream too)**; east of the merge the road has S link lanes + F flyover lanes, and the S link
+lanes end at the lane drop (S+F lanes down to F; the default is 4 -> 2, so the default network has
+no 3-lane road any more, 3-lane roads appear with 3 surface or flyover lanes). This replaced a single
+3.0 m link lane (the surface setting then changed the approach to J1 but not the road behind it,
+which made a 3-lane surface road look useless: the experiment in "Widths and capacities" below).
+The cross street (3.25 m) and J2's minor road (2.75 m) keep their widths. The J1 turn rules are generated per approach and lane count (kerb lane left, middle
+lanes through, last lane through and right; one lane does everything; both the west and the east arm),
+through lanes continue straight into the link lane of the same index, left turns from the cross
+street enter the kerb link lane and right turns the median-side one, J2's right turn enters the
 median-side lane. The J1 box and J2 plate follow the widths by two rules taken from the default
-layout (box half-height = max(kerb-lane centre + 6.75 m, link-lane centre + 10.25 m), which is 20 m
+layout (box half-height = kerb-lane centre + 6.75 m, which is 20 m
 by default; J2's stop and exit lines at fixed rises above the kerb lane), which keep every turn
 path longer than the longest vehicle (12 m) for all allowed structures.
 Wider majors than 2 lanes per direction use HCM's four-lane critical gaps (the largest tabulated).
 KPI detectors on the cross-street arms move inward when a wide structure shortens the arms.
 
-*Evidence* (`tests/test_network_structures.py`, `tests/invariants/test_structures.py`): the default
-structure reproduces the previous network **exactly** (fingerprint of every coordinate, id and
-attribute, both J2 variants, taken from the pre-change code); every corner of the range (16) and
+*Evidence* (`tests/test_network_structures.py`, `tests/invariants/test_structures.py`): the link change
+touched only the four link roads (`eb_surf_e`, `wb_surf_e`, `eb_e3`, `wb_e3`) and the connectors that
+touch them: against the fingerprint of the network from before it (every coordinate, id and
+attribute, both J2 variants) every other road and connector is bit-identical, and a new fingerprint
+guards the current default; every corner of the range (16) and
 all 144 combinations of lanes {1..4}^2 x widths {2.5, 3.5, 4.0}^2 build, compile, route every
 origin-destination pair, have consistent lanes/widths, no lateral overlap, correct clearance and
 grade separation; the per-step invariants (no collision, no conflict-point overlap, conservation,
@@ -165,22 +175,30 @@ Unused segments (of all lanes and connectors) before and after, same seed and wi
 | Scenario | before | after (all listed exceptions) |
 |---|---:|---:|
 | default | 10 of 73 | 2 |
-| rush hour | 10 of 73 | 2 |
+| rush hour | 10 of 73 | 3 (2 + the J2 right turn, below) |
 | J2 one lane | 10 of 72 | 2 |
 | 1 lane x 2.5 m per group | 9 of 53 | 2 |
-| surface 3 lanes | 12 of 78 | 3 |
-| surface 4 / flyover 3 lanes | 14 of 99 | 4 |
-| 4 lanes x 4.0 m per group | 14 of 115 | 4 |
+| surface 3 lanes | 12 of 78 | 6 |
+| surface 4 / flyover 3 lanes | 14 of 99 | 10 |
+| 4 lanes x 4.0 m per group | 14 of 115 | 10 |
 | flyover closed | 21 of 73 | 16 (the closed flyover and what only leads to it) |
 
-**Four real bugs / design gaps found and fixed**
+(Segment counts changed with the link: 77 / 76 / 53 / 87 / 113 / 129. The "after" numbers of the 3- and 4-lane
+structures are larger than in the first version of this table because the middle surface lanes, which only lead to the
+surface through movement, are now left empty by the better lane planning instead of being used as transit lanes; they
+are listed as an exception. At rush hour the J2 minor right turn carries nothing in 900 s: it needs a 7.5 s gap in a
+heavy conflicting stream, which is the gap-acceptance mechanism (J2 right turn: 68% of HCM in the Validation tab),
+not a lane-choice bug; the test uses the default
+demand, where it is served.)
+
+**Five real bugs / design gaps found and fixed**
 
 1. **No demand for the surface road east of J1** (above). The default demand now includes
    N1->E, S1->E, N1->W, S1->W at **60 veh/h each** (`CROSS_ARTERIAL_VEH_H`, 240 veh/h in total against
    600 veh/h of N1<->S1 traffic; a modest round value chosen before looking at KPIs, checked for no jam
    on seeds 1-4). Re-derived with the same rules as before: J1's critical flow ratio Y 0.649 -> **0.763**
    (the cross flows load the signals), rush hour = Y 0.85 reached with **x1.11** (was x1.31; rush hour now
-   totals 4,345 veh/h, was 4,796), J2 minor demand 0.8 x measured capacity **234 veh/h left, 30 veh/h
+   totals 4,345 veh/h, was 4,796; superseded by the link change, see Presets), J2 minor demand 0.8 x measured capacity **234 veh/h left, 30 veh/h
    right** (was 214 / 37; `tools/measure_j2_capacity.py`: left 366, 312, 198, right 6, 96, 12 veh/h).
 2. **A vehicle in a lane that does not lead onward could block that lane for ever.** The rule "no lane
    change within the stopping distance of a junction stop line" held a wrong-lane vehicle at the stop
@@ -190,16 +208,35 @@ Unused segments (of all lanes and connectors) before and after, same seed and wi
    (it leaves in 3.1 s).
 3. **Lane spreading: the keep-left bias.** See below.
 
-4. **A lane could be starved for ever at a merge** (found by the flyover-closed surface-lane experiment, below). With 3
-   surface lanes and the flyover closed, J1's two through lanes both enter the single link lane east of J1: the middle
-   lane served one green and then 0 veh/h from a standing queue of 65 vehicles, while the other lane was served every
-   cycle (entry goes to the vehicle nearest its line, and the other lane's platoon kept the shared exit reserved).
-   Lanes that merge into one exit lane now take turns by green: the connector that owned the previous green yields to a
-   queued rival at the start of the next one, and the owner keeps the green while it has a queue at its line
-   (`engine/merge_turns.py`; only connectors that do not yield to priority traffic take part, so J2's minor road never
-   makes the major road wait; no new parameter). A first version that alternated vehicle by vehicle cut the discharge to
-   under half (each handover waits for the merge point to clear) and was dropped. `tests/engine/test_merge_turns.py`:
-   the rule, and both lanes served on the experiment's scenario (38 and 17 through entries in 600 s, one lane 0 before).
+4. **A lane could be starved for ever at a merge** (found by the flyover-closed surface-lane experiment). With 3
+   surface lanes and the flyover closed, J1's two through lanes both entered the single 3.0 m link lane east of J1: the
+   middle lane served one green and then 0 veh/h from a standing queue of 65 vehicles, while the other lane was served
+   every cycle (entry goes to the vehicle nearest its line, and the other lane's platoon kept the shared exit
+   reserved). Fix: lanes that merge into one exit lane take turns by green (`engine/merge_turns.py`, one lane per
+   green, no new parameter; only connectors that do not yield to priority traffic take part). **Since the link east of J1
+   follows the surface lanes, each through lane has its own exit lane and this merge no longer exists at J1; the rule is
+   kept as a safeguard** for any merge geometry (the one connector pair that still shares an exit lane is in different
+   signal phases). **Known limitation, with the evidence** (old one-lane link, 3 surface lanes, flyover closed, seed 1,
+   window 300-900 s, through entries per 120 s cycle, `tests/engine/test_merge_turns.py` covers the rule):
+
+   | merge rule | lane 1 / lane 2 entries | per cycle | headway inside a green |
+   |---|---|---:|---|
+   | none (the original) | 0 / 54 | 10.8 | 2.7 s (same lane) |
+   | alternate vehicle by vehicle | 9 / 11 | **4.0** | **7.4 s** when the lane changes over |
+   | alternate by green (kept) | 38 / 17 | 11.0 | 2.5 s; both lanes served, in turn |
+
+   Alternating vehicle by vehicle is what real traffic does, and it halves the discharge here because of the model's
+   merge admission, not because alternating is wrong: the conflict point of two connectors into one exit lane is the
+   **end of the 30 m box connector**, and a vehicle is admitted only when the previous one's rear has cleared that point,
+   so the next vehicle starts from a standstill 30 m before it (about 7 s at 1 m/s^2). A true zipper needs admission by
+   predicted arrival time at the merge point (enter while the other vehicle is still in the box, arriving just after it),
+   which touches the collision-critical gate logic and was not attempted. Where it matters (a merge of two signalised
+   lanes) the discharge of the model is therefore conservative, and a green is served to one lane at a time.
+5. **Through vehicles drifted into turn-only lanes** (found by the utilisation test on the new link: the left-only lane
+   of J1's east arm held a stopped E->W through vehicle that could not leave it, blocking the left-turners behind it for
+   the whole run). "Good lanes" were decided one road ahead; on a road that leads to a junction approach a lane is now
+   good only if it enters a good lane there (`engine/routes.py`; falls back to the old rule when that would leave no
+   lane), so a vehicle takes its lane early, on the long road before the approach.
 
 **Exceptions: lanes and connectors that may carry nothing under the default demand**
 (`engine/utilisation_exceptions.py`; `tests/test_lane_utilisation.py` fails on any other empty segment,
@@ -208,6 +245,7 @@ checks the list matches this one, and fails if a listed exception actually carri
 | Key | What | Reason |
 |---|---|---|
 | `surface_through_at_j1` | the J1 surface through connectors W->E (`eb_surf_w:k>eb_surf_e:0`) and E->W (`wb_surf_e:0>wb_surf_w:k`) | the flyover is the fastest route for every W<->E trip, so no flow is routed through the signalised straight-ahead movement on the surface. They carry the W<->E traffic as soon as the flyover is closed (verified), so the exception applies only while it is open. With 3+ surface lanes the middle through lane feeds only this movement: it is not empty, but it carries only lane-change traffic (mean 0.1-0.4 vehicles) |
+| `surface_through_lanes` | the middle surface lanes (index 1 to S-2, with 3 or 4 surface lanes) on the west road and on both J1 approaches | they lead only to the surface through movement, which has no demand while the flyover is open, so lane planning keeps vehicles out of them (with 2 lanes there is no middle lane); used once the flyover is closed |
 | `flyover_closed_structure` | ramps and deck of both directions | flyover closed (closed by definition) |
 | `flyover_closed_approach_lanes` | lanes 2-3 of the 4-lane west road (they lead only to the closed ramp) and of its westbound exit (fed only by the ramp down) | flyover closed |
 
@@ -291,9 +329,9 @@ the browser test opens it by clicking a vehicle and compares the speed in the pa
 `data/validation.json`, stale when the engine source changes: a test fails), nothing runs live. Each item shows the
 measured value, the reference value, its source and the command that reproduces it: ring road stop-and-go with the wave
 speed (-14.4 km/h against the observed -10 to -20), lane capacity from the fundamental diagram (2,074 veh/h against
-1,800-2,400), stop-line discharge (1,631 veh/h against HCM's 1,900, -14%), the J2 gap acceptance against HCM for the
+1,800-2,400), stop-line discharge (1,643 veh/h against HCM's 1,900, -14%), the J2 gap acceptance against HCM for the
 right turn (132 against 194 veh/h, 68%, the smallest accepted gap 7.56 s against the 7.5 s critical gap) and the left
-turn, Webster's cycle calculation (C0 243.9 s from the plan, the same from the formula; applied cycle 120 s), and the
+turn, Webster's cycle calculation (C0 178.2 s from the plan, the same from the formula; applied cycle 120 s), and the
 known differences from HCM as documented text. **New finding:** the left turn serves 512 veh/h where HCM's formula gives
 351 (146%): the README's older left-turn table (156 against 287 veh/h) was measured with one shared minor lane, before
 the approach was split into two, and the left turn had not been compared with HCM since. The item says plainly that
@@ -626,195 +664,210 @@ The two built-in experiments are precomputed (`tools/gen_experiments.py`, stored
 
 ### Built-in experiments (10 paired runs, seeds 1-10, 900 s, warm-up 300 s, rush-hour demand)
 
-Parameters were fixed before any result was seen. Rush hour is every default flow x1.11
-(4,345 veh/h in total; J1 critical flow ratio 0.847). All figures are in the Compare tab
+Parameters were fixed before any result was seen. Rush hour is every default flow x1.26
+(4,906 veh/h in total; J1 critical flow ratio 0.851). All figures are in the Compare tab
 (stored results, served instantly); the tables below are generated from the same files.
 Everything that is not significant is shown.
 
 **Reading the tables.**
 - *Signal policy.* Thresholded max-pressure and Webster are **not distinguishable on the primary
-  metric** (mean delay -0.9 s, interval [-4.6, +2.8] crosses zero), nor on completed-trip delay,
-  p90, throughput or unfinished trips. The secondary metrics that do differ point one way: the
-  thresholded rule has a slightly lower p50 (-1.0 s) and longer J1 queues (maximum +17.5 m,
-  average +7.4 m); with a dozen metrics compared at once these three "significant" ones should be
-  read with care. Pure max-pressure is clearly worse than both (delay +24.6 s against Webster,
-  throughput -368 veh/h, J1 queue maximum +97 m); this is the textbook rule's switching loss
-  showing up (it switches every ~8 s). The J2 rows are **not significant** for any policy pair:
-  W<->E trips reach J2 over the flyover, which bypasses J1, and the cross-street trips that now
-  also reach J2 over the surface road are too few (240 veh/h) for J1's policy to move J2's queues
-  measurably. (Before the cross-street <-> arterial flows were added these rows were *identical in
-  every run*, because nothing that reached J2 passed J1. The unserved-demand row is still identical.)
-- *Flyover.* Closing the flyover at rush hour overloads J1 and the scenario does not settle in
-  900 s. Mean delay rises by 165 s and 416 more vehicles per run are unfinished (delay is measured
-  against the open-network route, so the detour itself is part of it), and 68 vehicles per run
-  are still waiting at the entries at the end. Beware the travel-time rows of the closed case: only
-  60 of its 527 cohort trips complete (the short ones), so its p50 is *lower* than the open case's
-  and its p90 interval is wide; that is survivorship, not a benefit, which is why the unfinished
-  count and the lower-bound delay sit beside them. The westbound surface queue grows back past J2
-  (J2 longest approach queue maximum +125 m). Flyover share of the closed case is undefined: no
-  eligible long trip completes in any seed.
-- *Surface lanes with the flyover closed.* **The third lane does not help, and it is not because the lanes are
-  unused.** Mean delay is +2.9 s [+1.8, +4.1] for 2 x 2.75 m against 3 x 3.5 m (both about 200 s: both arms are
-  saturated, only 57-72 of 527 cohort trips complete), throughput +44 veh/h [-7, +95] (not significant). What differs
-  is where the queue sits: with 2 narrower lanes J1's queue is *shorter* (maximum -56 m, average -82 m) and J2's is
-  longer (+44 m), and 68 vehicles per run are still waiting at the entries (0 with 3 lanes). Lane flows of seed 1
-  (`tools/lane_utilisation.py` machinery, window 300-900 s) show why: with 3 lanes J1's two through lanes feed the
-  **single 3.0 m link lane** east of J1 and carry 228 + 102 = 330 veh/h through the box, with 2 lanes the one through
-  lane carries **492 veh/h**; the link lane's arrivals are 384 and 546 veh/h. The conflict rule at the box (a vehicle may
-  enter only when the other connector into the same exit lane is clear) makes merging two lanes into one slower than
-  using one lane, so the extra lane costs through capacity here instead of adding it. This is a property of the network
-  (a one-lane link east of J1) and of the model's merge handling; it was *not* checked against field merge
-  capacities. **A bug was found by this experiment and fixed:** before the fix the middle through lane served one green
-  and then 0 veh/h for the rest of the run from a standing queue of 65 vehicles, while the other lane was served every
-  cycle (J1's entry rule gives way to the vehicle nearest its line, and the other lane's platoon kept its connector
-  reserved). Lanes that merge into one exit lane now take turns by green (`engine/merge_turns.py`, README "Lane
-  utilisation"); the first run of this experiment, before the fix, had the same mean delay (+2.9 s) and J1 queues
-  (-54 m maximum), because the starved lane carried the same total through flow (324 against 330 veh/h).
-- *Changes since the first publication of these tables* (the lane utilisation round): rush hour is
-  x1.11 of a default demand that now includes the cross-street <-> arterial flows (it was x1.31 of
-  the old one), the keep-left bias is 0.12 (was 0.2), a vehicle in a lane that does not lead onward
-  can leave it at the stop line. The conclusions about the policies and the flyover are the same;
-  the numbers are not (for example max-pressure against Webster: delay +20.9 s then, +24.6 s now).
+  metric** (mean delay -0.1 s, interval [-3.3, +3.2] crosses zero), nor on delay of completed trips, p50, p90,
+  unfinished trips or queues; the one metric that differs is throughput (-64 veh/h [-124, -4] for the
+  thresholded rule), which with a dozen metrics compared at once should be read with care. Pure max-pressure is clearly
+  worse than both (delay +29.1 s against Webster, throughput -454 veh/h, J1 queue maximum +91 m); this is the textbook
+  rule's switching loss showing up (it switches every ~8 s). The J2 rows are not significant for any policy pair:
+  W<->E trips reach J2 over the flyover, which bypasses J1, and the cross-street trips that also reach J2 over the surface
+  road are too few (240 veh/h) for J1's policy to move J2's queues measurably. (The unserved-demand row is identical in
+  every run.)
+- *Flyover.* Closing the flyover at rush hour overloads J1 and the scenario does not settle in 900 s. Mean delay rises by
+  155 s and 453 more vehicles per run are unfinished (delay is measured against the open-network route, so the detour itself
+  is part of it), and 190 vehicles per run are still waiting at the entries at the end. Beware the travel-time rows of the
+  closed case: only 81 of its 600 cohort trips complete (the short ones), so its p50 is *lower* than the open case's and its
+  p90 interval is wide; that is survivorship, not a benefit, which is why the unfinished count and the lower-bound delay sit
+  beside them. The westbound surface queue grows back past J2 (J2 longest approach queue maximum +129 m). Flyover share of
+  the closed case is undefined: no eligible long trip completes in any seed.
+- *Widths and capacities* (the three structure experiments): see the section below the tables.
+- *Changes since the first publication of these tables:* the cross-street <-> arterial flows, the keep-left bias 0.12, vehicles
+  in a dead-end lane can leave at the stop line, the link east of J1 follows the surface lanes (rush hour is now x1.26, 4,906
+  veh/h), lane planning one road ahead at junction approaches. The conclusions about the policies and the flyover are the
+  same; the numbers are not (max-pressure against Webster: delay +20.9 s at first, +24.6 s, +29.1 s now).
 
 #### Signal policy at rush hour
 
-Webster (fixed-time) against pure max-pressure and thresholded max-pressure at J1, rush-hour demand (every flow x1.11). Difference = B - A.
+Webster (fixed-time) against pure max-pressure and thresholded max-pressure at J1, rush-hour demand (every flow x1.26). Difference = B - A.
 
-**Webster vs max-pressure** (A = Webster, B = Max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4345 veh/h; per run, mean cohort A 527 (476 completed, 51 unfinished), B 527 (414 completed, 114 unfinished))
+**Webster vs max-pressure** (A = Webster, B = Max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (534 completed, 66 unfinished), B 600 (458 completed, 142 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 39.6 | 64.2 | +24.6 | [+21.1, +28.0] | **significant** |
-| Mean delay, completed trips only [s] | 36.8 | 45.5 | +8.7 | [+5.1, +12.3] | **significant** |
-| Travel time p50 (completed) [s] | 184.9 | 185.7 | +0.9 | [+0.2, +1.5] | **significant** |
-| Travel time p90 (completed) [s] | 231.1 | 253.2 | +22.0 | [+6.6, +37.4] | **significant** |
-| Throughput (completed trips in window) [veh/h] | 4138 | 3769 | -368 | [-424, -312] | **significant** |
-| Unserved demand (waiting at entries at the end) [veh] | 0.0 | 0.0 | 0.0 | [0.0, 0.0] | identical in every run |
-| Unfinished trips (cohort, at the end) [veh] | 50.9 | 113.7 | +62.8 | [+54.8, +70.8] | **significant** |
-| J1 longest approach queue, maximum [m] | 100.7 | 197.6 | +97.0 | [+76.3, +117.6] | **significant** |
-| J1 longest approach queue, time average [m] | 58.0 | 103.5 | +45.4 | [+37.4, +53.5] | **significant** |
-| J2 longest approach queue, maximum [m] | 63.8 | 65.4 | +1.6 | [-8.6, +11.9] | not significant |
-| J2 longest approach queue, time average [m] | 27.1 | 26.1 | -1.1 | [-4.5, +2.3] | not significant |
+| Mean delay, all trips (unfinished: lower bound) [s] | 42.8 | 71.9 | +29.1 | [+25.7, +32.5] | **significant** |
+| Mean delay, completed trips only [s] | 41.1 | 52.4 | +11.2 | [+8.2, +14.3] | **significant** |
+| Travel time p50 (completed) [s] | 186.9 | 188.9 | +2.0 | [+1.2, +2.9] | **significant** |
+| Travel time p90 (completed) [s] | 238.6 | 268.3 | +29.7 | [+13.9, +45.6] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4674 | 4220 | -454 | [-498, -410] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 0.7 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 65.6 | 141.9 | +76.3 | [+70.1, +82.5] | **significant** |
+| J1 longest approach queue, maximum [m] | 103.4 | 194.2 | +90.9 | [+59.1, +122.6] | **significant** |
+| J1 longest approach queue, time average [m] | 63.3 | 110.1 | +46.8 | [+39.2, +54.4] | **significant** |
+| J2 longest approach queue, maximum [m] | 105.0 | 102.6 | -2.4 | [-17.5, +12.8] | not significant |
+| J2 longest approach queue, time average [m] | 33.0 | 31.0 | -1.9 | [-9.6, +5.7] | not significant |
 | Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
 
-**Webster vs thresholded max-pressure** (A = Webster, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4345 veh/h; per run, mean cohort A 527 (476 completed, 51 unfinished), B 527 (475 completed, 52 unfinished))
+**Webster vs thresholded max-pressure** (A = Webster, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (534 completed, 66 unfinished), B 600 (531 completed, 69 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 39.6 | 38.7 | -0.9 | [-4.6, +2.8] | not significant |
-| Mean delay, completed trips only [s] | 36.8 | 35.3 | -1.5 | [-4.8, +1.9] | not significant |
-| Travel time p50 (completed) [s] | 184.9 | 183.9 | -1.0 | [-2.0, -0.0] | **significant** |
-| Travel time p90 (completed) [s] | 231.1 | 238.6 | +7.5 | [-0.4, +15.5] | not significant |
-| Throughput (completed trips in window) [veh/h] | 4138 | 4108 | -30 | [-70, +10] | not significant |
-| Unserved demand (waiting at entries at the end) [veh] | 0.0 | 0.0 | 0.0 | [0.0, 0.0] | identical in every run |
-| Unfinished trips (cohort, at the end) [veh] | 50.9 | 51.9 | +1.0 | [-4.8, +6.8] | not significant |
-| J1 longest approach queue, maximum [m] | 100.7 | 118.2 | +17.5 | [+6.3, +28.6] | **significant** |
-| J1 longest approach queue, time average [m] | 58.0 | 65.4 | +7.4 | [+1.3, +13.5] | **significant** |
-| J2 longest approach queue, maximum [m] | 63.8 | 66.5 | +2.7 | [-11.7, +17.1] | not significant |
-| J2 longest approach queue, time average [m] | 27.1 | 27.1 | -0.1 | [-5.6, +5.5] | not significant |
+| Mean delay, all trips (unfinished: lower bound) [s] | 42.8 | 42.7 | -0.1 | [-3.3, +3.2] | not significant |
+| Mean delay, completed trips only [s] | 41.1 | 39.9 | -1.3 | [-4.2, +1.7] | not significant |
+| Travel time p50 (completed) [s] | 186.9 | 186.4 | -0.5 | [-1.3, +0.4] | not significant |
+| Travel time p90 (completed) [s] | 238.6 | 244.6 | +6.0 | [-5.2, +17.2] | not significant |
+| Throughput (completed trips in window) [veh/h] | 4674 | 4610 | -64 | [-124, -4] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 0.7 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 65.6 | 68.9 | +3.3 | [-7.2, +13.8] | not significant |
+| J1 longest approach queue, maximum [m] | 103.4 | 116.1 | +12.8 | [-3.5, +29.0] | not significant |
+| J1 longest approach queue, time average [m] | 63.3 | 64.9 | +1.6 | [-5.2, +8.4] | not significant |
+| J2 longest approach queue, maximum [m] | 105.0 | 108.2 | +3.2 | [-16.7, +23.1] | not significant |
+| J2 longest approach queue, time average [m] | 33.0 | 33.2 | +0.3 | [-3.9, +4.5] | not significant |
 | Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
 
-**Max-pressure vs thresholded max-pressure** (A = Max-pressure, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4345 veh/h; per run, mean cohort A 527 (414 completed, 114 unfinished), B 527 (475 completed, 52 unfinished))
+**Max-pressure vs thresholded max-pressure** (A = Max-pressure, B = Thresholded max-pressure; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (458 completed, 142 unfinished), B 600 (531 completed, 69 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 64.2 | 38.7 | -25.5 | [-27.7, -23.3] | **significant** |
-| Mean delay, completed trips only [s] | 45.5 | 35.3 | -10.2 | [-11.9, -8.5] | **significant** |
-| Travel time p50 (completed) [s] | 185.7 | 183.9 | -1.9 | [-2.7, -1.0] | **significant** |
-| Travel time p90 (completed) [s] | 253.2 | 238.6 | -14.5 | [-25.4, -3.6] | **significant** |
-| Throughput (completed trips in window) [veh/h] | 3769 | 4108 | +338 | [+316, +361] | **significant** |
-| Unserved demand (waiting at entries at the end) [veh] | 0.0 | 0.0 | 0.0 | [0.0, 0.0] | identical in every run |
-| Unfinished trips (cohort, at the end) [veh] | 113.7 | 51.9 | -61.8 | [-67.2, -56.4] | **significant** |
-| J1 longest approach queue, maximum [m] | 197.6 | 118.2 | -79.5 | [-98.2, -60.7] | **significant** |
-| J1 longest approach queue, time average [m] | 103.5 | 65.4 | -38.1 | [-44.0, -32.1] | **significant** |
-| J2 longest approach queue, maximum [m] | 65.4 | 66.5 | +1.1 | [-11.7, +14.0] | not significant |
-| J2 longest approach queue, time average [m] | 26.1 | 27.1 | +1.0 | [-3.9, +5.9] | not significant |
+| Mean delay, all trips (unfinished: lower bound) [s] | 71.9 | 42.7 | -29.2 | [-33.3, -25.1] | **significant** |
+| Mean delay, completed trips only [s] | 52.4 | 39.9 | -12.5 | [-16.3, -8.8] | **significant** |
+| Travel time p50 (completed) [s] | 188.9 | 186.4 | -2.5 | [-3.5, -1.5] | **significant** |
+| Travel time p90 (completed) [s] | 268.3 | 244.6 | -23.7 | [-41.6, -5.9] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4220 | 4610 | +391 | [+340, +441] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 0.7 | 0.0 | [0.0, 0.0] | identical in every run |
+| Unfinished trips (cohort, at the end) [veh] | 141.9 | 68.9 | -73.0 | [-82.3, -63.7] | **significant** |
+| J1 longest approach queue, maximum [m] | 194.2 | 116.1 | -78.1 | [-98.6, -57.5] | **significant** |
+| J1 longest approach queue, time average [m] | 110.1 | 64.9 | -45.2 | [-51.6, -38.8] | **significant** |
+| J2 longest approach queue, maximum [m] | 102.6 | 108.2 | +5.5 | [-14.0, +25.1] | not significant |
+| J2 longest approach queue, time average [m] | 31.0 | 33.2 | +2.2 | [-6.4, +10.9] | not significant |
 | Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
 
 #### Flyover open vs closed at rush hour
 
 The flyover open against closed from the start, rush-hour demand. Difference = closed - open.
 
-**Flyover open vs closed** (A = Flyover open, B = Flyover closed; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4345 veh/h; per run, mean cohort A 527 (476 completed, 51 unfinished), B 527 (60 completed, 467 unfinished))
+**Flyover open vs closed** (A = Flyover open, B = Flyover closed; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (534 completed, 66 unfinished), B 600 (81 completed, 518 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 39.6 | 204.3 | +164.7 | [+159.4, +170.0] | **significant** |
-| Mean delay, completed trips only [s] | 36.8 | 101.8 | +65.0 | [+33.1, +96.9] | **significant** |
-| Travel time p50 (completed) [s] | 184.9 | 108.3 | -76.6 | [-83.5, -69.6] | **significant** |
-| Travel time p90 (completed) [s] | 231.1 | 441.6 | +210.5 | [+119.8, +301.2] | **significant** |
-| Throughput (completed trips in window) [veh/h] | 4138 | 1730 | -2407 | [-2491, -2324] | **significant** |
-| Unserved demand (waiting at entries at the end) [veh] | 0.0 | 68.0 | +68.0 | [+51.1, +84.9] | **significant** |
-| Unfinished trips (cohort, at the end) [veh] | 50.9 | 467.1 | +416.2 | [+407.9, +424.5] | **significant** |
-| J1 longest approach queue, maximum [m] | 100.7 | 381.1 | +280.4 | [+267.0, +293.7] | **significant** |
-| J1 longest approach queue, time average [m] | 58.0 | 237.4 | +179.4 | [+172.5, +186.3] | **significant** |
-| J2 longest approach queue, maximum [m] | 63.8 | 188.4 | +124.6 | [+87.0, +162.2] | **significant** |
-| J2 longest approach queue, time average [m] | 27.1 | 29.5 | +2.4 | [-9.0, +13.7] | not significant |
+| Mean delay, all trips (unfinished: lower bound) [s] | 42.8 | 198.2 | +155.4 | [+152.0, +158.9] | **significant** |
+| Mean delay, completed trips only [s] | 41.1 | 97.1 | +55.9 | [+40.2, +71.7] | **significant** |
+| Travel time p50 (completed) [s] | 186.9 | 112.7 | -74.2 | [-82.4, -66.1] | **significant** |
+| Travel time p90 (completed) [s] | 238.6 | 445.1 | +206.5 | [+170.2, +242.8] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4674 | 2038 | -2636 | [-2678, -2594] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 190.0 | +189.3 | [+178.3, +200.3] | **significant** |
+| Unfinished trips (cohort, at the end) [veh] | 65.6 | 518.2 | +452.6 | [+444.9, +460.3] | **significant** |
+| J1 longest approach queue, maximum [m] | 103.4 | 386.8 | +283.5 | [+271.6, +295.3] | **significant** |
+| J1 longest approach queue, time average [m] | 63.3 | 244.2 | +181.0 | [+174.3, +187.6] | **significant** |
+| J2 longest approach queue, maximum [m] | 105.0 | 233.8 | +128.8 | [+79.7, +177.9] | **significant** |
+| J2 longest approach queue, time average [m] | 33.0 | 35.8 | +2.9 | [-9.4, +15.2] | not significant |
 | Flyover share of eligible trips [ratio] | 1.000 | - | - | - | undefined (no usable pair) |
 
 #### Surface lanes with the flyover closed, rush hour
 
 Surface road 3 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B), flyover closed from the start, so the surface carries all through traffic. Rush-hour demand. Difference = B - A.
 
-**Surface 3 x 3.5 m vs 2 x 2.75 m, flyover closed** (A = Surface 3 lanes x 3.5 m, B = Surface 2 lanes x 2.75 m; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4345 veh/h; per run, mean cohort A 527 (71 completed, 456 unfinished), B 526 (57 completed, 469 unfinished))
+**Surface 3 x 3.5 m vs 2 x 2.75 m, flyover closed** (A = Surface 3 lanes x 3.5 m, B = Surface 2 lanes x 2.75 m; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (211 completed, 389 unfinished), B 597 (82 completed, 515 unfinished))
 
 | Metric | A | B | B - A | 95% CI of B - A | Verdict |
 |---|---:|---:|---:|---:|---|
-| Mean delay, all trips (unfinished: lower bound) [s] | 201.4 | 204.3 | +2.9 | [+1.8, +4.1] | **significant** |
-| Mean delay, completed trips only [s] | 123.6 | 90.0 | -33.7 | [-52.7, -14.7] | **significant** |
-| Travel time p50 (completed) [s] | 107.2 | 102.7 | -4.5 | [-9.3, +0.3] | not significant |
-| Travel time p90 (completed) [s] | 477.2 | 408.5 | -68.8 | [-199.2, +61.6] | not significant |
-| Throughput (completed trips in window) [veh/h] | 1667 | 1711 | +44 | [-7, +95] | not significant |
-| Unserved demand (waiting at entries at the end) [veh] | 0.0 | 68.2 | +68.2 | [+52.0, +84.4] | **significant** |
-| Unfinished trips (cohort, at the end) [veh] | 455.7 | 469.4 | +13.7 | [+10.1, +17.3] | **significant** |
-| J1 longest approach queue, maximum [m] | 442.3 | 386.1 | -56.2 | [-67.3, -45.1] | **significant** |
-| J1 longest approach queue, time average [m] | 319.7 | 238.2 | -81.6 | [-102.9, -60.3] | **significant** |
-| J2 longest approach queue, maximum [m] | 144.9 | 188.6 | +43.8 | [+32.0, +55.5] | **significant** |
-| J2 longest approach queue, time average [m] | 19.2 | 29.0 | +9.8 | [+6.3, +13.3] | **significant** |
+| Mean delay, all trips (unfinished: lower bound) [s] | 172.7 | 197.5 | +24.8 | [+22.1, +27.5] | **significant** |
+| Mean delay, completed trips only [s] | 178.1 | 94.7 | -83.4 | [-100.3, -66.5] | **significant** |
+| Travel time p50 (completed) [s] | 328.6 | 113.5 | -215.2 | [-253.6, -176.7] | **significant** |
+| Travel time p90 (completed) [s] | 519.4 | 445.9 | -73.5 | [-102.7, -44.3] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 3032 | 2041 | -991 | [-1018, -964] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.5 | 189.6 | +189.1 | [+177.8, +200.4] | **significant** |
+| Unfinished trips (cohort, at the end) [veh] | 388.7 | 515.2 | +126.5 | [+119.0, +134.0] | **significant** |
+| J1 longest approach queue, maximum [m] | 399.4 | 386.5 | -13.0 | [-19.5, -6.4] | **significant** |
+| J1 longest approach queue, time average [m] | 230.1 | 243.9 | +13.8 | [+9.0, +18.6] | **significant** |
+| J2 longest approach queue, maximum [m] | 54.6 | 231.4 | +176.8 | [+129.8, +223.8] | **significant** |
+| J2 longest approach queue, time average [m] | 6.7 | 35.0 | +28.3 | [+18.0, +38.6] | **significant** |
 | Flyover share of eligible trips [ratio] | 0.000 | - | - | - | undefined (no usable pair) |
 
-### Example: structure comparisons (rush hour, 10 paired runs, 900 s, warm-up 300 s)
+#### Flyover width alone at rush hour
 
-Run with the comparison service (`tools/compare_structures.py`); the reference tables of the two
-new structures are measured once in a "preparing" phase (about 75 s), the 20 runs took 571 CPU s
-(230 s wall on 4 workers).
+Flyover group 2 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B), flyover open, rush-hour demand: the width alone, same lane count. Difference = B - A.
 
-**Surface road: 3 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B)**, flyover group unchanged, rush hour.
-The first run of this comparison showed "almost no effect"; the lane utilisation report then showed
-that the surface road carried no through traffic at all. So it was rerun, and since two things changed
-(the demand and the keep-left bias) in a 2 x 2 design, `tools/compare_surface_lanes.py`: 10 paired runs
-(seeds 1-10, 900 s, warm-up 300 s) per column, difference B - A with its 95 % paired interval
-(* = interval excludes zero). The column "reproduced" is the old setting run with today's code (it
-includes the stop-line fix); the first column is the result as first published.
+**Flyover 2 x 3.5 m vs 2 x 2.75 m** (A = Flyover 2 lanes x 3.5 m, B = Flyover 2 lanes x 2.75 m; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (534 completed, 66 unfinished), B 585 (521 completed, 65 unfinished))
 
-| B - A | first published | old demand, bias 0.2 (reproduced) | old demand, bias 0.12 | new demand, bias 0.2 | **new demand, bias 0.12 (now)** |
-|---|---|---|---|---|---|
-| mean delay [s] | -0.7 [-1.6, +0.2] | -0.6 [-1.5, +0.3] | -0.8 [-1.9, +0.3] | -0.8 [-1.6, -0.1] * | **-1.2 [-2.5, +0.1]** |
-| throughput [veh/h] | 0 [-21, +21] | -2.4 [-23.3, +18.5] | +7.8 [-11.6, +27.2] | +25.2 [+0.5, +49.9] * | **+18.6 [-7.0, +44.2]** |
-| unfinished trips | -0.6 [-4.2, +3.0] | -0.2 [-3.7, +3.3] | -1.9 [-5.7, +1.9] | -2.1 [-4.8, +0.6] | **-2.4 [-5.3, +0.5]** |
-| J1 queue, maximum [m] | -4.6 [-12.2, +2.9] | -5.3 [-12.8, +2.2] | -8.0 [-19.0, +2.9] | -3.1 [-11.4, +5.1] | **-3.9 [-13.5, +5.7]** |
-| J1 queue, time average [m] | -2.7 [-4.2, -1.1] * | -2.3 [-3.9, -0.7] * | -3.3 [-6.7, +0.1] | -3.3 [-6.2, -0.4] * | **-2.7 [-6.7, +1.3]** |
-| travel time p50 [s] | +0.5 [+0.1, +0.9] * | +0.5 [+0.1, +0.8] * | +0.6 [+0.2, +0.9] * | +0.4 [+0.1, +0.8] * | **+0.5 [+0.2, +0.8]** * |
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 42.8 | 43.3 | +0.6 | [-1.2, +2.3] | not significant |
+| Mean delay, completed trips only [s] | 41.1 | 41.6 | +0.4 | [-1.3, +2.1] | not significant |
+| Travel time p50 (completed) [s] | 186.9 | 204.3 | +17.4 | [+16.6, +18.2] | **significant** |
+| Travel time p90 (completed) [s] | 238.6 | 244.8 | +6.2 | [+1.6, +10.7] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4674 | 4678 | +4 | [-29, +38] | not significant |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 0.5 | -0.2 | [-0.7, +0.3] | not significant |
+| Unfinished trips (cohort, at the end) [veh] | 65.6 | 64.6 | -1.0 | [-6.3, +4.3] | not significant |
+| J1 longest approach queue, maximum [m] | 103.4 | 103.6 | +0.2 | [-2.3, +2.7] | not significant |
+| J1 longest approach queue, time average [m] | 63.3 | 64.1 | +0.8 | [-1.5, +3.1] | not significant |
+| J2 longest approach queue, maximum [m] | 105.0 | 90.3 | -14.7 | [-35.4, +6.0] | not significant |
+| J2 longest approach queue, time average [m] | 33.0 | 28.7 | -4.3 | [-11.7, +3.1] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
 
-**Was "almost no effect" real, or were the extra lanes unused? Real, and now explained.** The old result
-is reproduced (column 2), and none of the four settings shows an effect of practical size (mean delay
-within about 1 s of zero; the two intervals that exclude zero in the new-demand/old-bias column, delay
--0.8 s and throughput +25 veh/h, are small and disappear with the final bias). The extra lane is not
-unused because of a bug: with 3 surface lanes the approach has a left lane, a through-only lane and a
-through-and-right lane, and the through movement has no demand (the flyover takes it). Utilisation of
-A's surface lanes (seed 1, arrivals per hour and mean vehicles on the lane): kerb/left lane 270 and
-6.7, middle through lane 180 and **0.2** (lane-change transit only), right lane 138 and 3.0; with the old
-demand and bias 312 / 6.3, 204 / 0.2, 186 / 3.7. Both structures have the same left and right turn
-lanes, so the third lane adds no capacity for any demand that exists. The surface lane count would
-matter when the surface carries through traffic (flyover closed, or a flyover that cannot take it);
-that case was not tested here. The overall level of delay is lower with the new demand (40 s against 46 s mean
-delay in A), where the rush-hour factor is also smaller (x1.11, 4,345 veh/h against 4,796); the
-comparison of A and B within a column is what this table is about.
+#### Flyover lane count at rush hour
 
-**Flyover group: 2 lanes (A) against 1 lane (B)**, surface road unchanged: a large effect. Mean
-delay +90.5 s [+76.7, +104.4], throughput -944 veh/h [-1,126, -763], unserved demand +311 vehicles,
-unfinished trips +203, p50 travel time (completed trips only, survivorship-biased) +139 s. J1's
-queue is *shorter* (-14 m maximum, -9 m average) because less traffic reaches it.
+Flyover group 2 lanes (A) against 1 lane (B), both 3.5 m, flyover open, rush-hour demand. Difference = B - A.
+
+**Flyover 2 lanes vs 1 lane** (A = Flyover 2 lanes, B = Flyover 1 lane; 10 paired runs, seeds 1-10, 900 s, warm-up 300 s, demand 4906 veh/h; per run, mean cohort A 600 (534 completed, 66 unfinished), B 600 (278 completed, 322 unfinished))
+
+| Metric | A | B | B - A | 95% CI of B - A | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mean delay, all trips (unfinished: lower bound) [s] | 42.8 | 147.9 | +105.1 | [+99.8, +110.5] | **significant** |
+| Mean delay, completed trips only [s] | 41.1 | 150.6 | +109.5 | [+103.8, +115.2] | **significant** |
+| Travel time p50 (completed) [s] | 186.9 | 253.0 | +66.1 | [+31.3, +100.9] | **significant** |
+| Travel time p90 (completed) [s] | 238.6 | 456.6 | +218.0 | [+193.7, +242.2] | **significant** |
+| Throughput (completed trips in window) [veh/h] | 4674 | 3371 | -1303 | [-1419, -1186] | **significant** |
+| Unserved demand (waiting at entries at the end) [veh] | 0.7 | 281.6 | +280.9 | [+258.1, +303.7] | **significant** |
+| Unfinished trips (cohort, at the end) [veh] | 65.6 | 321.5 | +255.9 | [+236.0, +275.8] | **significant** |
+| J1 longest approach queue, maximum [m] | 103.4 | 95.5 | -7.9 | [-12.6, -3.2] | **significant** |
+| J1 longest approach queue, time average [m] | 63.3 | 54.8 | -8.4 | [-13.3, -3.6] | **significant** |
+| J2 longest approach queue, maximum [m] | 105.0 | 232.0 | +127.0 | [+61.5, +192.5] | **significant** |
+| J2 longest approach queue, time average [m] | 33.0 | 51.9 | +19.0 | [-2.5, +40.4] | not significant |
+| Flyover share of eligible trips [ratio] | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | identical in every run |
+
+### Widths and capacities (rush hour, 10 paired runs, 900 s, warm-up 300 s; B - A, 95% paired interval, * = interval excludes zero)
+
+Three built-in experiments (Compare tab, stored; `server/experiments.py`), all on the network where the **link east of J1
+follows the surface group**. Before that change the surface-lane setting changed the approach to J1 but not the road behind
+it (a single 3.0 m link lane), and a 3-lane surface road looked useless: the first run of the flyover-closed comparison gave
+mean delay +2.9 s and throughput +44 veh/h [-7, +95] for 2 x 2.75 m against 3 x 3.5 m, because both arms were limited by the
+one link lane (through flow at J1: 330 veh/h with 3 lanes, 492 with 2).
+
+| B - A | surface 3 x 3.5 m (A) vs 2 x 2.75 m (B), **flyover closed** | flyover 2 x 3.5 m (A) vs 2 x 2.75 m (B), flyover open: **width alone** | flyover 2 lanes (A) vs 1 lane (B), flyover open |
+|---|---|---|---|
+| mean delay, all trips (lower bound) [s] | +24.8 [+22.1, +27.5] * | +0.6 [-1.2, +2.3] | +105.1 [+99.8, +110.5] * |
+| mean delay, completed trips only [s] | -83.4 [-100.3, -66.5] * (survivorship) | +0.4 [-1.3, +2.1] | +109.5 [+103.8, +115.2] * |
+| travel time p50 / p90, completed [s] | -215 * / -74 * (survivorship) | **+17.4 [+16.6, +18.2] * / +6.2 [+1.6, +10.7] *** | +66 * / +218 * |
+| throughput [veh/h] | **-991 [-1,018, -964] *** | +4 [-29, +38] | -1,303 [-1,419, -1,186] * |
+| unserved at the entries at the end [veh] | +189.1 [+177.8, +200.4] * (A 0.5, B 189.6) | -0.2 [-0.7, +0.3] | +280.9 [+258.1, +303.7] * |
+| unfinished trips (cohort) | +126.5 [+119.0, +134.0] * | -1.0 [-6.3, +4.3] | +255.9 [+236.0, +275.8] * |
+| J1 queue, max [m] | -13.0 [-19.5, -6.4] * | +0.2 [-2.3, +2.7] | -7.9 [-12.6, -3.2] * |
+| J2 queue, max [m] | +176.8 [+129.8, +223.8] * | -14.7 [-35.4, +6.0] | +127.0 [+61.5, +192.5] * |
+
+- **Lane count matters when the lanes are the bottleneck.** With the flyover closed the surface road carries every W<->E trip
+  and the narrower 2-lane road (2.75 m) passes 991 veh/h less (3,032 against 2,041 veh/h), leaves 190 vehicles per run waiting at the
+  entries (A: 0.5) and builds a 177 m longer queue at J2 (not investigated further). Both arms are saturated (389 and 515 of about 600 cohort trips do not finish), so delays are lower
+  bounds and the completed-trip rows are survivorship: B's completed trips are the short ones. Likewise the flyover group at
+  2 lanes against 1: the one-lane flyover cuts throughput by 1,303 veh/h and delay rises by 105 s: the flyover lanes carry
+  about 810 and 690 veh/h by transfer at rush hour (1,500 together; utilisation report), more than one lane can discharge.
+- **Width alone has no significant effect on delay, throughput or queues, and a significant effect on travel time.** Narrowing
+  the flyover lanes from 3.5 m to 2.75 m changes mean delay by +0.6 s [-1.2, +2.3], throughput by +4 veh/h [-29, +38], and no queue
+  significantly. The median travel time is 17.4 s longer (186.9 to 204.3 s, +9%). Why: in this model a lane's width acts on the
+  *desired speed* only (the lane-width speed model, an approximation that is not HCM's adjustment: 58.8 km/h at 3.5 m, 53.0 km/h at
+  2.75 m on the flyover, free-flow W->E 178.9 s against 198.6 s) and not on headways or saturation flows, and the flyover lanes
+  are far from their capacity (about 810 and 690 veh/h per lane), so no queue forms. **Delay does not show the slower road
+  because it is measured against each structure's own free-flow time (the reference is measured per network), so the speed
+  loss appears in the travel-time rows, not in the delay rows.** The honest summary: a narrower lane makes the trip longer
+  by its slower free-flow speed and, here, nothing else; capacity effects of width (narrower lanes discharging slower, lateral
+  friction) are not in the model.
+
+*History:* `tools/compare_surface_lanes.py` reran the surface-lane comparison in a 2 x 2 design (old/new demand, old/new keep-left bias) on the one-lane link; its results (no effect in all four cells, explained by the surface through lane having no demand and, with the flyover closed, by the single link lane) are in the git history of this section and no longer describe the network.
 
 ### CPU cost of a comparison (measured, `tools/gen_experiments.py`, 4 worker processes)
 

@@ -1,6 +1,6 @@
 {
  "stamp": {
-  "source_digest": "405312661d2feecf652d0fdb5524c8c5b55d3dd6de26c802c8f61afaaa988cc2",
+  "source_digest": "505e0b2f3fa5f42f76c1228866f61ef888015888ea844ab3f2c81d28bdb9a897",
   "format_version": 1
  },
  "items": [
@@ -155,7 +155,7 @@
    "headline": {
     "label": "through lanes, cars only (mean of 3)",
     "unit": "veh/h/lane",
-    "measured": "1631",
+    "measured": "1643",
     "reference": "1,900 (HCM base)",
     "verdict": "-14% against HCM"
    },
@@ -167,14 +167,14 @@
     ],
     "rows": [
      [
-      "eb_surf_w:1>eb_surf_e:0",
-      1644,
-      1664
+      "eb_surf_w:1>eb_surf_e:1",
+      1652,
+      1681
      ],
      [
-      "wb_surf_e:0>wb_surf_w:1",
-      1625,
-      1668
+      "wb_surf_e:1>wb_surf_w:1",
+      1652,
+      1681
      ],
      [
       "n1_in:0>s1_out:0",
@@ -314,8 +314,8 @@
    "headline": {
     "label": "unbounded optimum cycle C0",
     "unit": "s",
-    "measured": "243.9",
-    "reference": "243.9 (formula)",
+    "measured": "178.2",
+    "reference": "178.2 (formula)",
     "verdict": "agrees"
    },
    "table": {
@@ -326,11 +326,11 @@
     "rows": [
      [
       "critical flow ratios y per phase",
-      "0.208, 0.254, 0.146, 0.156"
+      "0.208, 0.156, 0.156, 0.156"
      ],
      [
       "Y = sum of y",
-      0.763
+      0.676
      ],
      [
       "lost time L s",
@@ -338,7 +338,7 @@
      ],
      [
       "C0 = (1.5 L + 5) / (1 - Y) s",
-      243.9
+      178.2
      ],
      [
       "applied cycle s (capped at 120 s, IRC:93)",
@@ -346,7 +346,7 @@
      ],
      [
       "greens s",
-      "25.1, 30.2, 19.0, 20.1"
+      "28.1, 21.6, 22.4, 22.4"
      ]
     ]
    },

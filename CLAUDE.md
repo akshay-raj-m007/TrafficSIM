@@ -3,7 +3,7 @@
 ## Goal
 An agent-based traffic simulator that feels like a small **research workbench**, not a toy.
 A Python/NumPy engine (IDM car-following + MOBIL lane changes) runs a hand-built road
-network (two junctions, a flyover with ramps, 1/2/3/4-lane roads, a 3→2 lane drop,
+network (two junctions, a flyover with ramps, 1/2/4-lane roads by default (3 with other lane settings), a 4→2 lane drop (the link east of J1 follows the surface group),
 turning movements). It is served by FastAPI: each browser session gets its own simulation
 streamed over a WebSocket at 10 Hz, and headless A/B comparisons run over REST. The frontend
 (Vite + React + Three.js) shows a true metric 3D view with scenario controls and measured
@@ -148,4 +148,6 @@ Render free tier (Docker runtime, `render.yaml`): 0.1 CPU, 512 MB, sleeps after 
 - **Validation tab**: `tools/gen_validation.py` -> `data/validation.json` (stale when the engine source changes; a test
   fails, regenerate: about 2 min). Experiments: three built in (`policy_rush`, `flyover_rush`, `surface_closed`).
 - If a decision of the user's fails a test: ask before changing it.
-
+- **Link east of J1 = surface group** (lanes, width, position); the lane drop removes the S link lanes. Lane planning looks
+  one road ahead at junction approaches (`engine/routes.py`). `engine/merge_turns.py` (merge by green) is kept as a
+  safeguard but dormant at J1; user decision: keep, documented limitation.
