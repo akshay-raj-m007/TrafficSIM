@@ -52,7 +52,10 @@ export function MixEditor({ live, errors, disabled, onApply }: Props) {
       >
         Apply mix
       </button>
-      <p className="hint">Applies to vehicles generated from now on.</p>
+      <p className="hint">
+        Applies to vehicles generated from now on. Signal plans keep their design saturation flows
+        from the mix at reset; they do not follow live mix changes.
+      </p>
     </section>
   );
 }

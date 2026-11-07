@@ -61,8 +61,8 @@ The left panel is the scenario editor. **Live settings** change while the simula
 | Live setting | Behaviour |
 |---|---|
 | Demand (veh/h, per origin-destination pair; per-origin total keeps the split; scale all) | a zone whose total rate changes redraws its next arrival as now + Exp(new rate) from the arrival stream (valid because the exponential is memoryless) |
-| Vehicle mix (percent, must add up to exactly 100) | applies to vehicles generated afterwards |
-| J1 signal policy (Webster, max-pressure, thresholded max-pressure) | the new controller continues in the current phase and state, finishes the running amber and all-red, then decides for itself, so two conflicting greens cannot occur. A Webster plan is computed from the demand in force when it is selected and does not follow later demand changes |
+| Vehicle mix (percent, must add up to exactly 100) | applies to vehicles generated afterwards. **It does not retime the signals** (see "Signal plans keep their design" below) |
+| J1 signal policy (Webster, max-pressure, thresholded max-pressure) | the new controller continues in the current phase and state, finishes the running amber and all-red, then decides for itself, so two conflicting greens cannot occur. The controllers are built from the scenario's **design record** (below), so a switch never measures or recomputes anything |
 | Flyover open / closed | see below |
 
 **Closing the flyover.** The deck and both ramps stop accepting vehicles. Entry queues and
@@ -312,9 +312,17 @@ effective green e = 2 s is still the HCM default (not measured). Before and afte
 demand: lost time L 25.5 s to **35.8 s**; unbounded Webster cycle C0 123.1 s to **167.1 s**;
 applied cycle **120 s both times**, because C_MAX = 120 s (IRC:93) now limits it. The greens
 therefore changed (displayed green = effective green + l1 - e): they now sum with the
-intergreens to exactly the cycle (tested). The fixed-time plan is computed from the demand in
-force when it is selected and does not follow later demand changes (that is what fixed-time
-means).
+intergreens to exactly the cycle (tested).
+
+**Signal plans keep their design (a design decision).** When a scenario is built (at reset),
+each signalised junction gets a *design record*: the measured saturation flows and start-up
+losses **of the initial vehicle mix**, and the Webster plan **of the initial demand**. All three
+controllers are built from it. A live change of the mix or the demand never touches it, exactly
+as a real signal plan is timed by an engineer for a design mix and does not change when more
+trucks show up. Switching the policy live starts the design plan (or the design saturation
+flows) from the current phase; Webster is recomputed only at the next reset. Test:
+`tests/engine/test_live_changes.py` (a 50% truck mix change leaves flows, losses and greens
+unchanged; a reset with that mix recomputes them). The editor says so next to the mix inputs.
 
 ## A/B comparison (Compare tab)
 

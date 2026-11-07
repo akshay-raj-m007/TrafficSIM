@@ -23,8 +23,6 @@ closure causes counts as delay for everyone, re-routed or not.
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from trafficsim.engine.params.driving import LC_COOLDOWN_S
 from trafficsim.engine.routes import lane_offset_to_good, next_seg, refresh_lane_cache
 from trafficsim.engine.scenario import Change, SetDemand, SetFlyover, SetMix, SetPolicy
@@ -87,13 +85,12 @@ def check_change(sim, change: Change) -> None:
 
 def switch_policy(sim, policy: str) -> None:
     """New controller continues in the current phase and state (same amber / all-red), so
-    two conflicting greens cannot occur; it decides for itself from the next green on."""
+    two conflicting greens cannot occur; it decides for itself from the next green on. It is
+    built from the DESIGN record of the scenario (saturation flows of the initial mix, Webster
+    plan of the initial demand): live changes of mix or demand do not retime the signals."""
     from trafficsim.engine.signals import make_controllers
 
-    scenario = replace(
-        sim.scenario, signal_control=policy, demand=sim.current_demand, vehicle_mix=sim.current_mix
-    )
-    new = make_controllers(sim.network, sim.lg, sim.routes, scenario)
+    new = make_controllers(sim.design, policy, sim.lg)
     for old, ctrl in zip(sim.signals, new, strict=True):
         ctrl.phase, ctrl.state, ctrl.elapsed = old.phase, old.state, old.elapsed
         ctrl.next_phase, ctrl.history = old.next_phase, old.history

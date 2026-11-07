@@ -22,6 +22,8 @@ Durations are kept in whole ticks so the controller is exact and deterministic.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from trafficsim.engine.constants import STEPS_PER_SECOND
@@ -142,27 +144,49 @@ class MaxPressureThreshold(MaxPressure):
         )  # fmt: skip
 
 
-def make_controllers(net, lg, routes, scenario) -> list[SignalController]:
-    """One controller per signalised junction, as chosen by the scenario."""
+@dataclass(frozen=True)
+class JunctionDesign:
+    """What a signal plan is timed for, fixed when the scenario is built: the measured
+    saturation flows and start-up losses of the INITIAL vehicle mix, and the Webster plan of the
+    INITIAL demand. Like a real signal plan, it does not follow live changes of mix or demand;
+    only a reset (a new build) recomputes it."""
+
+    junction_id: str
+    phases: list[Phase]
+    sat: dict[str, float]
+    startup_lost: dict[str, float]
+    plan: WebsterPlan
+
+
+def make_design(net, lg, routes, scenario) -> list[JunctionDesign]:
+    """The design record of every signalised junction (empty for an uncontrolled scenario)."""
     from trafficsim.engine.calibration import saturation_flows, startup_lost_times
     from trafficsim.engine.webster import build_phases, movement_flows, webster_plan
 
     if scenario.signal_control == "uncontrolled":
         return []
-    out: list[SignalController] = []
+    out = []
     for j in net.junctions:
         if j.control != "signalised":
             continue
         phases = build_phases(net, j)
         sat = saturation_flows(net, scenario.vehicle_mix, j.id)
-        if scenario.signal_control == "fixed_webster":
-            flows = movement_flows(net, routes, lg, scenario.demand, j)
-            lost = startup_lost_times(net, scenario.vehicle_mix, j.id)
-            plan = webster_plan(phases, flows, sat, lost, net)
-            out.append(FixedTimeWebster(j.id, phases, lg, plan))
-        elif scenario.signal_control == "max_pressure":
-            out.append(MaxPressure(j.id, phases, lg, sat))
+        lost = startup_lost_times(net, scenario.vehicle_mix, j.id)
+        flows = movement_flows(net, routes, lg, scenario.demand, j)
+        out.append(
+            JunctionDesign(j.id, phases, sat, lost, webster_plan(phases, flows, sat, lost, net))
+        )
+    return out
+
+
+def make_controllers(design: list[JunctionDesign], policy: str, lg) -> list[SignalController]:
+    """One controller per signalised junction for ``policy``, all from the design record."""
+    out: list[SignalController] = []
+    for d in design:
+        if policy == "fixed_webster":
+            out.append(FixedTimeWebster(d.junction_id, d.phases, lg, d.plan))
+        elif policy == "max_pressure":
+            out.append(MaxPressure(d.junction_id, d.phases, lg, d.sat))
         else:
-            lost = startup_lost_times(net, scenario.vehicle_mix, j.id)
-            out.append(MaxPressureThreshold(j.id, phases, lg, sat, lost))
+            out.append(MaxPressureThreshold(d.junction_id, d.phases, lg, d.sat, d.startup_lost))
     return out

@@ -37,7 +37,7 @@ from trafficsim.engine.params.driving import B_EMERGENCY_MPS2
 from trafficsim.engine.rng import RngStreams
 from trafficsim.engine.routes import RouteTable
 from trafficsim.engine.scenario import Change, Scenario
-from trafficsim.engine.signals import make_controllers
+from trafficsim.engine.signals import make_controllers, make_design
 from trafficsim.engine.transfer import TransferLog, advance_segments
 from trafficsim.engine.vehicle import CLASS_INDEX, VehicleState
 from trafficsim.network.routing import grade_separated_roads
@@ -71,7 +71,8 @@ class Simulation:
         self.demand = Demand(network, self.lg, self.routes, scenario, self.rng)
         self.vehicles = VehicleState.empty()
         self.gates = JunctionGates(network, self.lg)
-        self.signals = make_controllers(network, self.lg, self.routes, scenario)
+        self.design = make_design(network, self.lg, self.routes, scenario)  # until the next reset
+        self.signals = make_controllers(self.design, scenario.signal_control, self.lg)
         if self.signals:
             self.gates.signal = lambda c: all(ctrl.allows(c) for ctrl in self.signals)
         self._incidents = [(self.lg.seg_of[x.lane_id], x.s_m, x) for x in scenario.incidents]
