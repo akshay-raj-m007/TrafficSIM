@@ -2,6 +2,7 @@
 
     policy_rush    Webster vs pure max-pressure vs thresholded max-pressure, rush hour
     flyover_rush   flyover open vs closed (from the start), rush hour
+    surface_closed surface road 3 lanes x 3.5 m vs 2 lanes x 2.75 m, flyover closed, rush hour
 
 Parameters are fixed here, before any result was seen: 10 paired runs, seeds 1-10, 900 s,
 warm-up 300 s, default model. ``tools/gen_experiments.py`` runs them and writes
@@ -36,6 +37,13 @@ def _rush(name: str, *, policy: str = "fixed_webster", flyover_open: bool = True
     return doc
 
 
+def _surface(name: str, lanes: int, width_m: float) -> dict:
+    """Rush hour with the flyover closed (the surface carries all through traffic)."""
+    doc = _rush(name, flyover_open=False)
+    doc["structure"] |= {"surface_lanes": lanes, "surface_width_m": width_m}
+    return doc
+
+
 def definitions() -> dict[str, dict]:
     webster = _rush("Webster", policy="fixed_webster")
     mp = _rush("Max-pressure", policy="max_pressure")
@@ -60,6 +68,19 @@ def definitions() -> dict[str, dict]:
                     "Flyover open vs closed",
                     _rush("Flyover open"),
                     _rush("Flyover closed", flyover_open=False),
+                )
+            ],  # fmt: skip
+        },
+        "surface_closed": {
+            "title": "Surface lanes with the flyover closed, rush hour",
+            "description": "Surface road 3 lanes x 3.5 m (A) against 2 lanes x 2.75 m (B), flyover "
+            "closed from the start, so the surface carries all through traffic. Rush-hour demand. "
+            "Difference = B - A.",
+            "comparisons": [
+                (
+                    "Surface 3 x 3.5 m vs 2 x 2.75 m, flyover closed",
+                    _surface("Surface 3 lanes x 3.5 m", 3, 3.5),
+                    _surface("Surface 2 lanes x 2.75 m", 2, 2.75),
                 )
             ],  # fmt: skip
         },

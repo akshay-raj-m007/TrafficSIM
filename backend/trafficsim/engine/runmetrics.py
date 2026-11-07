@@ -37,7 +37,7 @@ from trafficsim.engine.scenario import Scenario
 from trafficsim.network.routing import fastest_route, grade_separated_roads
 from trafficsim.network.types import Network
 
-METRICS_VERSION = 2  # bump when a definition changes: cached / shipped results go stale
+METRICS_VERSION = 3  # bump when a definition changes (3: + tt_samples_s): results go stale
 SAMPLE_EVERY_STEPS = STEPS_PER_SECOND  # queue samples and flyover tracking every 1 s
 J1_APPROACHES = ("J1_W", "J1_E", "J1_N", "J1_S")
 J2_APPROACHES = ("J2_W", "J2_E", "J2_N")
@@ -90,6 +90,7 @@ def summarise(trips: list[Trip], warmup_s: float, end_s: float, used_flyover: se
         "mean_delay_completed_s": _mean(d_done),
         "tt_p50_s": float(np.percentile(tt, 50)) if tt else None,
         "tt_p90_s": float(np.percentile(tt, 90)) if tt else None,
+        "tt_samples_s": [round(x, 1) for x in tt],  # for the pooled distributions
         "throughput_veh_h": len(exits_in_window) / window_h,
         "unserved_veh": float(unserved),
         "unfinished_veh": float(len(open_)),

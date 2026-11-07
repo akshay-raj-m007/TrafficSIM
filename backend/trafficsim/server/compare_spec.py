@@ -21,6 +21,7 @@ from trafficsim.engine.pairedstats import paired_difference
 from trafficsim.engine.runmetrics import METRICS, METRICS_VERSION
 from trafficsim.engine.sourcedigest import source_digest
 from trafficsim.network.structure import Structure as NetStructure
+from trafficsim.server.compare_dist import distributions
 from trafficsim.server.scenario_doc import MAX_SEED, ScenarioError, parse
 
 ALLOWED_RUNS: Final[tuple[int, ...]] = (3, 5, 10)
@@ -196,7 +197,9 @@ def assemble(v: Validated, results: dict[str, dict], cost: dict) -> dict:
             "mean_counts": {s: mean_counts(per_side[s]) for s in "ab"}, "cost": cost,
         },
         "metrics": rows,
-        "runs": {s: [{"seed": sd, **{k: r[k] for k in ("key", "metrics", "cpu_s")}}
+        "distributions": distributions(per_side),
+        "runs": {s: [{"seed": sd, "key": r["key"], "cpu_s": r["cpu_s"],
+                      "metrics": {k: x for k, x in r["metrics"].items() if k != "tt_samples_s"}}
                      for sd, r in zip(v.seeds, per_side[s], strict=True)] for s in "ab"},
         "note": MULTIPLE_COMPARISONS_NOTE,
     }  # fmt: skip

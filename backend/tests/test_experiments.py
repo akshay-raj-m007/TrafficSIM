@@ -51,14 +51,16 @@ def test_every_stored_interval_is_what_the_paired_t_gives_for_the_stored_runs():
             assert [r["id"] for r in res["metrics"]] == list(METRICS)
             for side in "ab":
                 for r in res["runs"][side]:
-                    assert doc["runs"][r["key"]]["metrics"] == r["metrics"]
+                    stored = {k: v for k, v in doc["runs"][r["key"]]["metrics"].items()}
+                    assert stored.pop("tt_samples_s") is not None
+                    assert stored == r["metrics"]  # the result keeps samples only as distributions
 
 
 def test_the_api_serves_them_instantly():
     app = create_app(Settings(static_dir=None, warm_up=False, compare=CompareLimits(max_runs=10)))
     with TestClient(app) as client:
         listing = {e["id"]: e for e in client.get("/api/experiments").json()}
-        assert set(listing) == {"policy_rush", "flyover_rush"}
+        assert set(listing) == {"policy_rush", "flyover_rush", "surface_closed"}
         assert all(e["available"] and e["stale"] is False for e in listing.values())
         pol = client.get("/api/experiments/policy_rush").json()
         assert len(pol["comparisons"]) == 3 and pol["stale"] is False
