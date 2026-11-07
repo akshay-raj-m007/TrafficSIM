@@ -18,12 +18,21 @@ export type LiveChange =
   | { type: 'set_flyover'; open: boolean };
 export type LoggedChange = LiveChange & { tick: number };
 
+/** Lane groups and widths (applies on reset); mirrors backend network/structure.py. */
+export interface StructureDoc {
+  j2_minor_lanes: 1 | 2;
+  surface_lanes: number;
+  flyover_lanes: number;
+  surface_width_m: number;
+  flyover_width_m: number;
+}
+
 export interface ScenarioDoc {
   version: 1;
   name: string;
   seed: number;
   duration_s: number;
-  structure: { j2_minor_lanes: 1 | 2 };
+  structure: StructureDoc;
   initial: {
     demand: DemandRow[];
     mix: Mix;

@@ -1,37 +1,99 @@
-import type { Problem } from '../../api/scenarioTypes';
+import type { Problem, StructureDoc } from '../../api/scenarioTypes';
+import {
+  LANES_RANGE,
+  WIDTH_MODEL_REFERENCE_M,
+  WIDTH_RANGE_M,
+  extrapolated,
+  sameStructure,
+  type StructureErrors,
+  type StructureText,
+} from '../structureDraft';
 
 interface Props {
-  running: 1 | 2; // the J2 minor approach of the running network
-  value: 1 | 2;
-  errors: Problem[];
-  onChange(v: 1 | 2): void;
+  running: StructureDoc; // the structure of the running network
+  text: StructureText; // the draft (applies on reset)
+  draft: StructureDoc | null; // the draft if valid
+  errors: StructureErrors;
+  serverErrors: Problem[];
+  onChange(t: StructureText): void;
 }
 
-export function StructureEditor({ running, value, errors, onChange }: Props) {
+const LANE_OPTIONS = Array.from({ length: LANES_RANGE[1] - LANES_RANGE[0] + 1 }, (_, i) => i + 1);
+
+export function StructureEditor({ running, text, draft, errors, serverErrors, onChange }: Props) {
+  const set = (k: keyof StructureText, v: string) => onChange({ ...text, [k]: v });
+  const group = (title: string, lanes: keyof StructureText, width: keyof StructureText) => (
+    <fieldset className="ed-group">
+      <legend>{title}</legend>
+      <label className="ed-row">
+        <span>lanes / direction</span>
+        <select
+          value={text[lanes]}
+          aria-label={`${title} lanes`}
+          onChange={(e) => set(lanes, e.target.value)}
+        >
+          {LANE_OPTIONS.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="ed-row">
+        <span>lane width, m</span>
+        <input
+          inputMode="decimal"
+          aria-label={`${title} lane width`}
+          aria-invalid={!!errors[width]}
+          value={text[width]}
+          onChange={(e) => set(width, e.target.value)}
+        />
+      </label>
+      {errors[lanes] && <p className="ed-error">{errors[lanes]}</p>}
+      {errors[width] && <p className="ed-error">{errors[width]}</p>}
+    </fieldset>
+  );
+  const pending = draft !== null && !sameStructure(draft, running);
+
   return (
     <section>
       <h3>
         Structure <em>applies on reset</em>
       </h3>
+      {group('Surface road (through J1)', 'surface_lanes', 'surface_width_m')}
+      {group('Flyover / through road', 'flyover_lanes', 'flyover_width_m')}
       <label className="field">
         <span>J2 minor approach</span>
-        <select value={value} onChange={(e) => onChange(Number(e.target.value) as 1 | 2)}>
-          <option value={2}>2 lanes: left lane + right lane</option>
-          <option value={1}>1 shared lane (old layout)</option>
+        <select
+          value={text.j2_minor_lanes}
+          aria-label="J2 minor approach"
+          onChange={(e) => set('j2_minor_lanes', e.target.value)}
+        >
+          <option value="2">2 lanes: left lane + right lane</option>
+          <option value="1">1 shared lane (old layout)</option>
         </select>
       </label>
-      {value !== running && (
+      {errors.j2_minor_lanes && <p className="ed-error">{errors.j2_minor_lanes}</p>}
+      {pending && (
         <p className="ed-badge" role="status">
-          pending until reset (running: {running === 1 ? '1 shared lane' : '2 turn lanes'})
+          pending until reset (running: {running.surface_lanes}+{running.flyover_lanes} lanes,{' '}
+          {running.surface_width_m}/{running.flyover_width_m} m, J2 {running.j2_minor_lanes})
         </p>
       )}
-      {errors.map((e) => (
+      {draft && extrapolated(draft) && (
+        <p className="hint">
+          Below {WIDTH_MODEL_REFERENCE_M} m the lane-width speed model extrapolates.
+        </p>
+      )}
+      {serverErrors.map((e) => (
         <p key={e.path + e.message} className="ed-error">
           {e.path}: {e.message}
         </p>
       ))}
       <p className="hint">
-        Lane counts and widths of the main roads are not editable yet (planned).
+        West arterial = surface + flyover lanes; east of the merge the flyover lanes plus the J1
+        link lane (3.0 m, or the flyover width if narrower). Lanes {LANES_RANGE[0]}–{LANES_RANGE[1]}
+        , widths {WIDTH_RANGE_M[0]}–{WIDTH_RANGE_M[1].toFixed(1)} m.
       </p>
     </section>
   );

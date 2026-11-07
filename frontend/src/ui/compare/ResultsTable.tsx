@@ -12,9 +12,11 @@ import {
 const side = (s: ComparisonResult['meta']['a']) =>
   `${s.name} · demand ${Math.round(s.demand_veh_h)} veh/h · ${s.policy} · flyover ${
     s.flyover_open ? 'open' : 'closed'
-  } · J2 ${s.j2_minor_lanes === 1 ? 'shared lane' : '2 lanes'}${
-    s.changes ? ` · ${s.changes} live change(s)` : ''
-  }`;
+  } · ${s.structure.surface_lanes}+${s.structure.flyover_lanes} lanes, ${
+    s.structure.surface_width_m
+  }/${s.structure.flyover_width_m} m · J2 ${
+    s.structure.j2_minor_lanes === 1 ? 'shared lane' : '2 lanes'
+  }${s.changes ? ` · ${s.changes} live change(s)` : ''}`;
 
 function SeedRows({ row, seeds }: { row: MetricRow; seeds: number[] }) {
   return (

@@ -1,5 +1,5 @@
 /** A/B comparison API types (mirrors backend/trafficsim/server/compare_*.py). */
-import type { Problem, ScenarioDoc } from './scenarioTypes';
+import type { Problem, ScenarioDoc, StructureDoc } from './scenarioTypes';
 
 export interface PerSeed {
   a: number | null;
@@ -28,7 +28,7 @@ export interface MetricRow {
 export interface SideInfo {
   name: string;
   demand_veh_h: number;
-  j2_minor_lanes: number;
+  structure: StructureDoc;
   policy: string;
   flyover_open: boolean;
   changes: number;

@@ -1,6 +1,6 @@
 /** Mirrors backend/trafficsim/network/serialize.py, server/protocol.py and engine/kpi.py. */
 import type { Vec3 } from '../scene/coords';
-import type { ScenarioDoc } from './scenarioTypes';
+import type { ScenarioDoc, StructureDoc } from './scenarioTypes';
 
 export interface LaneData {
   id: string;
@@ -98,7 +98,7 @@ export interface HelloMsg {
   frame: FrameFormat;
   segments: SegmentInfo[];
   scenario: ScenarioDoc | null; // the document in force (null for experiment-only setups)
-  network: { j2_minor_lanes: 1 | 2 };
+  network: StructureDoc; // fetch /api/network with it as the query string
   lane_change_blend_s: number;
   kpi_defs: Record<string, string>;
 }

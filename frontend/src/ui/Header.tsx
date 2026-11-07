@@ -14,6 +14,7 @@ export interface HeaderProps {
   done?: boolean;
   onSpeed(speed: number): void;
   onReset(seed: number): void;
+  resetDisabled?: boolean; // the structure draft is invalid
   view: 'simulate' | 'compare';
   onView(v: 'simulate' | 'compare'): void;
 }
@@ -65,7 +66,7 @@ export function Header(p: HeaderProps) {
         ))}
         <button
           type="button"
-          disabled={!enabled}
+          disabled={!enabled || p.resetDisabled}
           onClick={() => p.onReset(p.seed ?? 42)}
           title="Restart the simulation with the same seed"
         >

@@ -133,6 +133,9 @@ select { background: var(--bg); color: var(--text); border: 1px solid var(--bord
 .ed-log { margin: 4px 0; padding-left: 18px; font-size: 11px; }
 input[aria-invalid='true'] { border-color: var(--danger); }
 
+.ed-group { border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; margin: 6px 0; }
+.ed-group legend { color: var(--muted); padding: 0 6px; }
+
 /* tabs and the compare view */
 .tabs { display: flex; gap: 4px; margin-right: 16px; }
 .tabs button { text-transform: capitalize; }

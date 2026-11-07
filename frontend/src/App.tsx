@@ -1,17 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fetchNetwork } from './api/network';
+import { usePresets } from './api/usePresets';
 import { SimSocket, type ConnStatus } from './api/simSocket';
-import type { LiveChange, Problem, ScenarioDoc } from './api/scenarioTypes';
+import type { LiveChange, Problem, ScenarioDoc, StructureDoc } from './api/scenarioTypes';
 import type { BuildingMsg } from './api/messageTypes';
 import type { HelloMsg, KpiMsg, NetworkData, StatsMsg } from './api/types';
 import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
 import { Header } from './ui/Header';
-import type { PresetInfo } from './ui/editor/SeedBar';
 import { downloadJson } from './ui/download';
 import { CompareView } from './ui/compare/CompareView';
 import { ScenarioPanel } from './ui/ScenarioPanel';
 import { restartDoc } from './ui/scenarioDraft';
+import {
+  DEFAULT_STRUCTURE,
+  checkStructure,
+  structureToText,
+  type StructureText,
+} from './ui/structureDraft';
 import { TelemetryPanel } from './ui/TelemetryPanel';
 
 interface FrameInfo {
@@ -39,18 +45,22 @@ export function App() {
   const [view, setView] = useState<'simulate' | 'compare'>('simulate');
   const [building, setBuilding] = useState<BuildingMsg | null>(null);
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
-  const [structure, setStructure] = useState<ScenarioDoc['structure']>({ j2_minor_lanes: 2 });
-  const [presets, setPresets] = useState<Record<string, PresetInfo>>({});
+  const [structureText, setStructureText] = useState<StructureText>(
+    structureToText(DEFAULT_STRUCTURE),
+  );
+  const structureCheck = useMemo(() => checkStructure(structureText), [structureText]);
+  const presets = usePresets();
   const [applyErrors, setApplyErrors] = useState<Problem[]>([]);
   const [resetErrors, setResetErrors] = useState<Problem[]>([]);
   const sockRef = useRef<SimSocket | null>(null);
   const sceneRef = useRef<SceneManager | null>(null);
   const speedsRef = useRef<number[]>([]);
 
-  const j2Lanes = hello?.network.j2_minor_lanes ?? 2;
+  const networkStructure = hello?.network ?? DEFAULT_STRUCTURE;
+  const networkKey = JSON.stringify(networkStructure);
   useEffect(() => {
     const ctrl = new AbortController();
-    fetchNetwork(j2Lanes, ctrl.signal)
+    fetchNetwork(JSON.parse(networkKey) as StructureDoc, ctrl.signal)
       .then((n) => {
         setNetwork(n);
         setNetError(null);
@@ -59,14 +69,7 @@ export function App() {
         if (!ctrl.signal.aborted) setNetError(String(e));
       });
     return () => ctrl.abort();
-  }, [j2Lanes]);
-
-  useEffect(() => {
-    fetch('/api/presets')
-      .then((r) => r.json() as Promise<Record<string, PresetInfo>>)
-      .then(setPresets)
-      .catch(() => setPresets({}));
-  }, []);
+  }, [networkKey]);
 
   useEffect(() => {
     const sock = new SimSocket({
@@ -80,7 +83,7 @@ export function App() {
         setHello(h);
         setBuilding(null);
         setDoc(h.scenario);
-        if (h.scenario) setStructure(h.scenario.structure);
+        if (h.scenario) setStructureText(structureToText(h.scenario.structure));
         setApplyErrors([]);
         setResetErrors([]);
         setKpi(null);
@@ -118,10 +121,11 @@ export function App() {
   // header button and the panel button both call it.
   const onReset = useCallback(
     (seed: number) => {
-      if (doc) sockRef.current?.resetTo({ scenario: restartDoc(doc, structure, seed) });
-      else sockRef.current?.reset(seed);
+      const s = structureCheck.structure; // an invalid draft never resets (buttons disabled)
+      if (doc && s) sockRef.current?.resetTo({ scenario: restartDoc(doc, s, seed) });
+      else if (!doc) sockRef.current?.reset(seed);
     },
-    [doc, structure],
+    [doc, structureCheck],
   );
   const onApply = useCallback((c: LiveChange) => {
     setApplyErrors([]);
@@ -143,6 +147,7 @@ export function App() {
         done={stats?.done}
         onSpeed={onSpeed}
         onReset={onReset}
+        resetDisabled={structureCheck.structure === null}
         view={view}
         onView={setView}
       />
@@ -156,8 +161,9 @@ export function App() {
         stepsPerSecond={hello?.steps_per_second ?? 10}
         disabled={status !== 'open' || building !== null}
         onApply={onApply}
-        structure={structure}
-        onStructure={setStructure}
+        structureText={structureText}
+        onStructureText={setStructureText}
+        resetDisabled={structureCheck.structure === null}
         onReset={onReset}
         onPreset={(name, seed) =>
           sockRef.current?.resetTo(seed === null ? { preset: name } : { preset: name, seed })

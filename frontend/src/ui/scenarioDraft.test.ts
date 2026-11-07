@@ -14,6 +14,7 @@ import {
   scaleDemand,
   setOriginTotal,
 } from './scenarioDraft';
+import { DEFAULT_STRUCTURE } from './structureDraft';
 
 const MIX = { car: 55, truck_bus: 10, two_wheeler: 30, cav: 5 };
 
@@ -87,7 +88,7 @@ describe('the live state of a document is the initial one plus its change log', 
     name: 'x',
     seed: 1,
     duration_s: 60,
-    structure: { j2_minor_lanes: 2 },
+    structure: DEFAULT_STRUCTURE,
     initial: {
       demand: [{ origin: 'W', destination: 'E', veh_per_h: 100 }],
       mix: MIX,
@@ -121,7 +122,7 @@ describe('restarting folds the change log into the initial settings', () => {
       name: 'x',
       seed: 1,
       duration_s: 60,
-      structure: { j2_minor_lanes: 2 },
+      structure: DEFAULT_STRUCTURE,
       initial: {
         demand: [],
         mix: MIX,
@@ -130,7 +131,7 @@ describe('restarting folds the change log into the initial settings', () => {
       },
       changes: [{ tick: 5, type: 'set_flyover', open: false }],
     };
-    const r = restartDoc(doc, { j2_minor_lanes: 1 }, 77);
+    const r = restartDoc(doc, { ...DEFAULT_STRUCTURE, j2_minor_lanes: 1 }, 77);
     expect(r.changes).toEqual([]);
     expect(r.initial.flyover_open).toBe(false);
     expect([r.seed, r.structure.j2_minor_lanes]).toEqual([77, 1]);

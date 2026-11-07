@@ -9,6 +9,7 @@ import { SeedBar, type PresetInfo } from './editor/SeedBar';
 import { StructureEditor } from './editor/StructureEditor';
 import { summarise } from './networkSummary';
 import { currentLive, problemsAt } from './scenarioDraft';
+import { checkStructure, type StructureText } from './structureDraft';
 
 export interface ScenarioEditorProps {
   network: NetworkData | null;
@@ -20,8 +21,9 @@ export interface ScenarioEditorProps {
   stepsPerSecond: number;
   disabled: boolean;
   onApply(change: LiveChange): void;
-  structure: ScenarioDoc['structure']; // the structure draft (applies on reset)
-  onStructure(s: ScenarioDoc['structure']): void;
+  structureText: StructureText; // the structure draft (applies on reset)
+  onStructureText(t: StructureText): void;
+  resetDisabled: boolean; // the structure draft is invalid
   onReset(seed: number): void; // the one reset, shared with the header
   onPreset(name: string, seed: number | null): void;
   onExport(): void;
@@ -37,6 +39,7 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
   const { doc } = p;
   const summary = useMemo(() => (p.network ? summarise(p.network) : null), [p.network]);
   const live = doc ? currentLive(doc) : null;
+  const checked = useMemo(() => checkStructure(p.structureText), [p.structureText]);
   const changes: LoggedChange[] = doc?.changes ?? [];
 
   return (
@@ -52,7 +55,7 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
         seed={doc?.seed ?? 42}
         presets={p.presets}
         errors={p.resetErrors}
-        disabled={p.disabled}
+        disabled={p.disabled || p.resetDisabled}
         onReset={p.onReset}
         onPreset={p.onPreset}
         onExport={p.onExport}
@@ -61,10 +64,12 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
       {doc && live && (
         <>
           <StructureEditor
-            running={doc.structure.j2_minor_lanes}
-            value={p.structure.j2_minor_lanes}
-            errors={problemsAt(p.resetErrors, 'structure')}
-            onChange={(j2) => p.onStructure({ ...p.structure, j2_minor_lanes: j2 })}
+            running={doc.structure}
+            text={p.structureText}
+            draft={checked.structure}
+            errors={checked.errors}
+            serverErrors={problemsAt(p.resetErrors, 'structure')}
+            onChange={p.onStructureText}
           />
           <DemandEditor
             live={live.demand}
