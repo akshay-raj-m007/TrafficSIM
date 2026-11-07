@@ -78,7 +78,9 @@ class JunctionGates:
                     )
                 else:
                     gap_table = CRITICAL_GAP_MAJOR_RIGHT_S
-                self.crit_gap[k] = gap_table[nl]
+                # HCM tabulates two-lane and four-lane majors only; a major road with more
+                # lanes per direction uses the four-lane values (the largest tabulated)
+                self.crit_gap[k] = gap_table[min(nl, max(gap_table))]
         self.signal: SignalCheck | None = None
         self.reserved: dict[int, int] = {}  # vid -> connector segment
         self.permit: dict[int, bool] = {}  # row -> may enter its next connector

@@ -12,6 +12,8 @@ from typing import Final
 #   HCM minor-road RIGHT turn (no crossing; ours: minor LEFT)        6.2 s / 6.9 s
 #   HCM minor-road LEFT turn (crosses the major road; ours: RIGHT)   7.1 s / 7.5 s
 #   HCM major-road LEFT turn (crosses opposing; ours: major RIGHT)   4.1 s / 4.1 s
+# A major road with more than 2 lanes per direction (a structural setting) is not tabulated by
+# HCM: it uses the 2-lanes values, the largest tabulated.
 # A yielding vehicle enters only if every approaching vehicle on a conflicting priority
 # movement is at least this many seconds (at its current speed) from its stop line.
 CRITICAL_GAP_MINOR_LEFT_S: Final[dict[int, float]] = {1: 6.2, 2: 6.9}
