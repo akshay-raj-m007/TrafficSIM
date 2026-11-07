@@ -35,3 +35,19 @@ def test_table_equals_a_fresh_measurement(net):
     for cid, (sat, l1) in fresh.items():
         assert sat == pytest.approx(doc[cid]["sat_flow_veh_h"], rel=1e-6)
         assert l1 == pytest.approx(doc[cid]["startup_lost_s"], abs=1e-5)
+
+
+def test_the_one_lane_j2_tables_are_current_and_used():
+    from trafficsim.engine.freeflow import TABLE_PATH_J2_1, input_digest, reference_for
+    from trafficsim.engine.lanegraph import compile_network
+    from trafficsim.network.demo import build_demo_network
+
+    old = build_demo_network(1)
+    doc = json.loads(calibration.TABLE_PATH_J2_1.read_text(encoding="utf-8"))
+    assert doc["digest"] == calibration.table_digest(old, DEFAULT_MIX), (
+        "run tools/gen_calibration.py"
+    )
+    ff = json.loads(TABLE_PATH_J2_1.read_text(encoding="utf-8"))
+    assert ff["digest"] == input_digest(old, compile_network(old)), "run tools/gen_freeflow.py"
+    assert reference_for(old, compile_network(old)).table_used
+    assert calibration._from_table(old, DEFAULT_MIX, "J1") is not None  # no 8 s measurement

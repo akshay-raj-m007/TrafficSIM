@@ -37,6 +37,7 @@ from trafficsim.engine.vehicle import CLASS_INDEX, LEN, S0
 from trafficsim.network.types import Network
 
 TABLE_PATH = Path(__file__).resolve().parents[1] / "data" / "calibration_demo.json"
+TABLE_PATH_J2_1 = TABLE_PATH.with_name("calibration_demo_j2_1.json")  # one-lane J2 network
 
 DISCHARGE_TIMEOUT_S = 300.0  # generous upper bound for one queue to discharge [s]
 _cache: dict[tuple, dict[str, tuple[float, float]]] = {}  # conn -> (sat flow, start-up loss)
@@ -99,15 +100,19 @@ def table_digest(net: Network, mix) -> str:
 
 
 def _from_table(net: Network, mix, junction_id: str):
-    if tuple(mix) != tuple(DEFAULT_MIX) or not TABLE_PATH.exists():
+    if tuple(mix) != tuple(DEFAULT_MIX):
         return None
-    doc = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
-    if doc["digest"] != table_digest(net, mix) or junction_id not in doc["junctions"]:
-        return None
-    return {
-        c: (v["sat_flow_veh_h"], v["startup_lost_s"])
-        for c, v in doc["junctions"][junction_id].items()
-    }
+    digest = table_digest(net, mix)
+    for path in (TABLE_PATH, TABLE_PATH_J2_1):
+        if not path.exists():
+            continue
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc["digest"] == digest and junction_id in doc["junctions"]:
+            return {
+                c: (v["sat_flow_veh_h"], v["startup_lost_s"])
+                for c, v in doc["junctions"][junction_id].items()
+            }
+    return None
 
 
 def _measure(net: Network, mix, junction_id: str) -> dict[str, tuple[float, float]]:

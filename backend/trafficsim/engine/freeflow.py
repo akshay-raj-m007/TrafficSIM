@@ -28,6 +28,8 @@ import numpy as np
 from trafficsim.network.types import Network
 
 TABLE_PATH = Path(__file__).resolve().parents[1] / "data" / "freeflow_demo.json"
+# second committed table: the old one-lane J2 minor approach (a digest picks the right one)
+TABLE_PATH_J2_1 = TABLE_PATH.with_name("freeflow_demo_j2_1.json")
 
 _MAX_RUN_S = 900.0  # a free vehicle must finish a route in well under this [s]
 _registry: dict[int, FreeFlowReference] = {}
@@ -87,12 +89,17 @@ class FreeFlowReference:
         self.net = net
         self._values: dict[tuple[tuple[str, ...], int], float] = {}
         self.table_used = False
-        if lg is not None and TABLE_PATH.exists():
-            table = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
-            if table["digest"] == input_digest(net, lg):
-                for e in table["values"]:
-                    self._values[(tuple(e["roads"]), e["cls"])] = e["t_s"]
-                self.table_used = True
+        if lg is not None:
+            digest = input_digest(net, lg)
+            for path in (TABLE_PATH, TABLE_PATH_J2_1):
+                if not path.exists():
+                    continue
+                table = json.loads(path.read_text(encoding="utf-8"))
+                if table["digest"] == digest:
+                    for e in table["values"]:
+                        self._values[(tuple(e["roads"]), e["cls"])] = e["t_s"]
+                    self.table_used = True
+                    break
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self.seconds_to_compute = 0.0  # wall time of the last batch (diagnostic)

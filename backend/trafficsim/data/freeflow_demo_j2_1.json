@@ -1,0 +1,1029 @@
+{
+ "digest": "60700e28515ea3bf38a45431240fde21421212b0d9129b1fde814ada44cab90e",
+ "values": [
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 0,
+   "t_s": 178.9
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 1,
+   "t_s": 183.4
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 2,
+   "t_s": 178.7
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 3,
+   "t_s": 178.6
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "n1_out"
+   ],
+   "cls": 0,
+   "t_s": 134.7
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "n1_out"
+   ],
+   "cls": 1,
+   "t_s": 135.2
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "n1_out"
+   ],
+   "cls": 2,
+   "t_s": 133.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "n1_out"
+   ],
+   "cls": 3,
+   "t_s": 133.8
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "s1_out"
+   ],
+   "cls": 0,
+   "t_s": 132.1
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "s1_out"
+   ],
+   "cls": 1,
+   "t_s": 132.1
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "s1_out"
+   ],
+   "cls": 2,
+   "t_s": 131.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "s1_out"
+   ],
+   "cls": 3,
+   "t_s": 131.6
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 0,
+   "t_s": 214.7
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 1,
+   "t_s": 219.7
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 2,
+   "t_s": 213.7
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_ramp_up",
+    "eb_flyover",
+    "eb_ramp_dn",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 3,
+   "t_s": 213.8
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 178.9
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 183.4
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 178.7
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 178.6
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 0,
+   "t_s": 171.9
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 1,
+   "t_s": 172.0
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 2,
+   "t_s": 171.3
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 3,
+   "t_s": 171.4
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 0,
+   "t_s": 171.2
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 1,
+   "t_s": 171.5
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 2,
+   "t_s": 170.4
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 3,
+   "t_s": 170.5
+  },
+  {
+   "roads": [
+    "wb_in",
+    "n2_out"
+   ],
+   "cls": 0,
+   "t_s": 91.9
+  },
+  {
+   "roads": [
+    "wb_in",
+    "n2_out"
+   ],
+   "cls": 1,
+   "t_s": 91.6
+  },
+  {
+   "roads": [
+    "wb_in",
+    "n2_out"
+   ],
+   "cls": 2,
+   "t_s": 92.0
+  },
+  {
+   "roads": [
+    "wb_in",
+    "n2_out"
+   ],
+   "cls": 3,
+   "t_s": 91.8
+  },
+  {
+   "roads": [
+    "n1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 130.7
+  },
+  {
+   "roads": [
+    "n1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 131.0
+  },
+  {
+   "roads": [
+    "n1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 129.8
+  },
+  {
+   "roads": [
+    "n1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 129.9
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 0,
+   "t_s": 169.5
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 1,
+   "t_s": 170.0
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 2,
+   "t_s": 168.2
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 3,
+   "t_s": 168.5
+  },
+  {
+   "roads": [
+    "n1_in",
+    "s1_out"
+   ],
+   "cls": 0,
+   "t_s": 75.6
+  },
+  {
+   "roads": [
+    "n1_in",
+    "s1_out"
+   ],
+   "cls": 1,
+   "t_s": 74.9
+  },
+  {
+   "roads": [
+    "n1_in",
+    "s1_out"
+   ],
+   "cls": 2,
+   "t_s": 75.8
+  },
+  {
+   "roads": [
+    "n1_in",
+    "s1_out"
+   ],
+   "cls": 3,
+   "t_s": 75.6
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 0,
+   "t_s": 205.2
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 1,
+   "t_s": 206.4
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 2,
+   "t_s": 203.3
+  },
+  {
+   "roads": [
+    "n1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 3,
+   "t_s": 203.8
+  },
+  {
+   "roads": [
+    "s1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 133.5
+  },
+  {
+   "roads": [
+    "s1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 134.4
+  },
+  {
+   "roads": [
+    "s1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 132.0
+  },
+  {
+   "roads": [
+    "s1_in",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 132.3
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 0,
+   "t_s": 170.2
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 1,
+   "t_s": 170.5
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 2,
+   "t_s": 169.3
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 3,
+   "t_s": 169.4
+  },
+  {
+   "roads": [
+    "s1_in",
+    "n1_out"
+   ],
+   "cls": 0,
+   "t_s": 75.6
+  },
+  {
+   "roads": [
+    "s1_in",
+    "n1_out"
+   ],
+   "cls": 1,
+   "t_s": 74.9
+  },
+  {
+   "roads": [
+    "s1_in",
+    "n1_out"
+   ],
+   "cls": 2,
+   "t_s": 75.8
+  },
+  {
+   "roads": [
+    "s1_in",
+    "n1_out"
+   ],
+   "cls": 3,
+   "t_s": 75.6
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 0,
+   "t_s": 205.9
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 1,
+   "t_s": 206.9
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 2,
+   "t_s": 204.4
+  },
+  {
+   "roads": [
+    "s1_in",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 3,
+   "t_s": 204.6
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 210.9
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 216.2
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 209.3
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_ramp_up",
+    "wb_flyover",
+    "wb_ramp_dn",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 209.6
+  },
+  {
+   "roads": [
+    "n2_in",
+    "eb_out"
+   ],
+   "cls": 0,
+   "t_s": 100.7
+  },
+  {
+   "roads": [
+    "n2_in",
+    "eb_out"
+   ],
+   "cls": 1,
+   "t_s": 101.7
+  },
+  {
+   "roads": [
+    "n2_in",
+    "eb_out"
+   ],
+   "cls": 2,
+   "t_s": 98.8
+  },
+  {
+   "roads": [
+    "n2_in",
+    "eb_out"
+   ],
+   "cls": 3,
+   "t_s": 99.2
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 0,
+   "t_s": 203.9
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 1,
+   "t_s": 204.8
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 2,
+   "t_s": 202.0
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "n1_out"
+   ],
+   "cls": 3,
+   "t_s": 202.4
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 0,
+   "t_s": 203.2
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 1,
+   "t_s": 204.3
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 2,
+   "t_s": 201.1
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "s1_out"
+   ],
+   "cls": 3,
+   "t_s": 201.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 0,
+   "t_s": 205.9
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 1,
+   "t_s": 205.8
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 2,
+   "t_s": 205.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "eb_out"
+   ],
+   "cls": 3,
+   "t_s": 205.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 0,
+   "t_s": 241.6
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 1,
+   "t_s": 242.2
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 2,
+   "t_s": 240.5
+  },
+  {
+   "roads": [
+    "eb_w4",
+    "eb_surf_w",
+    "eb_surf_e",
+    "eb_e3",
+    "eb_e2",
+    "n2_out"
+   ],
+   "cls": 3,
+   "t_s": 240.7
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 206.3
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 206.2
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 206.0
+  },
+  {
+   "roads": [
+    "wb_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 205.9
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 0,
+   "t_s": 238.3
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 1,
+   "t_s": 239.0
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 2,
+   "t_s": 236.6
+  },
+  {
+   "roads": [
+    "n2_in",
+    "wb_e2",
+    "wb_e3",
+    "wb_surf_e",
+    "wb_surf_w",
+    "wb_w4"
+   ],
+   "cls": 3,
+   "t_s": 236.9
+  }
+ ]
+}

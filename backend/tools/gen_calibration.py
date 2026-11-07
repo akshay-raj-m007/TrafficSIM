@@ -14,10 +14,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trafficsim.engine.calibration import TABLE_PATH, write_table  # noqa: E402
+from trafficsim.engine.calibration import TABLE_PATH, TABLE_PATH_J2_1, write_table  # noqa: E402
 from trafficsim.network.demo import build_demo_network  # noqa: E402
 
 if __name__ == "__main__":
-    t0 = time.perf_counter()
-    write_table(build_demo_network())
-    print(f"wrote {TABLE_PATH} in {time.perf_counter() - t0:.0f} s")
+    for lanes, path in ((2, TABLE_PATH), (1, TABLE_PATH_J2_1)):
+        t0 = time.perf_counter()
+        write_table(build_demo_network(lanes), path)
+        print(f"wrote {path} in {time.perf_counter() - t0:.0f} s")

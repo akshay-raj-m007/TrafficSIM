@@ -14,13 +14,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from trafficsim.engine.freeflow import TABLE_PATH, FreeFlowReference  # noqa: E402
+from trafficsim.engine.freeflow import TABLE_PATH, TABLE_PATH_J2_1, FreeFlowReference  # noqa: E402
 from trafficsim.engine.lanegraph import compile_network  # noqa: E402
 from trafficsim.network.demo import build_demo_network  # noqa: E402
 
 if __name__ == "__main__":
-    net = build_demo_network()
-    t0 = time.perf_counter()
-    ref = FreeFlowReference(net)
-    ref.write_table(compile_network(net))
-    print(f"wrote {TABLE_PATH} ({len(ref._values)} values) in {time.perf_counter() - t0:.0f} s")
+    for lanes, path in ((2, TABLE_PATH), (1, TABLE_PATH_J2_1)):
+        net = build_demo_network(lanes)
+        t0 = time.perf_counter()
+        ref = FreeFlowReference(net)
+        ref.write_table(compile_network(net), path)
+        print(f"wrote {path} ({len(ref._values)} values) in {time.perf_counter() - t0:.0f} s")
