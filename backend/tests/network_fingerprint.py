@@ -29,6 +29,8 @@ def fingerprint(net) -> dict:
     return {
         "roads": roads, "connectors": conns, "junctions": juncs,
         "zones": [_h(z.id, z.entry_road, z.exit_road) for z in net.zones],
-        "annotations": [_h(a.text, a.position, a.kind) for a in net.annotations],
+        "annotations": [
+            _h(a.text, tuple(float(v) for v in a.position), a.kind) for a in net.annotations
+        ],
         "meta": _h(sorted(net.meta.items()), net.drive_side),
     }  # fmt: skip
