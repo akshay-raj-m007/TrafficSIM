@@ -55,6 +55,21 @@ def test_identical_runs_give_zero_difference_and_a_zero_width_interval():
     assert r["significant"] is False and r["p"] == 1.0
 
 
+def test_constant_difference_across_seeds_has_no_verdict_and_no_p_value():
+    r = paired_difference([10.0, 20.0, 30.0], [11.0, 21.0, 31.0])  # always +1, no variance
+    assert r["diff"] == pytest.approx(1.0) and r["n"] == 3
+    assert r["constant_difference"] is True and r["identical"] is False
+    assert r["p"] is None and r["significant"] is None  # not p = 0, not "significant"
+    assert r["ci_lo"] is None and r["ci_hi"] is None  # the interval is not meaningful
+    assert r["sd"] == 0.0 and r["df"] == 2
+    # a normal case and an all-zero case are unaffected
+    assert paired_difference([1.0, 2.0, 3.0], [2.0, 4.5, 3.2])["constant_difference"] is False
+    zero = paired_difference([1.0, 2.0], [1.0, 2.0])
+    assert zero["identical"] and zero["constant_difference"] is False and zero["p"] == 1.0
+    # floating-point noise in an otherwise constant difference still counts as constant
+    assert paired_difference([0.1, 0.2, 0.3], [0.2, 0.3, 0.4])["constant_difference"] is True
+
+
 def test_undefined_pairs_are_dropped_from_that_metric_and_counted():
     r = paired_difference([1.0, None, 3.0, 5.0], [2.0, 9.0, None, 7.0])
     assert r["n"] == 2 and r["df"] == 1 and r["diff"] == pytest.approx(1.5)

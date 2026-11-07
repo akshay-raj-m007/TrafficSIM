@@ -72,6 +72,38 @@ def test_a_server_can_restrict_runs_and_duration():
     assert validate(req(), tight).runs == 3
 
 
+def test_changing_the_engine_source_digest_changes_the_key_and_the_cache_misses(
+    tmp_path, monkeypatch
+):
+    from trafficsim.server import compare_spec
+
+    doc = preset("default") | {"seed": 1, "duration_s": 180.0}
+    cache = RunCache(tmp_path)
+    old_key = run_key(doc, 60.0)
+    cache.put(old_key, {"key": old_key, "metrics": {}, "cpu_s": 1.0})
+    assert cache.get(run_key(doc, 60.0)) is not None  # same code: a hit
+    monkeypatch.setattr(compare_spec, "source_digest", lambda: "edited-engine-logic")
+    new_key = run_key(doc, 60.0)
+    assert new_key != old_key and cache.get(new_key) is None  # changed code: a miss
+
+
+def test_the_source_digest_normalises_line_endings_and_sees_content(tmp_path):
+    from trafficsim.engine import sourcedigest
+
+    assert sourcedigest.source_digest() == sourcedigest.source_digest()
+    crlf, lf = bytes([13, 10]), bytes([10])
+    for pkg in ("engine", "network"):
+        (tmp_path / pkg).mkdir()
+    f = tmp_path / "engine" / "a.py"
+    (tmp_path / "network" / "b.py").write_bytes(b"y = 2" + lf)
+    f.write_bytes(b"x = 1" + lf + b"z = 3" + lf)
+    unix = sourcedigest.digest_of(tmp_path)
+    f.write_bytes(b"x = 1" + crlf + b"z = 3" + crlf)  # a Windows checkout of the same file
+    assert sourcedigest.digest_of(tmp_path) == unix
+    f.write_bytes(b"x = 1" + lf + b"z = 4" + lf)  # changed logic
+    assert sourcedigest.digest_of(tmp_path) != unix
+
+
 # -------------------------------------------------------------- keys and pairing (fast) --
 def test_run_keys_depend_on_everything_that_determines_a_run_and_not_on_the_name():
     d = preset("default") | {"seed": 1, "duration_s": 180.0}

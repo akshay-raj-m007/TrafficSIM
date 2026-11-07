@@ -15,9 +15,10 @@ export function formatInterval(row: MetricRow): string {
   return `[${formatValue(row.ci_lo, row.unit, true)}, ${formatValue(row.ci_hi, row.unit, true)}]`;
 }
 
-export type Verdict = 'significant' | 'not-significant' | 'identical' | 'undefined';
+export type Verdict = 'significant' | 'not-significant' | 'identical' | 'constant' | 'undefined';
 
 export function verdictOf(row: MetricRow): Verdict {
+  if (row.constant_difference) return 'constant';
   if (row.n === 0 || row.significant === null) return 'undefined';
   if (row.identical) return 'identical';
   return row.significant ? 'significant' : 'not-significant';
@@ -30,6 +31,8 @@ export function verdictText(row: MetricRow, runs: number): string {
       return `significant: the interval excludes 0 (${row.diff! > 0 ? 'B higher' : 'B lower'})`;
     case 'not-significant':
       return `NOT significant with ${row.n} runs: the interval includes 0`;
+    case 'constant':
+      return "constant difference across seeds, no variance, the confidence interval isn't meaningful";
     case 'identical':
       return 'identical in every run (zero difference)';
     default:

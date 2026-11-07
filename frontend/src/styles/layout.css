@@ -161,3 +161,4 @@ input[aria-invalid='true'] { border-color: var(--danger); }
 .cmp-not-significant td:last-child { color: var(--amber); }
 .cmp-seeds table { width: auto; margin: 2px 0 8px 24px; }
 .cmp-seeds td, .cmp-seeds th { padding: 1px 12px; text-align: right; }
+.cmp-constant td:last-child { color: var(--amber); }

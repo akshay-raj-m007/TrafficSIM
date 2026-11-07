@@ -19,6 +19,7 @@ from typing import Final
 from trafficsim.engine.constants import DT
 from trafficsim.engine.pairedstats import paired_difference
 from trafficsim.engine.runmetrics import METRICS, METRICS_VERSION
+from trafficsim.engine.sourcedigest import source_digest
 from trafficsim.server.scenario_doc import MAX_SEED, ScenarioError, parse
 
 ALLOWED_RUNS: Final[tuple[int, ...]] = (3, 5, 10)
@@ -130,6 +131,7 @@ def run_key(doc: dict, warmup_s: float) -> str:
         "warmup_s": warmup_s,
         "metrics_version": METRICS_VERSION,
         "model": model_digest(doc["structure"]["j2_minor_lanes"]),
+        "source": source_digest(),  # engine / network logic, not only constants
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 

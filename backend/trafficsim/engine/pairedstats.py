@@ -17,6 +17,7 @@ import math
 
 CONFIDENCE = 0.95
 _EPS = 1e-14
+NO_VARIANCE_REL = 1e-12  # sd below this fraction of |mean| counts as zero variance
 _MAX_ITER = 500
 
 
@@ -103,13 +104,19 @@ def paired_difference(a: list[float | None], b: list[float | None]) -> dict:
     mean_a, mean_b = sum(x for x, _ in pairs) / n, sum(y for _, y in pairs) / n
     mean = sum(d) / n
     out |= {"mean_a": mean_a, "mean_b": mean_b, "diff": mean,
-            "identical": all(v == 0.0 for v in d)}  # fmt: skip
+            "identical": all(v == 0.0 for v in d), "constant_difference": False}  # fmt: skip
     if n < 2:  # a single pair has no spread: no interval, never "significant"
         return out | {"ci_lo": None, "ci_hi": None, "df": 0, "t_crit": None, "p": None,
                       "significant": None}  # fmt: skip
     sd = math.sqrt(sum((v - mean) ** 2 for v in d) / (n - 1))
     se = sd / math.sqrt(n)
     df = n - 1
+    if sd <= NO_VARIANCE_REL * max(1.0, abs(mean)) and mean != 0.0:
+        # Every seed shows the same non-zero difference: no variance, so the t interval has
+        # no meaning (it would be a zero-width interval and p = 0). Say so, report no verdict.
+        return out | {"sd": 0.0, "se": 0.0, "df": df, "t_crit": None, "ci_lo": None,
+                      "ci_hi": None, "p": None, "significant": None,
+                      "constant_difference": True}  # fmt: skip
     t_crit = t_ppf(0.5 + CONFIDENCE / 2.0, df)
     lo, hi = mean - t_crit * se, mean + t_crit * se
     # se == 0: all differences are equal, there is no spread to test against

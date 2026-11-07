@@ -55,6 +55,20 @@ describe('the verdict is never hidden', () => {
       'B lower',
     );
   });
+  it('says plainly when every seed shows the same difference (no variance)', () => {
+    const r = row({
+      constant_difference: true,
+      significant: null,
+      p: null,
+      ci_lo: null,
+      ci_hi: null,
+    });
+    expect(verdictOf(r)).toBe('constant');
+    expect(verdictText(r, 3)).toBe(
+      "constant difference across seeds, no variance, the confidence interval isn't meaningful",
+    );
+    expect(formatInterval(r)).toBe('—');
+  });
   it('handles identical runs, a single usable pair and undefined metrics', () => {
     expect(verdictText(row({ identical: true, significant: false, diff: 0 }), 3)).toContain(
       'identical',

@@ -21,6 +21,7 @@ export interface MetricRow {
   p: number | null;
   significant: boolean | null;
   identical: boolean | null;
+  constant_difference?: boolean; // every seed shows the same non-zero difference
   per_seed: PerSeed[];
 }
 
