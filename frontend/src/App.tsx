@@ -7,6 +7,7 @@ import type { BuildingMsg } from './api/messageTypes';
 import type { HelloMsg, KpiMsg, StatsMsg } from './api/types';
 import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
+import { Banners } from './ui/Banners';
 import { Header } from './ui/Header';
 import { downloadJson } from './ui/download';
 import { CompareView } from './ui/compare/CompareView';
@@ -92,7 +93,10 @@ export function App() {
         setRateHz(rate);
         setPendingSpeed((p) => (p !== null && speedsRef.current[f.speedIndex] === p ? null : p));
       },
-      onKpi: setKpi,
+      onKpi: (k) => {
+        sceneRef.current?.setLaneFlow(k.lane_flow);
+        setKpi(k);
+      },
       onStats: (s) => {
         setStats(s);
         setPendingSpeed((p) => (p !== null && s.speed === p ? null : p));
@@ -170,26 +174,12 @@ export function App() {
       )}
       <main className="centre">
         <SceneView network={network} classes={hello?.classes ?? []} managerRef={sceneRef} />
-        {building && (
-          <div className="banner banner--busy" role="status" data-testid="building">
-            Building “{building.name}” ({building.reason})… other sessions keep running.
-          </div>
-        )}
-        {serverError && (
-          <div className="banner banner--error" role="alert">
-            {serverError}
-          </div>
-        )}
-        {status === 'busy' && (
-          <div className="banner banner--busy" role="alert">
-            {statusDetail} Retrying automatically every 15 s.
-          </div>
-        )}
-        {netError && (
-          <div className="banner banner--error" role="alert">
-            Could not load the network: {netError}
-          </div>
-        )}
+        <Banners
+          building={building}
+          serverError={serverError}
+          busy={status === 'busy' ? (statusDetail ?? '') : null}
+          netError={netError}
+        />
       </main>
       <TelemetryPanel
         kpi={kpi}

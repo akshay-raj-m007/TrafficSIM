@@ -161,6 +161,7 @@ class Simulation:
         self.demand.insert(vs, t)
         if vs.n == 0:  # nothing on the network: only the clock advances
             self.tick += 1
+            self.kpis.observe_segments(vs, self.tick)  # keeps the lane-flow window moving
             return True
         static = self._incident_obstacles(t)
         occ = build_occupancy(vs, lg, static)
@@ -193,6 +194,7 @@ class Simulation:
             vs, lg, self.routes, self.time_s, self.log, self.gates.room_seen,
             self.gates.may_enter, self.gates.commit_room,
         )  # fmt: skip
+        self.kpis.observe_segments(vs, self.tick)
         # Physical outcome of spillback: vehicles held up inside a junction box (slower
         # than the queued-state speed AND not accelerating away from a standing start).
         in_box = lg.is_conn[vs.seg] & (vs.v < V_QUEUED_MPS) & (vs.acc <= 0.0)

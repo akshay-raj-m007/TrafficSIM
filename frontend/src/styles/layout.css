@@ -76,6 +76,8 @@ input { background: var(--bg); color: var(--text); border: 1px solid var(--borde
 .scene-label--scale { background: transparent; border: 0; color: #f6e05e; font-family: var(--mono); }
 .viewport__views { position: absolute; top: 10px; left: 10px; display: flex; gap: 4px; }
 .viewport__views button { background: rgba(17, 22, 29, 0.85); font-size: 11px; }
+.viewport__views button.is-on { border-color: var(--accent, #4fd1c5); color: #e6edf3; }
+.legend__swatch { width: 10px; height: 10px; display: inline-block; border-radius: 2px; }
 .viewport__legend { position: absolute; bottom: 10px; left: 10px; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); background: rgba(17, 22, 29, 0.85); padding: 4px 8px; border-radius: 4px; }
 .legend__note { margin-left: 12px; }
 .dot { width: 10px; height: 3px; display: inline-block; margin-left: 8px; }

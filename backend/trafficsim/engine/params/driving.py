@@ -66,8 +66,19 @@ MOBIL_THRESHOLD_MPS2: Final[float] = 0.1
 # Safe deceleration b_safe [m/s²]: the new follower may not be forced to brake harder.
 MOBIL_B_SAFE_MPS2: Final[float] = 4.0
 # Keep-left bias [m/s²] (left-hand traffic: keep to the kerb lane unless overtaking).
-# Mirror of the "keep-right" asymmetry bias, typical 0.2–0.3 (Treiber & Kesting 2013).
-KEEP_LEFT_BIAS_MPS2: Final[float] = 0.2
+# Mirror of the "keep-right" asymmetry of Kesting et al. 2007 (typical 0.2-0.3 m/s² with a
+# threshold of 0.1); it is added to the threshold for a change toward the median and
+# subtracted for one toward the kerb. Two behaviours bound it, both measured on plain roads
+# (README, "Lane utilisation", grid of 0.10-0.20):
+#  * it must EXCEED the threshold: a car that has overtaken a truck and returns to the kerb
+#    lane makes the truck behind it brake a little (politeness-weighted loss > 0), so with a
+#    bias equal to the threshold (0.10) it never returns and hogs the median lane;
+#  * it must stay SMALL: at 0.20 the median lane of a 4-lane road held 5 % of the vehicles at
+#    1,200 veh/h (48/28/19/5 % kerb to median); at 0.125 it already drops to 14 %.
+# 0.11 and 0.12 satisfy both (overtaker returns; every lane of 2-4 holds at least 17 %); 0.12
+# is taken for the margin. A change toward the median then needs about 2.2 x the plain
+# threshold of gain, one toward the kerb about a fifth of it.
+KEEP_LEFT_BIAS_MPS2: Final[float] = 0.12
 # Minimum time between two lane changes of one vehicle [s]; empirical lane-change
 # durations are ~3–6 s (e.g. Toledo & Zohar 2007), we take the short end.
 LC_COOLDOWN_S: Final[float] = 3.0

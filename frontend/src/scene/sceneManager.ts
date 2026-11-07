@@ -16,6 +16,7 @@ import { createMaterials, LIFT } from './materials';
 import { placeFrame } from '../api/frame';
 import { FrameInterpolator } from './interpolator';
 import { LanePlacer, tryBuildPlacer } from './laneGeometry';
+import { LaneFlowLayer } from './laneFlow';
 import { disposeTree } from './meshUtil';
 import { buildLanes, buildMarkings } from './roads';
 import { VehicleLayer } from './vehicles';
@@ -39,6 +40,7 @@ export class SceneManager {
   private mats = createMaterials();
   private networkRoot = new THREE.Group();
   private vehicles = new VehicleLayer();
+  private laneFlow = new LaneFlowLayer();
   private interp: FrameInterpolator | null = null;
   private network: NetworkData | null = null;
   private placer: LanePlacer | null = null;
@@ -66,12 +68,26 @@ export class SceneManager {
     this.scene.add(new THREE.HemisphereLight(0xc8d8ff, 0x1a1a1a, 1.1));
     const sun = new THREE.DirectionalLight(0xffffff, 1.8);
     sun.position.set(-600, 900, 500);
-    this.scene.add(sun, this.networkRoot, this.vehicles.group, ...this.groundAndGrid());
+    this.scene.add(
+      sun,
+      this.networkRoot,
+      this.laneFlow.group,
+      this.vehicles.group,
+      ...this.groundAndGrid(),
+    );
     // Diagnostics for the smoothness measurement (headless browser): rendered positions.
     (window as unknown as { __trafficDebug: unknown }).__trafficDebug = {
-      probe: (n: number) => ({ tick: this.renderTick, cars: this.vehicles.probe(n) }),
+      probe: (n: number) => ({
+        tick: this.renderTick,
+        cars: this.vehicles.probe(n),
+      }),
       drawn: () => [...this.vehicles.drawn],
       overflow: () => this.vehicles.overflow,
+      laneFlow: () => ({
+        visible: this.laneFlow.group.visible,
+        segments: this.laneFlow.segments,
+        carrying: this.laneFlow.carrying,
+      }),
     };
 
     this.view('overview');
@@ -116,10 +132,29 @@ export class SceneManager {
   private buildPlacer(): void {
     if (!this.network || !this.hello) return;
     const h = this.hello;
+    this.buildLaneFlow(this.network, h);
     this.placer = tryBuildPlacer(this.network, h.segments); // null until the network matches
     this.interp = this.placer
       ? new FrameInterpolator(h.steps_per_second, h.speeds, this.placer)
       : null;
+  }
+
+  private buildLaneFlow(net: NetworkData, h: HelloMsg): void {
+    try {
+      this.laneFlow.build(net, h.segments);
+    } catch {
+      this.laneFlow.dispose(); // the hello of a restarted session before its matching network
+    }
+  }
+
+  /** Show / hide the lane-flow overlay (lanes coloured by measured flow). */
+  setLaneFlowVisible(on: boolean): void {
+    this.laneFlow.setVisible(on);
+  }
+
+  /** Measured flow per segment (veh/h, from the kpi message) for the overlay. */
+  setLaneFlow(flows: readonly number[]): void {
+    this.laneFlow.paint(flows);
   }
 
   pushFrame(frame: Frame): void {
@@ -157,6 +192,7 @@ export class SceneManager {
     this.resizeObs.disconnect();
     this.controls.dispose();
     this.vehicles.dispose();
+    this.laneFlow.dispose();
     disposeTree(this.scene, true);
     Object.values(this.mats.guide).forEach((m) => m.dispose());
     this.renderer.dispose();

@@ -99,26 +99,37 @@ def _entries(sim, conn: str) -> int:
     return sum(1 for e in sim.log.junction_entries if sim.lg.ids[e.conn] == conn)
 
 
-def _run(variant: int, extra: tuple[OdFlow, ...], seconds=600.0):
+def _run(variant: int, extra: tuple[OdFlow, ...], seconds=600.0, seed=11):
     base = (OdFlow("W", "E", 900.0), OdFlow("E", "W", 700.0), OdFlow("N2", "E", 150.0))
     sim = Simulation(
         build_demo_network(variant),
-        Scenario(seed=11, duration_s=seconds, demand=base + extra, signal_control="uncontrolled"),
+        Scenario(seed=seed, duration_s=seconds, demand=base + extra, signal_control="uncontrolled"),
     )
     sim.run_until(seconds)
     return sim
 
 
+POOLED_SEEDS = range(11, 21)
+
+
 @pytest.mark.slow
 def test_left_turns_are_not_blocked_by_waiting_right_turns():
+    """Pooled over 10 seeds: one seed serves only about 22 left-turners in 600 s (Poisson
+    spread about 5), so the ratio of a single seed swings between 0.5 and 1.4 and cannot test
+    the 0.8 threshold; the pooled ratio (0.88 with both keep-left biases) can."""
     saturated_right = (OdFlow("N2", "W", 600.0),)
-    solo = _entries(_run(2, ()), "n2_in:0>eb_out:0")
-    flared = _entries(_run(2, saturated_right), "n2_in:0>eb_out:0")
-    shared = _entries(_run(1, saturated_right), "n2_in:0>eb_out:0")
-    print(f"\n[J2 left turns served in 600 s] left-only demand: {solo}; with a saturated right "
-          f"turn: flared approach {flared}, old shared lane {shared}")  # fmt: skip
+    conn = "n2_in:0>eb_out:0"
+    solo = sum(_entries(_run(2, (), seed=k), conn) for k in POOLED_SEEDS)
+    flared = sum(_entries(_run(2, saturated_right, seed=k), conn) for k in POOLED_SEEDS)
+    shared = _entries(_run(1, saturated_right), conn)  # seed 11 only: the starvation is large
+    solo_11 = _entries(_run(2, ()), conn)
+    print(
+        f"\n[J2 left turns served in 600 s, {len(POOLED_SEEDS)} seeds pooled] left-only demand: "
+        f"{solo}; with a saturated right turn: flared approach {flared}; seed 11 alone: "
+        f"left-only {solo_11}, old shared lane {shared}"
+    )
     assert flared >= 0.8 * solo  # the right-turn queue no longer starves the left turn
-    assert shared < 0.5 * solo  # (the original behaviour, for the record)
+    assert shared < 0.5 * solo_11  # (the original behaviour, for the record)
 
 
 @pytest.mark.slow

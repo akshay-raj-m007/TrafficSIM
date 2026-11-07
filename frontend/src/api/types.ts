@@ -147,6 +147,8 @@ export interface KpiMsg {
     queued: number;
   };
   signal: SignalKpi | null;
+  /** Arrivals over the last 5 min per frame segment (lane or connector), veh/h. */
+  lane_flow: number[];
   flow: FlowKpi[];
   queues: QueueKpi[];
   delay: DelayKpi;
