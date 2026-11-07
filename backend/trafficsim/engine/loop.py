@@ -144,6 +144,11 @@ class Simulation:
         at = self.tick if tick is None else tick
         if at < self.tick:
             raise ValueError(f"cannot change the past: tick {at} < current tick {self.tick}")
+        if at > self._total_ticks:
+            raise ValueError(
+                f"tick {at} is after the end of the run (tick {self._total_ticks}): "
+                "the change would never be applied"
+            )
         check_change(self, change)
         if hasattr(change, "open"):
             self.flyover_pending = change.open

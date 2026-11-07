@@ -196,7 +196,7 @@ export interface AppliedMsg {
 }
 export interface RejectedMsg {
   type: 'rejected';
-  request: 'apply' | 'reset' | 'export';
+  request: 'apply' | 'reset' | 'export' | 'message';
   errors: Problem[];
 }
 export interface ScenarioMsg {

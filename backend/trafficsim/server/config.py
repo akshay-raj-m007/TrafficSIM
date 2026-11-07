@@ -28,6 +28,10 @@ class Settings:
     # A/B comparisons (server/compare_jobs.py): limits a hosted server can tighten, and
     # where finished runs are cached (None: memory only).
     compare: CompareLimits = CompareLimits()
+    # Size limits (rejected with a message naming the limit, never truncated).
+    max_message_bytes: int = 262_144  # one WebSocket message from a client
+    max_live_changes: int = 500  # live changes per session (also the schema's limit)
+    max_request_bytes: int = 1_000_000  # one REST request body
     cache_dir: Path | None = None
 
     @classmethod
@@ -46,5 +50,8 @@ class Settings:
                 max_jobs=int(os.environ.get("COMPARE_MAX_JOBS", "1")),
                 workers=int(os.environ.get("COMPARE_WORKERS", "0")),
             ),
+            max_message_bytes=int(os.environ.get("MAX_MESSAGE_BYTES", "262144")),
+            max_live_changes=int(os.environ.get("MAX_LIVE_CHANGES", "500")),
+            max_request_bytes=int(os.environ.get("MAX_REQUEST_BYTES", "1000000")),
             cache_dir=Path(os.environ.get("COMPARE_CACHE_DIR", _DEFAULT_CACHE)),
         )

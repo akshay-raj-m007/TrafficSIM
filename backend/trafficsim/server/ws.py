@@ -160,6 +160,11 @@ class LiveSession:
 
     async def _apply(self, raw: dict) -> None:
         try:
+            if len(self.sim.all_changes) >= self.settings.max_live_changes:
+                raise ValueError(
+                    f"this session already has {len(self.sim.all_changes)} live changes; the limit "
+                    f"is {self.settings.max_live_changes}. Reset to start a new log."
+                )
             change = live_scenario.live_change(raw, self.sim.tick)
             tick = self.sim.schedule(change)
         except ScenarioError as exc:
@@ -176,6 +181,14 @@ class LiveSession:
             while True:
                 raw = await self.ws.receive_text()
                 self._last_client_msg = loop.time()
+                size = len(raw.encode("utf-8"))
+                if size > self.settings.max_message_bytes:
+                    limit = self.settings.max_message_bytes
+                    text = f"message is {size} bytes; the limit is {limit}"
+                    await self._send(
+                        protocol.rejected("message", [{"path": "(message)", "message": text}])
+                    )
+                    continue
                 try:
                     msg = protocol.parse_client_message(raw)
                 except ValidationError as exc:

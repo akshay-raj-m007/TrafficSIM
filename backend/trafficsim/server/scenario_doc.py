@@ -36,6 +36,8 @@ ZONES = ("W", "E", "N1", "S1", "N2")
 POLICIES = ("fixed_webster", "max_pressure", "max_pressure_threshold")
 MAX_SEED = 2**32 - 1
 MIX_SUM_TOL = 1e-6  # percent
+MAX_CHANGES = 500  # live changes in one document (matches Settings.max_live_changes)
+MAX_DEMAND_ROWS = 100
 
 
 class _Strict(BaseModel):
@@ -80,7 +82,7 @@ class Structure(_Strict):
 
 
 class Initial(_Strict):
-    demand: list[DemandRow]
+    demand: list[DemandRow] = Field(max_length=MAX_DEMAND_ROWS)
     mix: Mix
     policy: Literal["fixed_webster", "max_pressure", "max_pressure_threshold"]
     flyover_open: bool
@@ -92,7 +94,7 @@ class _At(_Strict):
 
 class SetDemandChange(_At):
     type: Literal["set_demand"]
-    demand: list[DemandRow]
+    demand: list[DemandRow] = Field(max_length=MAX_DEMAND_ROWS)
 
 
 class SetMixChange(_At):
@@ -122,7 +124,7 @@ class ScenarioDoc(_Strict):
     duration_s: float = Field(gt=0, allow_inf_nan=False)
     structure: Structure
     initial: Initial
-    changes: list[Change] = []
+    changes: list[Change] = Field(default=[], max_length=MAX_CHANGES)
 
     @model_validator(mode="after")
     def _checks(self) -> ScenarioDoc:

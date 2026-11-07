@@ -8,7 +8,9 @@ DELETE /api/compare/{id}     cancel
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+import json
+
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from trafficsim.server import experiments
@@ -20,6 +22,28 @@ from trafficsim.server.compare_spec import (
     CompareError,
 )
 from trafficsim.server.config import Settings
+
+
+async def bounded_json(request: Request, limit: int):
+    """The JSON body, or a 413 / 422 response naming the limit or the problem."""
+    declared = int(request.headers.get("content-length") or 0)
+    body = await request.body() if declared <= limit else b""
+    if declared > limit or len(body) > limit:
+        n = declared or len(body)
+        return JSONResponse(
+            {
+                "errors": [
+                    {"path": "(request)", "message": f"body is {n} bytes; the limit is {limit}"}
+                ]
+            },
+            status_code=413,
+        )
+    try:
+        return json.loads(body)
+    except ValueError as exc:
+        return JSONResponse(
+            {"errors": [{"path": "(request)", "message": f"not JSON: {exc}"}]}, status_code=422
+        )
 
 
 def register(app: FastAPI, settings: Settings) -> CompareManager:
@@ -50,7 +74,10 @@ def register(app: FastAPI, settings: Settings) -> CompareManager:
         }  # fmt: skip
 
     @app.post("/api/compare")
-    def start(raw: dict) -> JSONResponse:
+    async def start(request: Request) -> JSONResponse:
+        raw = await bounded_json(request, settings.max_request_bytes)
+        if isinstance(raw, JSONResponse):
+            return raw
         try:
             return JSONResponse(manager.submit(raw).to_dict())
         except CompareError as exc:

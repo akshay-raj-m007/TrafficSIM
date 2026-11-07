@@ -11,7 +11,7 @@ import contextlib
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -87,9 +87,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {n: {"info": PRESET_INFO[n], "scenario": d} for n, d in all_presets().items()}
 
     @app.post("/api/scenario/validate")
-    def validate_scenario(raw: dict) -> dict:
+    async def validate_scenario(request: Request) -> JSONResponse:
+        raw = await compare_api.bounded_json(request, settings.max_request_bytes)
+        if isinstance(raw, JSONResponse):
+            return raw
         found = problems(raw)
-        return {"valid": not found, "errors": found}
+        return JSONResponse({"valid": not found, "errors": found})
 
     @app.websocket("/ws/sim")
     async def ws_sim(
