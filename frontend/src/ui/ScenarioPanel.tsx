@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { LiveChange, LoggedChange, Policy, Problem, ScenarioDoc } from '../api/scenarioTypes';
 import type { NetworkData } from '../api/types';
 import { ChangeLog } from './editor/ChangeLog';
@@ -32,10 +32,13 @@ export interface ScenarioEditorProps {
 
 /** Drafts live in this component; the parent keys it by epoch so a restart reloads them. */
 export function ScenarioPanel(p: ScenarioEditorProps) {
-  return <ScenarioPanelBody key={p.epoch} {...p} />;
+  const [preset, setPreset] = useState('default'); // outside the keyed body: survives restarts
+  return <ScenarioPanelBody key={p.epoch} {...p} preset={preset} onChoosePreset={setPreset} />;
 }
 
-function ScenarioPanelBody(p: ScenarioEditorProps) {
+function ScenarioPanelBody(
+  p: ScenarioEditorProps & { preset: string; onChoosePreset(name: string): void },
+) {
   const { doc } = p;
   const summary = useMemo(() => (p.network ? summarise(p.network) : null), [p.network]);
   const live = doc ? currentLive(doc) : null;
@@ -54,6 +57,8 @@ function ScenarioPanelBody(p: ScenarioEditorProps) {
       <SeedBar
         seed={doc?.seed ?? 42}
         presets={p.presets}
+        preset={p.preset}
+        onChoosePreset={p.onChoosePreset}
         errors={p.resetErrors}
         disabled={p.disabled || p.resetDisabled}
         onReset={p.onReset}

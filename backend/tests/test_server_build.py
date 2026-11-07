@@ -70,3 +70,21 @@ def test_a_failing_build_keeps_the_old_simulation_running(client, monkeypatch):
         assert "could not build the scenario" in err["message"] and "boom" in err["message"]
         _send(ws, type="ping", id=1)
         assert next_json(ws, "pong")["id"] == 1  # still alive, old simulation intact
+
+
+@pytest.mark.slow  # each structure measures its saturation flows (about 8 s)
+def test_the_extreme_structures_build_a_complete_live_session():
+    """Setup -> simulation with the KPI layout (detectors fit every road) and encoder."""
+    from trafficsim.network.structure import Structure
+    from trafficsim.server import live_scenario
+    from trafficsim.server.presets_doc import preset
+
+    for st in (Structure(2, 1, 1, 2.5, 2.5), Structure(2, 4, 4, 4.0, 4.0)):
+        doc = preset("default")
+        doc["structure"] = {
+            "j2_minor_lanes": 2, "surface_lanes": st.surface_lanes, "flyover_lanes": st.flyover_lanes,
+            "surface_width_m": st.surface_width_m, "flyover_width_m": st.flyover_width_m,
+        }  # fmt: skip
+        sim, enc = ws_module.build_session(live_scenario.from_doc(doc))
+        sim.step_n(20)
+        assert enc.encode(0, 3) and len(sim.kpi_snapshot()["flow"]) == 12

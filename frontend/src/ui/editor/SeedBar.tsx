@@ -10,6 +10,8 @@ export interface PresetInfo {
 interface Props {
   seed: number; // seed of the running scenario
   presets: Record<string, PresetInfo>;
+  preset: string; // the dropdown choice, kept by the parent so a restart does not reset it
+  onChoosePreset(name: string): void;
   errors: Problem[]; // server rejection of the last reset / import
   disabled: boolean;
   onReset(seed: number): void;
@@ -21,6 +23,8 @@ interface Props {
 export function SeedBar({
   seed,
   presets,
+  preset,
+  onChoosePreset,
   errors,
   disabled,
   onReset,
@@ -29,7 +33,6 @@ export function SeedBar({
   onImport,
 }: Props) {
   const [seedText, setSeedText] = useState('');
-  const [preset, setPreset] = useState('default');
   const [fileError, setFileError] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const text = seedText === '' ? String(seed) : seedText;
@@ -51,6 +54,7 @@ export function SeedBar({
       <label className="field">
         <span>Seed</span>
         <input
+          aria-label="Seed"
           inputMode="numeric"
           aria-invalid={!ok}
           value={text}
@@ -64,7 +68,7 @@ export function SeedBar({
       <p className="hint">Same seed + same settings + same change log ⇒ identical run.</p>
       <label className="field">
         <span>Preset</span>
-        <select value={preset} onChange={(e) => setPreset(e.target.value)}>
+        <select value={preset} aria-label="Preset" onChange={(e) => onChoosePreset(e.target.value)}>
           {Object.keys(presets).map((n) => (
             <option key={n} value={n}>
               {n.replace(/_/g, ' ')}

@@ -8,11 +8,11 @@ the event loop, and every other session, keeps running meanwhile.
 from __future__ import annotations
 
 from trafficsim.engine.loop import Simulation
-from trafficsim.engine.presets import DEMO_KPI_LAYOUT
+from trafficsim.engine.presets import layout_for
 from trafficsim.server.frames import FrameEncoder
 from trafficsim.server.live_scenario import Setup
 
 
 def build_session(setup: Setup) -> tuple[Simulation, FrameEncoder]:
-    sim = Simulation(setup.network, setup.scenario, DEMO_KPI_LAYOUT)
+    sim = Simulation(setup.network, setup.scenario, layout_for(setup.network))
     return sim, FrameEncoder(sim)

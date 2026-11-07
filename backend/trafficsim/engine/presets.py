@@ -7,8 +7,11 @@ and merging at the lane drop. They are scenario inputs, not calibrated to a real
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from trafficsim.engine.detectors import DetectorSpec
 from trafficsim.engine.kpi import KpiLayout
+from trafficsim.engine.params.control import DETECTOR_MIN_END_CLEARANCE_M
 from trafficsim.engine.queues import ApproachSpec
 from trafficsim.engine.scenario import OdFlow
 
@@ -75,6 +78,19 @@ DEMO_KPI_LAYOUT = KpiLayout(
         ApproachSpec("J2_N", "J2 minor", "n2_in"),
     ),
 )
+
+
+def layout_for(net) -> KpiLayout:
+    """The demo detector / queue layout for a network. Positions are metres along the road; on
+    a road shorter than the default layout assumes (a cross-street arm gets shorter when the
+    J1 box grows with wider structures) the detector sits at the same clearance from the road
+    end that the default one has at most, so every detector stays inside its road."""
+    length = {r.id: r.length_m for r in net.roads}
+    detectors = tuple(
+        replace(d, s_m=min(d.s_m, length[d.road_id] - DETECTOR_MIN_END_CLEARANCE_M))
+        for d in DEMO_KPI_LAYOUT.detectors
+    )
+    return replace(DEMO_KPI_LAYOUT, detectors=detectors)
 
 
 def scaled(demand: tuple[OdFlow, ...], factor: float) -> tuple[OdFlow, ...]:

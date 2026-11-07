@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { fetchNetwork } from './api/network';
+import { useNetwork } from './api/useNetwork';
 import { usePresets } from './api/usePresets';
 import { SimSocket, type ConnStatus } from './api/simSocket';
-import type { LiveChange, Problem, ScenarioDoc, StructureDoc } from './api/scenarioTypes';
+import type { LiveChange, Problem, ScenarioDoc } from './api/scenarioTypes';
 import type { BuildingMsg } from './api/messageTypes';
-import type { HelloMsg, KpiMsg, NetworkData, StatsMsg } from './api/types';
+import type { HelloMsg, KpiMsg, StatsMsg } from './api/types';
 import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
 import { Header } from './ui/Header';
@@ -27,8 +27,6 @@ interface FrameInfo {
 }
 
 export function App() {
-  const [network, setNetwork] = useState<NetworkData | null>(null);
-  const [netError, setNetError] = useState<string | null>(null);
   const [status, setStatus] = useState<ConnStatus>('connecting');
   const [statusDetail, setStatusDetail] = useState<string | undefined>();
   const [hello, setHello] = useState<HelloMsg | null>(null);
@@ -44,6 +42,7 @@ export function App() {
   const [pendingSpeed, setPendingSpeed] = useState<number | null>(null);
   const [view, setView] = useState<'simulate' | 'compare'>('simulate');
   const [building, setBuilding] = useState<BuildingMsg | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
   const [structureText, setStructureText] = useState<StructureText>(
     structureToText(DEFAULT_STRUCTURE),
@@ -56,20 +55,7 @@ export function App() {
   const sceneRef = useRef<SceneManager | null>(null);
   const speedsRef = useRef<number[]>([]);
 
-  const networkStructure = hello?.network ?? DEFAULT_STRUCTURE;
-  const networkKey = JSON.stringify(networkStructure);
-  useEffect(() => {
-    const ctrl = new AbortController();
-    fetchNetwork(JSON.parse(networkKey) as StructureDoc, ctrl.signal)
-      .then((n) => {
-        setNetwork(n);
-        setNetError(null);
-      })
-      .catch((e: unknown) => {
-        if (!ctrl.signal.aborted) setNetError(String(e));
-      });
-    return () => ctrl.abort();
-  }, [networkKey]);
+  const { network, netError } = useNetwork(hello?.network ?? DEFAULT_STRUCTURE);
 
   useEffect(() => {
     const sock = new SimSocket({
@@ -82,6 +68,7 @@ export function App() {
         sceneRef.current?.setSession(h);
         setHello(h);
         setBuilding(null);
+        setServerError(null);
         setDoc(h.scenario);
         if (h.scenario) setStructureText(structureToText(h.scenario.structure));
         setApplyErrors([]);
@@ -95,6 +82,10 @@ export function App() {
       onRejected: (m) => (m.request === 'apply' ? setApplyErrors : setResetErrors)(m.errors),
       onScenario: (m) => downloadJson(m.scenario),
       onBuilding: (m) => setBuilding(m),
+      onError: (m) => {
+        setBuilding(null); // a failed build ends the building state; the old simulation runs on
+        setServerError(m.message);
+      },
       onFrame: (f, _now, rate) => {
         sceneRef.current?.pushFrame(f);
         setFrame({ tick: f.tick, agents: f.n, speedIndex: f.speedIndex });
@@ -182,6 +173,11 @@ export function App() {
         {building && (
           <div className="banner banner--busy" role="status" data-testid="building">
             Building “{building.name}” ({building.reason})… other sessions keep running.
+          </div>
+        )}
+        {serverError && (
+          <div className="banner banner--error" role="alert">
+            {serverError}
           </div>
         )}
         {status === 'busy' && (

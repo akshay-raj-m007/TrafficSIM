@@ -12,7 +12,7 @@
 import { decodeFrame, type Frame } from './frame';
 import { parseServerMessage, wsUrl } from './protocol';
 import type { LiveChange, ScenarioDoc } from './scenarioTypes';
-import type { AppliedMsg, BuildingMsg, RejectedMsg, ScenarioMsg } from './messageTypes';
+import type { AppliedMsg, BuildingMsg, ErrorMsg, RejectedMsg, ScenarioMsg } from './messageTypes';
 import type { FrameFormat, HelloMsg, KpiMsg, StatsMsg } from './types';
 
 export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed';
@@ -28,6 +28,7 @@ export interface SimSocketEvents {
   onRejected(msg: RejectedMsg): void;
   onScenario(msg: ScenarioMsg): void;
   onBuilding(msg: BuildingMsg): void;
+  onError(msg: ErrorMsg): void;
 }
 
 const BUSY_RETRY_MS = 15000;
@@ -81,6 +82,7 @@ export class SimSocket {
       else if (msg.type === 'rejected') this.ev.onRejected(msg);
       else if (msg.type === 'scenario') this.ev.onScenario(msg);
       else if (msg.type === 'building') this.ev.onBuilding(msg);
+      else if (msg.type === 'error') this.ev.onError(msg);
       else if (msg.type === 'busy') {
         busy = true;
         this.ev.onStatus('busy', msg.message);

@@ -9,7 +9,9 @@ import numpy as np
 import pytest
 
 from tests.network_fingerprint import fingerprint
+from trafficsim.engine.detectors import Detectors
 from trafficsim.engine.lanegraph import compile_network
+from trafficsim.engine.presets import DEMO_KPI_LAYOUT, layout_for
 from trafficsim.engine.routes import RouteTable
 from trafficsim.network import validate
 from trafficsim.network.conflicts import conflict_table
@@ -65,6 +67,14 @@ def test_out_of_range_structures_are_errors_with_the_value_named(kwargs, text):
         Structure(**kwargs)
 
 
+def test_the_kpi_layout_of_the_default_network_is_unchanged_and_shrinks_only_where_needed():
+    assert layout_for(build_demo_network()) == DEMO_KPI_LAYOUT
+    wide = layout_for(build_demo_network(Structure(2, 4, 4, 4.0, 4.0)))
+    moved = {a.id for a, b in zip(wide.detectors, DEMO_KPI_LAYOUT.detectors, strict=True)
+             if a.s_m != b.s_m}  # fmt: skip
+    assert moved == {"J1_N", "J1_S"}  # only the cross-street arms, which got shorter
+
+
 def _lateral_overlaps(net) -> list[str]:
     """Corridor roads of the same level and side must occupy disjoint lateral intervals
     wherever their x ranges overlap (they are straight, y = reference + offsets)."""
@@ -113,6 +123,7 @@ def _check(st: Structure) -> None:
         np.testing.assert_allclose(c.path[0], a.centreline[-1], atol=1e-9)
         np.testing.assert_allclose(c.path[-1], b.centreline[0], atol=1e-9)
     assert lg.length.min() >= 12.0
+    Detectors(lg, layout_for(net).detectors)  # every KPI detector stays inside its road
     rt = RouteTable()
     for o in net.zones:
         for d in net.zones:
