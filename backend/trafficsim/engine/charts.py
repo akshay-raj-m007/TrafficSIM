@@ -42,6 +42,7 @@ class Corridor:
     roads: tuple[str, ...]
     length_m: float
     x0: np.ndarray  # corridor offset of the start of each segment (-1: not on the corridor)
+    marks: tuple[tuple[str, float], ...] = ()  # (junction id, offset of its box) for the chart
 
     @property
     def cells(self) -> int:
@@ -62,6 +63,7 @@ def build_corridors(net, lg) -> list[Corridor]:
                 continue
             x0 = np.full(lg.n, -1.0)
             at = 0.0
+            marks: list[tuple[str, float]] = []
             for a, b in zip(roads, [*roads[1:], None], strict=True):
                 for seg in lg.road_segs[a]:
                     x0[seg] = at
@@ -75,8 +77,12 @@ def build_corridors(net, lg) -> list[Corridor]:
                 ]  # fmt: skip
                 for k in conns:
                     x0[k] = at
+                if conns and lg.junction_of[conns[0]]:
+                    marks.append((str(lg.junction_of[conns[0]]), round(at, 1)))
                 at += float(np.mean([lg.length[k] for k in conns])) if conns else 0.0
-            out.append(Corridor(f"{dname}_{kind}", f"{dname} {kind}", tuple(roads), at, x0))
+            out.append(
+                Corridor(f"{dname}_{kind}", f"{dname} {kind}", tuple(roads), at, x0, tuple(marks))
+            )
     return out
 
 
@@ -162,7 +168,9 @@ class ChartMeter:
         msg = {
             "col0": self.n_cols - n_c, "cell_m": CELL_M,
             "corridors": [{"key": c.key, "label": c.label, "cells": c.cells,
-                           "length_m": round(c.length_m, 1)} for c in self.corridors],
+                           "length_m": round(c.length_m, 1),
+                           "marks": [{"id": j, "x_m": x} for j, x in c.marks]}
+                          for c in self.corridors],
             "speed_unit_mps": 0.1, "no_data": NO_DATA,
             "cols": [base64.b64encode(c).decode("ascii") for c in cols],
             "mfd": [list(p) for p in list(self.mfd)[len(self.mfd) - n_m :]] if n_m else [],

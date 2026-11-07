@@ -10,6 +10,7 @@ import { SceneView } from './scene/SceneView';
 import { Banners } from './ui/Banners';
 import { Header } from './ui/Header';
 import { downloadJson } from './ui/download';
+import { ChartsHost } from './ui/charts/ChartsHost';
 import { CompareView } from './ui/compare/CompareView';
 import { ScenarioPanel } from './ui/ScenarioPanel';
 import { restartDoc } from './ui/scenarioDraft';
@@ -174,6 +175,7 @@ export function App() {
       )}
       <main className="centre">
         <SceneView network={network} classes={hello?.classes ?? []} managerRef={sceneRef} />
+        <ChartsHost sock={sockRef} hello={hello} />
         <Banners
           building={building}
           serverError={serverError}

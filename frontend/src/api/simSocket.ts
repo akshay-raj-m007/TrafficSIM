@@ -12,7 +12,14 @@
 import { decodeFrame, type Frame } from './frame';
 import { parseServerMessage, wsUrl } from './protocol';
 import type { LiveChange, ScenarioDoc } from './scenarioTypes';
-import type { AppliedMsg, BuildingMsg, ErrorMsg, RejectedMsg, ScenarioMsg } from './messageTypes';
+import type {
+  AppliedMsg,
+  BuildingMsg,
+  ErrorMsg,
+  RejectedMsg,
+  ScenarioMsg,
+  ServerMsg,
+} from './messageTypes';
 import type { FrameFormat, HelloMsg, KpiMsg, StatsMsg } from './types';
 
 export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed';
@@ -47,6 +54,7 @@ export class SimSocket {
   private pingSent = new Map<number, number>();
   private frameTimes: number[] = [];
   private stopped = false;
+  private listeners = new Map<string, Set<(msg: never) => void>>();
 
   constructor(private readonly ev: SimSocketEvents) {
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -71,6 +79,7 @@ export class SimSocket {
       }
       const msg = parseServerMessage(e.data);
       if (!msg) return;
+      this.listeners.get(msg.type)?.forEach((fn) => (fn as (m: ServerMsg) => void)(msg));
       if (msg.type === 'hello') {
         this.fmt = msg.frame;
         this.ev.onStatus('open');
@@ -113,6 +122,22 @@ export class SimSocket {
 
   send(msg: object): void {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
+  }
+
+  /** Extra listener for one message type (the charts and the inspector use it); returns the
+   *  unsubscribe function. The main events above are unaffected. */
+  on<T extends ServerMsg['type']>(
+    type: T,
+    fn: (msg: Extract<ServerMsg, { type: T }>) => void,
+  ): () => void {
+    const set = this.listeners.get(type) ?? new Set();
+    set.add(fn as (msg: never) => void);
+    this.listeners.set(type, set);
+    return () => set.delete(fn as (msg: never) => void);
+  }
+
+  setCharts(on: boolean): void {
+    this.send({ type: 'charts', on });
   }
 
   setSpeed(speed: number): void {

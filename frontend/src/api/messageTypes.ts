@@ -36,6 +36,25 @@ export interface ScenarioMsg {
   type: 'scenario';
   scenario: ScenarioDoc;
 }
+export interface ChartCorridor {
+  key: string;
+  label: string;
+  cells: number;
+  length_m: number;
+  marks: { id: string; x_m: number }[];
+}
+/** What the chart meters measured since the last message (backend engine/charts.py). */
+export interface ChartsMsg {
+  type: 'charts';
+  col0: number; // absolute index of the first speed column
+  cell_m: number;
+  corridors: ChartCorridor[];
+  speed_unit_mps: number;
+  no_data: number;
+  cols: string[]; // one base64 string per second: the cells of all corridors, back to back
+  mfd: [number, number, number, boolean][]; // t [s], density [veh/km/lane], flow [veh/h/lane], flyover open
+  queue: [number, number, number][]; // t [s], J1 and J2 longest queue [m]
+}
 export type ServerMsg =
   | HelloMsg
   | KpiMsg
@@ -46,4 +65,5 @@ export type ServerMsg =
   | AppliedMsg
   | BuildingMsg
   | RejectedMsg
-  | ScenarioMsg;
+  | ScenarioMsg
+  | ChartsMsg;
