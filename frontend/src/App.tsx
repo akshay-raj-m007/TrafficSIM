@@ -8,7 +8,7 @@ import type { HelloMsg, KpiMsg, StatsMsg } from './api/types';
 import type { SceneManager } from './scene/sceneManager';
 import { SceneView } from './scene/SceneView';
 import { Banners } from './ui/Banners';
-import { Header } from './ui/Header';
+import { Header, type View } from './ui/Header';
 import { downloadJson } from './ui/download';
 import { ChartsHost } from './ui/charts/ChartsHost';
 import { InspectorHost } from './ui/InspectorHost';
@@ -21,6 +21,7 @@ import {
   structureToText,
   type StructureText,
 } from './ui/structureDraft';
+import { ValidationView } from './ui/validation/ValidationView';
 import { TelemetryPanel } from './ui/TelemetryPanel';
 
 interface FrameInfo {
@@ -43,7 +44,7 @@ export function App() {
   const [rateHz, setRateHz] = useState(0);
   const [rttMs, setRttMs] = useState<number | undefined>();
   const [pendingSpeed, setPendingSpeed] = useState<number | null>(null);
-  const [view, setView] = useState<'simulate' | 'compare'>('simulate');
+  const [view, setView] = useState<View>('simulate');
   const [building, setBuilding] = useState<BuildingMsg | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [doc, setDoc] = useState<ScenarioDoc | null>(null);
@@ -168,6 +169,7 @@ export function App() {
         onExport={() => sockRef.current?.exportScenario()}
         onImport={(raw) => sockRef.current?.resetTo({ scenario: raw as ScenarioDoc })}
       />
+      {view === 'validation' && <ValidationView />}
       {view === 'compare' && (
         <CompareView
           presets={presets}

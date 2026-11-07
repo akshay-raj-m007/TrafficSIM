@@ -184,8 +184,8 @@ def j2_turn(kind: str) -> dict:
             "lane no longer waits behind right-turners, and the formula assumes random arrivals "
             "while the real stream is bunched. Treat it as 'not validated against HCM' rather "
             "than as agreement."],
-        "commands": [f"cd backend && {PY} -m pytest tests/engine/test_j2_minor_lanes.py -s -k "
-                     "hcm" if right else "(measured by the tool only)",
+        "commands": [*([f"cd backend && {PY} -m pytest tests/engine/test_j2_minor_lanes.py "
+                        "-s -k hcm"] if right else []),
                      f"cd backend && {PY} tools/gen_validation.py --only j2_{kind}"],
     }  # fmt: skip
 

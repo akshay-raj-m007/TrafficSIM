@@ -247,7 +247,6 @@
     "New measurement on the current two-lane minor approach. The README's older left-turn table (156 against 287 veh/h) was made with one shared minor lane, before the approach was split. Here the simulation serves MORE than HCM's formula gives. Not isolated: the formula is evaluated with all eastbound through flow as conflicting (HCM uses the near lane for a minor movement onto a four-lane road), the left-turn lane no longer waits behind right-turners, and the formula assumes random arrivals while the real stream is bunched. Treat it as 'not validated against HCM' rather than as agreement."
    ],
    "commands": [
-    "(measured by the tool only)",
     "cd backend && .venv/Scripts/python tools/gen_validation.py --only j2_left"
    ]
   },
@@ -302,6 +301,7 @@
     "text": "c_p = v_c e^(-v_c t_c / 3600) / (1 - e^(-v_c t_f / 3600)) with t_c = 7.5 s, t_f = 3.5 s (four-lane major road, mirrored for left-hand traffic).",
     "source": "HCM 6th ed., Ch. 20 (two-way stop-controlled), Exhibit 20-11"
    },
+   "notes": [],
    "commands": [
     "cd backend && .venv/Scripts/python -m pytest tests/engine/test_j2_minor_lanes.py -s -k hcm",
     "cd backend && .venv/Scripts/python tools/gen_validation.py --only j2_right"

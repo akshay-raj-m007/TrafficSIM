@@ -3,6 +3,8 @@ import { formatClock } from '../api/protocol';
 
 const DEFAULT_SPEEDS = [0, 0.25, 0.5, 1, 2, 5, 10];
 
+export type View = 'simulate' | 'compare' | 'validation';
+
 export interface HeaderProps {
   status: ConnStatus;
   tick: number;
@@ -15,8 +17,8 @@ export interface HeaderProps {
   onSpeed(speed: number): void;
   onReset(seed: number): void;
   resetDisabled?: boolean; // the structure draft is invalid
-  view: 'simulate' | 'compare';
-  onView(v: 'simulate' | 'compare'): void;
+  view: View;
+  onView(v: View): void;
 }
 
 const STATUS_TEXT: Record<ConnStatus, string> = {
@@ -38,7 +40,7 @@ export function Header(p: HeaderProps) {
         <span className="brand__sub">agent-based traffic workbench · IDM + MOBIL</span>
       </div>
       <div className="tabs" role="tablist" aria-label="View">
-        {(['simulate', 'compare'] as const).map((v) => (
+        {(['simulate', 'compare', 'validation'] as const).map((v) => (
           <button
             key={v}
             type="button"
