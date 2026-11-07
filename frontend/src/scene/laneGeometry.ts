@@ -60,6 +60,19 @@ function buildPolyline(points: readonly (readonly number[])[]): Polyline {
   return p;
 }
 
+/** A placer for this network and segment table, or null if they do not belong together
+ *  (the hello of a restarted session arrives before the matching network has been fetched). */
+export function tryBuildPlacer(
+  net: NetworkData,
+  segments: readonly SegmentInfo[],
+): LanePlacer | null {
+  try {
+    return new LanePlacer(net, segments);
+  } catch {
+    return null;
+  }
+}
+
 export class LanePlacer {
   private readonly lines: Polyline[];
   private readonly pathCache = new Map<number, number[] | null>();

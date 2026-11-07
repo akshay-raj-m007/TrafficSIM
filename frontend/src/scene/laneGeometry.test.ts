@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { NetworkData, SegmentInfo } from '../api/types';
 import { shortestAngleDelta } from './interpolator';
-import { LanePlacer, type Pose } from './laneGeometry';
+import { LanePlacer, tryBuildPlacer, type Pose } from './laneGeometry';
 
 /** Written by backend/tools/gen_golden_frame.py: the demo network, its lane-graph segment
  *  table and the server-side world pose (PoseTable) of 400 probe points. */
@@ -88,5 +88,14 @@ describe('turns follow the connector curve at any speed', () => {
     const a = fx.segments.findIndex((s) => s.id === road.lanes[0]!.id);
     const b = fx.segments.findIndex((s) => s.id === road.lanes[1]!.id);
     expect(placer.between(a, 10, b, 12, 0, 0.5, P())).toBe(false);
+  });
+});
+
+describe('a hello that does not match the loaded network', () => {
+  it('gives no placer instead of throwing (the matching network is fetched next)', () => {
+    const wrong = fx.segments.map((s, i) => (i === 0 ? { ...s, length_m: s.length_m + 3 } : s));
+    expect(tryBuildPlacer(fx.network, wrong)).toBeNull();
+    expect(tryBuildPlacer(fx.network, [{ id: 'nope', length_m: 1, next: [] }])).toBeNull();
+    expect(tryBuildPlacer(fx.network, fx.segments)).not.toBeNull();
   });
 });

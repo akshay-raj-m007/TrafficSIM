@@ -15,7 +15,7 @@ import { buildLabels, buildScaleBar } from './labels';
 import { createMaterials, LIFT } from './materials';
 import { placeFrame } from '../api/frame';
 import { FrameInterpolator } from './interpolator';
-import { LanePlacer } from './laneGeometry';
+import { LanePlacer, tryBuildPlacer } from './laneGeometry';
 import { disposeTree } from './meshUtil';
 import { buildLanes, buildMarkings } from './roads';
 import { VehicleLayer } from './vehicles';
@@ -116,8 +116,10 @@ export class SceneManager {
   private buildPlacer(): void {
     if (!this.network || !this.hello) return;
     const h = this.hello;
-    this.placer = new LanePlacer(this.network, h.segments);
-    this.interp = new FrameInterpolator(h.steps_per_second, h.speeds, this.placer);
+    this.placer = tryBuildPlacer(this.network, h.segments); // null until the network matches
+    this.interp = this.placer
+      ? new FrameInterpolator(h.steps_per_second, h.speeds, this.placer)
+      : null;
   }
 
   pushFrame(frame: Frame): void {
