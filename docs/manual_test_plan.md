@@ -1,7 +1,7 @@
 # TrafficSIM — manual test plan
 
 Written Sun 8 Nov 2026, before submission (deadline Mon 9 Nov 2026, 18:08 IST). Context: `README.md` and
-`docs/project_state_1.md` … `project_state_9.md`. 52 scenarios, most important first inside each area.
+`docs/project_state_1.md` … `project_state_9.md`. 72 scenarios (most important first inside each area; the quick pass is the P1 rows only).
 
 **Where:** *Live* = https://trafficsim-ux3u.onrender.com/ (free Render instance, 2 live seats). *Local* =
 `http://localhost:8000` (backend `uvicorn trafficsim.server.app:app --port 8000` from `backend/` with `frontend/dist`
