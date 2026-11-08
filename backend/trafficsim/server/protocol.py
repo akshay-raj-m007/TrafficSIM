@@ -183,9 +183,14 @@ def error(message: str, detail: Any = None) -> dict:
     return {"type": "error", "message": message, "detail": detail}
 
 
-def building(reason: str, name: str) -> dict:
-    """A scenario is being built (off the event loop); the hello follows when it is ready."""
-    return {"type": "building", "reason": reason, "name": name}
+def building(
+    reason: str, name: str, estimate_s: float | None = None, done: int = 0, total: int = 0
+) -> dict:
+    """A scenario is being built (off the event loop); the hello follows when it is ready.
+    ``estimate_s`` is set when the layout's tables must be measured first (about that many
+    seconds); ``done`` of ``total`` measurement steps then report the progress."""
+    return {"type": "building", "reason": reason, "name": name, "estimate_s": estimate_s,
+            "done": done, "total": total}  # fmt: skip
 
 
 def applied(tick: int, change: dict) -> dict:

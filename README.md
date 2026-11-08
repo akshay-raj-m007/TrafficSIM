@@ -917,6 +917,26 @@ paused, closed with "Paused ... click to resume" and a Resume button (it starts 
 sessions with their ages and how sessions ended (`sessions_closed`: disconnect, dead, idle, error). The busy message
 says the free server allows 2 live simulations, to try again in a minute, and that Compare and Validation still work.
 
+**Changing lanes or widths is fast on the free tier (shipped tables).** A reset to a new lane / width structure needs two
+tables: the saturation flows at J1 (one discharge simulation per connector, 25 of them) and the free-flow times (80
+single-vehicle runs). Measured on the real image at 0.1 CPU for 4 surface lanes: network build 0.1 s, lane graph 0.0 s,
+**saturation flows 154 s (the reset waits for them)**, simulation + encoder 2.1 s, and the **free-flow reference 1,011 s**,
+which runs in a background thread but competes for the same 0.1 CPU. On the live instance a 2 -> 4 lane reset took
+**69 s** (before the change). So the tables for the common layouts are **measured in advance and shipped in the image**
+(`backend/trafficsim/data/structures/`, 156 files, 0.72 MB of JSON, about 1 MB added to the image, because the
+instance's disk is wiped on every restart): `tools/gen_structure_tables.py` measures, in parallel, every lane count of both
+groups (1-4 x 1-4, at 3.5 m, with both J2 minor approaches) and every width of both groups (2.5 to 4.0 m in 0.25 m
+steps, at 2 + 2 lanes): 78 structures in **3,287 s (55 min) on 6 workers** (about 250 s each when six run together; a lone
+structure takes about 90 s). The default mix is the mix of every preset. The files are named by the same input digest as
+the committed tables, so any change to the model or a network makes them stale (`tests/test_structure_tables.py` fails and
+names the tool), and `tablecache` reads them before the writable cache. A layout that is not in the grid (a width such as
+3.1 m, or a custom mix) is still measured on demand, but the page now says "Preparing this layout for the first time,
+about N s (step k of 25)" with the progress of the measurement instead of a frozen screen (`PREPARE_S_PER_STEP`, 6 s per step
+on the hosted instance, is the first guess; the free-flow table of such a layout still builds in the background).
+A long build on 0.1 CPU also starved the event loop so that the client's pings waited unread, and the 30 s heartbeat
+dropped a healthy visitor in the middle of it (`sessions_closed.dead` on the live server); the heartbeat now ignores a
+loop that was itself blocked (`tests/test_liveness.py`).
+
 **Keep-alive.** The free Render instance does not reliably wake after sleeping (a visitor's request hung for 17+ minutes
 with no page and no error; only a new deploy brought the app back), and in that case the app cannot show its own
 message because no page is served. So `.github/workflows/keepalive.yml` calls `/api/health` every 5 minutes (GitHub's

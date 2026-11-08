@@ -51,3 +51,26 @@ test('an idle-paused session shows a resume button that starts a new session', a
   await expect(page.locator('.status--open')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('idle')).toHaveCount(0);
 });
+
+test('a layout that must be measured shows the preparing message with progress', async ({
+  page,
+}) => {
+  await page.routeWebSocket(/\/ws\/sim/, (ws) => {
+    const msg = (done: number) => ({
+      type: 'building',
+      reason: 'resetting',
+      name: 'custom',
+      estimate_s: 150,
+      done,
+      total: 25,
+    });
+    ws.send(JSON.stringify(msg(0)));
+    setTimeout(() => ws.send(JSON.stringify(msg(7))), 500);
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('building')).toContainText(
+    'Preparing this layout for the first time',
+  );
+  await expect(page.getByTestId('building')).toContainText('about 150 s');
+  await expect(page.getByTestId('building')).toContainText('step 7 of 25');
+});

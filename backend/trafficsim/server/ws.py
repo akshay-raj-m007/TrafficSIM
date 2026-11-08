@@ -29,11 +29,12 @@ from trafficsim.server.inspector import Inspector
 from trafficsim.server.liveness import DEAD, IDLE, SEND_TIMEOUT_S, Liveness
 from trafficsim.server.pacing import StepPacer
 from trafficsim.server.scenario_doc import ScenarioError
-from trafficsim.server.session_build import build_session
+from trafficsim.server.session_build import build_session, prepare_estimate
 from trafficsim.server.session_config import SessionParams
 from trafficsim.server.stats import StreamStats
 from trafficsim.server.ws_client import ClientHandlers
 
+STARVED_MS = 1000.0  # a frame this late means the event loop was blocked, not the peer gone
 IDLE_CLOSE_CODE = 4000  # application close code: paused for inactivity
 AUX_PERIOD_S = 1.0  # KPI and stats messages, at most once per this many wall seconds
 
@@ -72,8 +73,13 @@ class LiveSession(ClientHandlers):
         send the hello. While it runs the ticker is idle and live changes are refused."""
         self.building = True
         try:
-            await self._send(protocol.building(reason, setup.name))
-            sim, encoder = await asyncio.to_thread(build_session, setup)
+            est = await asyncio.to_thread(prepare_estimate, setup)
+            await self._send(protocol.building(reason, setup.name, est))
+            loop = asyncio.get_running_loop()
+            report = None if est is None else lambda d, n: asyncio.run_coroutine_threadsafe(
+                self._send(protocol.building(reason, setup.name, est, d, n)), loop
+            )  # fmt: skip
+            sim, encoder = await asyncio.to_thread(build_session, setup, report)
             self.setup, self.sim, self.encoder, self.network = setup, sim, encoder, setup.network
             self.charts_seen = {}  # new simulation: history starts again
             self.inspector.select(None)  # vehicle ids belong to the old simulation
@@ -170,7 +176,12 @@ class LiveSession(ClientHandlers):
                 await self._send(
                     protocol.stats(sim.time_s, sim.tick, self.speed, sim.done, lag_ms, agg)
                 )
-            verdict = self.live.verdict(time.monotonic())
+            # A loop that was blocked for a while (a long build or measurement on a 0.1 CPU
+            # instance) has not yet read the pings that are waiting: that is not a dead peer.
+            verdict = None if lag_ms > STARVED_MS else self.live.verdict(time.monotonic())
+            if verdict == DEAD:
+                await asyncio.sleep(0.5)  # give the reader a turn, then look again
+                verdict = self.live.verdict(time.monotonic())
             if verdict == DEAD:  # nothing heard for heartbeat_timeout_s: free the slot
                 self.close_reason = DEAD
                 return

@@ -6,6 +6,13 @@ input digest that guards the committed tables (the digest includes the mix), so 
 structure is never measured twice on a machine, and worker processes reuse what another
 process measured. The directory comes from the TRAFFICSIM_TABLE_CACHE environment variable
 (set by the server, inherited by worker processes); without it nothing is stored.
+
+**Shipped tables.** ``data/structures/`` holds tables measured in advance for the lane and width
+combinations listed in its ``manifest.json`` (``tools/gen_structure_tables.py``); they are read
+before the writable cache, so a hosted instance (whose disk is wiped on every restart and
+redeploy) finds them in the image. The file name carries the input digest, so a table that no
+longer matches the model or the network is simply not found (and ``tests/test_structure_tables.py``
+fails until it is regenerated).
 """
 
 from __future__ import annotations
@@ -15,6 +22,7 @@ import os
 from pathlib import Path
 
 ENV_VAR = "TRAFFICSIM_TABLE_CACHE"
+SHIPPED_DIR = Path(__file__).resolve().parents[1] / "data" / "structures"
 
 
 def cache_dir() -> Path | None:
@@ -27,15 +35,21 @@ def _path(kind: str, digest: str) -> Path | None:
     return None if d is None else d / f"{kind}-{digest[:40]}.json"
 
 
+def shipped_path(kind: str, digest: str) -> Path:
+    return SHIPPED_DIR / f"{kind}-{digest[:40]}.json"
+
+
 def load(kind: str, digest: str) -> dict | None:
-    p = _path(kind, digest)
-    if p is None or not p.exists():
-        return None
-    try:
-        doc = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None  # a torn or unreadable file is just a miss
-    return doc if doc.get("digest") == digest else None
+    for p in (_path(kind, digest), shipped_path(kind, digest)):
+        if p is None or not p.exists():
+            continue
+        try:
+            doc = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue  # a torn or unreadable file is just a miss
+        if doc.get("digest") == digest:
+            return doc
+    return None
 
 
 def store(kind: str, digest: str, doc: dict) -> None:

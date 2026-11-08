@@ -20,10 +20,10 @@ SLOW_SEED = 99
 def client(monkeypatch):
     real = ws_module.build_session
 
-    def slow(setup):  # a build that takes BUILD_S for the slow seed (like an unmeasured mix)
+    def slow(setup, on_progress=None):  # takes BUILD_S for the slow seed (like an unmeasured mix)
         if setup.scenario.seed == SLOW_SEED:
             time.sleep(BUILD_S)
-        return real(setup)
+        return real(setup, on_progress)
 
     monkeypatch.setattr(ws_module, "build_session", slow)
     app = create_app(Settings(max_sessions=2, static_dir=None, tick_hz=50.0, warm_up=False))
@@ -64,7 +64,9 @@ def test_a_failing_build_keeps_the_old_simulation_running(client, monkeypatch):
     with client.websocket_connect("/ws/sim") as ws:
         hello_and_format(ws)
         monkeypatch.setattr(
-            ws_module, "build_session", lambda s: (_ for _ in ()).throw(RuntimeError("boom"))
+            ws_module,
+            "build_session",
+            lambda s, on_progress=None: (_ for _ in ()).throw(RuntimeError("boom")),
         )
         _send(ws, type="reset", seed=5)
         err = next_json(ws, "error")

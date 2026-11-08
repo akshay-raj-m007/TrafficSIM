@@ -26,6 +26,10 @@ export interface BuildingMsg {
   type: 'building';
   reason: string;
   name: string;
+  /** Set when this layout's tables must be measured first: about this many seconds. */
+  estimate_s?: number | null;
+  done?: number; // measurement steps done / in total
+  total?: number;
 }
 export interface AppliedMsg {
   type: 'applied';

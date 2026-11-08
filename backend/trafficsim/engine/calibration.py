@@ -23,6 +23,8 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from collections.abc import Callable
+from contextvars import ContextVar
 from pathlib import Path
 
 import numpy as np
@@ -132,9 +134,28 @@ def _store(net: Network, mix, junction_id: str, got: dict[str, tuple[float, floa
     tablecache.store("calibration", digest, doc)
 
 
+# Called as (done, total) after each connector of a measurement (the server shows progress while
+# a layout is prepared for the first time). A ContextVar, so each build thread has its own.
+progress_hook: ContextVar[Callable[[int, int], None] | None] = ContextVar("progress", default=None)
+
+
 def _measure(net: Network, mix, junction_id: str) -> dict[str, tuple[float, float]]:
     conns = [c.id for c in net.connectors if c.junction_id == junction_id]
-    return {cid: _discharge(net, mix, junction_id, cid) for cid in conns}
+    out = {}
+    for done, cid in enumerate(conns, 1):
+        out[cid] = _discharge(net, mix, junction_id, cid)
+        if (hook := progress_hook.get()) is not None:
+            hook(done, len(conns))
+    return out
+
+
+def measurement_steps(net: Network, mix) -> int:
+    """Connectors still to be measured for this network and mix (0: all tables are known)."""
+    return sum(
+        sum(1 for c in net.connectors if c.junction_id == j.id)
+        for j in net.junctions
+        if j.control == "signalised" and _from_table(net, mix, j.id) is None
+    )
 
 
 def _calibrate(net: Network, mix, junction_id: str) -> dict[str, tuple[float, float]]:

@@ -26,7 +26,17 @@ export function Banners({ building, serverError, netError, status, detail, onRes
       )}
       {building && (
         <div className="banner banner--busy" role="status" data-testid="building">
-          Building “{building.name}” ({building.reason})… other sessions keep running.
+          {building.estimate_s ? (
+            <>
+              Preparing this layout for the first time, about {building.estimate_s} s
+              {building.total ? ` (step ${building.done} of ${building.total})` : ''}… it is
+              measured once and then remembered. Other sessions keep running.
+            </>
+          ) : (
+            <>
+              Building “{building.name}” ({building.reason})… other sessions keep running.
+            </>
+          )}
         </div>
       )}
       {serverError && (

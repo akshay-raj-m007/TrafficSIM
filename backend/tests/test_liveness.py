@@ -90,3 +90,29 @@ def test_activity_messages_keep_a_session_from_going_idle():
             assert not (isinstance(msg, dict) and msg.get("type") == "idle")
             time.sleep(0.2)
         assert client.get("/api/health").json()["sessions_active"] == 1
+
+
+def test_a_blocked_server_loop_does_not_make_a_healthy_client_dead(monkeypatch):
+    """On the 0.1 CPU free tier a long build starves the event loop: the client's pings wait
+    unread for longer than the heartbeat timeout. That session must not be declared dead."""
+    from trafficsim.engine.loop import Simulation
+
+    real, blocked = Simulation.step_n, []
+
+    def slow_once(self, n):
+        if not blocked and self.tick > 20:
+            blocked.append(1)
+            time.sleep(HEARTBEAT_S + 1.0)  # the loop is stuck for longer than the timeout
+        return real(self, n)
+
+    monkeypatch.setattr(Simulation, "step_n", slow_once)
+    with _client(heartbeat_timeout_s=HEARTBEAT_S) as client, client.websocket_connect(WS) as ws:
+        next_json(ws, "hello")
+        ws.send_text(json.dumps({"type": "set_speed", "speed": 1}))
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < HEARTBEAT_S + 4.0:
+            ws.send_text(json.dumps({"type": "ping", "id": 1}))
+            recv(ws)
+            time.sleep(0.2)
+        h = client.get("/api/health").json()
+        assert blocked and h["sessions_active"] == 1 and h["sessions_closed"].get("dead", 0) == 0

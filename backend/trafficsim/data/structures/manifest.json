@@ -1,0 +1,550 @@
+{
+ "structures": [
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 1,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 1,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 1,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 1,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 3,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 3,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 3,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 3,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 4,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 4,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 4,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 4,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 1,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 1,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 1,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 1,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 2,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 2,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 2,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 3,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 3,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 3,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 3,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 4,
+   "flyover_lanes": 1,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 4,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 4,
+   "flyover_lanes": 3,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 1,
+   "surface_lanes": 4,
+   "flyover_lanes": 4,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.5,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 2.75,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.0,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.25,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.5,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 3.75,
+   "flyover_width_m": 4.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 2.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 2.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 3.0
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 3.25
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 3.5
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 3.75
+  },
+  {
+   "j2_minor_lanes": 2,
+   "surface_lanes": 2,
+   "flyover_lanes": 2,
+   "surface_width_m": 4.0,
+   "flyover_width_m": 4.0
+  }
+ ]
+}
