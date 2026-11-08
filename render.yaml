@@ -16,8 +16,12 @@ services:
       # a third makes all three late, and one session at 10x already runs at about 2 frames/s.
       - key: MAX_SESSIONS
         value: "2"
+      # A dead connection (browser gone without closing) frees its slot after 30 s without a ping;
+      # an open but unused session (no mouse/keys, only pings) is paused and closed after 10 min.
+      - key: SESSION_HEARTBEAT_TIMEOUT_S
+        value: "30"
       - key: SESSION_IDLE_TIMEOUT_S
-        value: "900"
+        value: "600"
       # Custom comparisons on the hosted server: 3 runs, 300 s, one job at a time, one worker.
       # The five built-in experiments are precomputed and shipped (instant, no CPU).
       - key: COMPARE_MAX_RUNS

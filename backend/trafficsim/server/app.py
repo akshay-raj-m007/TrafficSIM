@@ -81,6 +81,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "sessions_active": sessions.active,
             "sessions_max": sessions.max_sessions,
             "sessions_rejected_total": sessions.rejected_total,
+            "session_ages_s": sessions.ages_s(),
+            "sessions_closed": sessions.closed,
+            "heartbeat_timeout_s": settings.heartbeat_timeout_s,
+            "idle_timeout_s": settings.idle_timeout_s,
         }
 
     @app.get("/api/network")
@@ -130,10 +134,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await ws.send_json(protocol.busy(sessions.max_sessions))
             await ws.close(code=BUSY_CLOSE_CODE)
             return
+        live = LiveSession(ws, sid, network, settings, params)
         try:
-            await LiveSession(ws, sid, network, settings, params).run()
+            await live.run()
+        except BaseException:
+            live.close_reason = live.close_reason or "error"
+            raise
         finally:
-            sessions.release(sid)
+            sessions.release(sid, live.close_reason)  # always, whatever ended the session
             # the client may already be gone (abrupt disconnect): nothing left to close
             with contextlib.suppress(RuntimeError, WebSocketDisconnect):
                 await ws.close()

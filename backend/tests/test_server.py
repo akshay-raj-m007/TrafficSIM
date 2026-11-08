@@ -160,7 +160,9 @@ def test_session_cap_rejects_with_busy_and_1013(client):
         assert client.get("/api/health").json()["sessions_active"] == 1
         with client.websocket_connect(WS) as second:
             msg = recv(second)
-            assert msg["type"] == "busy" and "busy" in msg["message"].lower()
+            assert msg["type"] == "busy"
+            text = msg["message"].lower()  # friendly: says what to do and what still works
+            assert "try again in a minute" in text and "compare" in text and "validation" in text
             with pytest.raises(WebSocketDisconnect) as exc:
                 recv(second)
             assert exc.value.code == BUSY_CLOSE_CODE

@@ -11,6 +11,11 @@ export interface PongMsg {
   type: 'pong';
   id: number;
 }
+/** The server paused the session after minutes without activity and closed it. */
+export interface IdleMsg {
+  type: 'idle';
+  message: string;
+}
 export interface ErrorMsg {
   type: 'error';
   message: string;
@@ -113,4 +118,5 @@ export type ServerMsg =
   | RejectedMsg
   | ScenarioMsg
   | ChartsMsg
+  | IdleMsg
   | VehicleMsg;

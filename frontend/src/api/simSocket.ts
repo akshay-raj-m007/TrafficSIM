@@ -22,7 +22,7 @@ import type {
 } from './messageTypes';
 import type { FrameFormat, HelloMsg, KpiMsg, StatsMsg } from './types';
 
-export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed';
+export type ConnStatus = 'connecting' | 'open' | 'busy' | 'closed' | 'idle';
 
 export interface SimSocketEvents {
   onStatus(status: ConnStatus, detail?: string): void;
@@ -41,6 +41,8 @@ export interface SimSocketEvents {
 const BUSY_RETRY_MS = 15000;
 const HIDDEN_DISCONNECT_MS = 60000;
 const PING_MS = 2000;
+/** Tell the server at most this often that the visitor is there (it pauses idle sessions). */
+const ACTIVITY_MS = 20000;
 const RATE_WINDOW_MS = 2000;
 
 export class SimSocket {
@@ -54,14 +56,27 @@ export class SimSocket {
   private pingSent = new Map<number, number>();
   private frameTimes: number[] = [];
   private stopped = false;
+  private idle = false; // the server paused this session: do not reconnect by itself
+  private lastActivity = 0;
   private listeners = new Map<string, Set<(msg: never) => void>>();
 
   constructor(private readonly ev: SimSocketEvents) {
     document.addEventListener('visibilitychange', this.onVisibility);
+    for (const e of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) {
+      window.addEventListener(e, this.noteActivity, { passive: true });
+    }
   }
+
+  private noteActivity = (): void => {
+    const now = performance.now();
+    if (now - this.lastActivity < ACTIVITY_MS) return;
+    this.lastActivity = now;
+    this.send({ type: 'activity' });
+  };
 
   connect(): void {
     this.stopped = false;
+    this.idle = false;
     window.clearTimeout(this.retryTimer);
     this.ev.onStatus('connecting');
     const ws = new WebSocket(wsUrl('/ws/sim', window.location));
@@ -87,7 +102,10 @@ export class SimSocket {
       } else if (msg.type === 'kpi') this.ev.onKpi(msg);
       else if (msg.type === 'stats') this.ev.onStats(msg);
       else if (msg.type === 'pong') this.onPong(msg.id);
-      else if (msg.type === 'applied') this.ev.onApplied(msg);
+      else if (msg.type === 'idle') {
+        this.idle = true;
+        this.ev.onStatus('idle', msg.message);
+      } else if (msg.type === 'applied') this.ev.onApplied(msg);
       else if (msg.type === 'rejected') this.ev.onRejected(msg);
       else if (msg.type === 'scenario') this.ev.onScenario(msg);
       else if (msg.type === 'building') this.ev.onBuilding(msg);
@@ -100,7 +118,7 @@ export class SimSocket {
     ws.onclose = (e) => {
       window.clearInterval(this.pingTimer);
       this.ws = null;
-      if (this.stopped) return;
+      if (this.stopped || this.idle) return;
       if (busy || e.code === 1013) {
         this.retryTimer = window.setTimeout(() => this.connect(), BUSY_RETRY_MS);
         return;
@@ -176,6 +194,9 @@ export class SimSocket {
 
   dispose(): void {
     document.removeEventListener('visibilitychange', this.onVisibility);
+    for (const e of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) {
+      window.removeEventListener(e, this.noteActivity);
+    }
     window.clearTimeout(this.hiddenTimer);
     this.close();
   }

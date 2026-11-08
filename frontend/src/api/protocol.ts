@@ -33,6 +33,8 @@ export function parseServerMessage(raw: string): ServerMsg | null {
         : null;
     case 'busy':
       return isStr(o.message) ? (o as unknown as ServerMsg) : null;
+    case 'idle':
+      return isStr(o.message) ? (o as unknown as ServerMsg) : null;
     case 'pong':
       return isNum(o.id) ? (o as unknown as ServerMsg) : null;
     case 'error':

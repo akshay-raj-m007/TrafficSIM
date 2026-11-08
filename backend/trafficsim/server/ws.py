@@ -26,6 +26,7 @@ from trafficsim.server import live_scenario, protocol
 from trafficsim.server.config import Settings
 from trafficsim.server.frames import segment_table
 from trafficsim.server.inspector import Inspector
+from trafficsim.server.liveness import DEAD, IDLE, SEND_TIMEOUT_S, Liveness
 from trafficsim.server.pacing import StepPacer
 from trafficsim.server.scenario_doc import ScenarioError
 from trafficsim.server.session_build import build_session
@@ -33,6 +34,7 @@ from trafficsim.server.session_config import SessionParams
 from trafficsim.server.stats import StreamStats
 from trafficsim.server.ws_client import ClientHandlers
 
+IDLE_CLOSE_CODE = 4000  # application close code: paused for inactivity
 AUX_PERIOD_S = 1.0  # KPI and stats messages, at most once per this many wall seconds
 
 
@@ -52,7 +54,10 @@ class LiveSession(ClientHandlers):
         self.frames_dropped = 0
         self.stats = StreamStats()
         self._send_lock = asyncio.Lock()
-        self._last_client_msg = 0.0
+        self.live = Liveness(
+            settings.heartbeat_timeout_s, settings.idle_timeout_s, time.monotonic()
+        )
+        self.close_reason = "disconnect"  # how the session ended (health: sessions_closed)
         self.sim = None  # built in run(), in a worker thread
         self.encoder = None
         self.building = False
@@ -88,11 +93,11 @@ class LiveSession(ClientHandlers):
 
     async def _send(self, msg: dict) -> None:
         async with self._send_lock:
-            await self.ws.send_json(msg)
+            await asyncio.wait_for(self.ws.send_json(msg), SEND_TIMEOUT_S)
 
     async def _send_bytes(self, data: bytes) -> None:
         async with self._send_lock:
-            await self.ws.send_bytes(data)
+            await asyncio.wait_for(self.ws.send_bytes(data), SEND_TIMEOUT_S)
 
     async def _hello(self) -> None:
         await self._send(
@@ -112,14 +117,18 @@ class LiveSession(ClientHandlers):
         await self._send_bytes(self.encoder.encode(self.epoch, protocol.speed_index(self.speed)))
 
     async def run(self) -> None:
-        loop = asyncio.get_running_loop()
-        self._last_client_msg = loop.time()
+        self.live = Liveness(
+            self.settings.heartbeat_timeout_s, self.settings.idle_timeout_s, time.monotonic()
+        )
         await self._build(self.setup, "starting the session", new_epoch=False)
         if self.sim is None:
             return
         tasks = [asyncio.create_task(self._ticker()), asyncio.create_task(self._reader())]
         try:
-            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            failed = any(t.exception() for t in done if not t.cancelled())
+            if failed and self.close_reason == "disconnect":  # not already dead / idle
+                self.close_reason = "error"  # a send timed out or the ticker / reader failed
         finally:
             for t in (*tasks, self._build_task):
                 if t is not None:
@@ -161,8 +170,14 @@ class LiveSession(ClientHandlers):
                 await self._send(
                     protocol.stats(sim.time_s, sim.tick, self.speed, sim.done, lag_ms, agg)
                 )
-            if now - self._last_client_msg > self.settings.idle_timeout_s:
-                await self._send(protocol.error("session closed after inactivity"))
+            verdict = self.live.verdict(time.monotonic())
+            if verdict == DEAD:  # nothing heard for heartbeat_timeout_s: free the slot
+                self.close_reason = DEAD
+                return
+            if verdict == IDLE:  # open but nobody there: pause (close) and tell the page
+                self.close_reason = IDLE
+                await self._send(protocol.idle(self.settings.idle_timeout_s / 60.0))
+                await self.ws.close(code=IDLE_CLOSE_CODE)
                 return
             deadline += period
             if now - deadline > period:  # more than a frame behind: resync, drop frames

@@ -20,8 +20,12 @@ class Settings:
     static_dir: Path | None = None
     # WebSocket frame rate (wall clock). Each frame advances `speed` sim steps.
     tick_hz: float = 10.0
-    # Close a live session after this long without any client message (incl. pings).
-    idle_timeout_s: float = 900.0
+    # A live session with no user activity (pings do not count) for this long is paused and
+    # closed; the page asks the visitor to click to resume. Dead connections: see below.
+    idle_timeout_s: float = 600.0
+    # No client message at all (pings included) for this long: the connection is dead and its
+    # slot is freed (the browser pings every 2 s).
+    heartbeat_timeout_s: float = 30.0
     # Measure the J1 saturation flows at start-up (about 7 s) instead of in the first
     # session that needs them.
     warm_up: bool = True
@@ -42,7 +46,8 @@ class Settings:
             max_sessions=int(os.environ.get("MAX_SESSIONS", "2")),
             static_dir=static_dir,
             tick_hz=float(os.environ.get("TICK_HZ", "10")),
-            idle_timeout_s=float(os.environ.get("SESSION_IDLE_TIMEOUT_S", "900")),
+            idle_timeout_s=float(os.environ.get("SESSION_IDLE_TIMEOUT_S", "600")),
+            heartbeat_timeout_s=float(os.environ.get("SESSION_HEARTBEAT_TIMEOUT_S", "30")),
             warm_up=os.environ.get("WARM_UP", "1") != "0",
             compare=CompareLimits(
                 max_runs=int(os.environ.get("COMPARE_MAX_RUNS", "10")),

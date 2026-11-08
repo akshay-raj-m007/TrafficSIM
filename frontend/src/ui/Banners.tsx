@@ -5,15 +5,16 @@ import { useWaking } from './useWaking';
 interface Props {
   building: BuildingMsg | null;
   serverError: string | null;
-  /** The server-busy message while the connection is in the busy state, else null. */
-  busy: string | null;
   netError: string | null;
   /** Connection state: not connected for a few seconds means the free host is waking up. */
   status: ConnStatus;
+  /** The server's message of the current status (busy / idle). */
+  detail?: string;
+  onResume(): void;
 }
 
 /** Status banners over the 3D view (building a scenario, errors, server busy). */
-export function Banners({ building, serverError, busy, netError, status }: Props) {
+export function Banners({ building, serverError, netError, status, detail, onResume }: Props) {
   const waking = useWaking(status);
   return (
     <>
@@ -33,9 +34,17 @@ export function Banners({ building, serverError, busy, netError, status }: Props
           {serverError}
         </div>
       )}
-      {busy !== null && (
-        <div className="banner banner--busy" role="alert">
-          {busy} Retrying automatically every 15 s.
+      {status === 'busy' && (
+        <div className="banner banner--busy" role="alert" data-testid="busy">
+          {detail} Retrying automatically every 15 s.
+        </div>
+      )}
+      {status === 'idle' && (
+        <div className="banner banner--busy" role="alert" data-testid="idle">
+          {detail}{' '}
+          <button type="button" onClick={onResume}>
+            Resume
+          </button>
         </div>
       )}
       {netError && (

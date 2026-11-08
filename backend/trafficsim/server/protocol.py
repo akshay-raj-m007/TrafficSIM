@@ -84,12 +84,18 @@ class Inspect(BaseModel):
     id: int | None = Field(default=None, ge=0, le=0xFFFF)
 
 
+class Activity(BaseModel):
+    """The visitor is there (mouse, keys, touch); sent by the page at most every 20 s."""
+
+    type: Literal["activity"]
+
+
 class Ping(BaseModel):
     type: Literal["ping"]
     id: int
 
 
-ClientMsg = SetSpeed | Reset | Apply | Export | Charts | Inspect | Ping
+ClientMsg = SetSpeed | Reset | Apply | Export | Charts | Inspect | Activity | Ping
 ClientMessage = Annotated[ClientMsg, Field(discriminator="type")]
 _client_adapter: TypeAdapter[ClientMsg] = TypeAdapter(ClientMessage)
 
@@ -149,7 +155,19 @@ def busy(max_sessions: int) -> dict:
     return {
         "type": "busy",
         "sessions_max": max_sessions,
-        "message": "Server busy: all simulation slots are in use. Please try again shortly.",
+        "message": (
+            f"The free server allows {max_sessions} live simulations at a time and both are in "
+            "use. Try again in a minute: this page retries by itself. The precomputed Compare "
+            "and Validation results work meanwhile."
+        ),
+    }
+
+
+def idle(minutes: float) -> dict:
+    return {
+        "type": "idle",
+        "message": f"Paused after {minutes:g} minutes without activity. Click to resume "
+        "(this starts a new run).",
     }
 
 

@@ -7,6 +7,7 @@ export, speed and ping. The session supplies the sockets, the simulation and the
 from __future__ import annotations
 
 import asyncio
+import time
 
 from fastapi import WebSocketDisconnect
 from pydantic import ValidationError
@@ -60,11 +61,10 @@ class ClientHandlers:
         await self._send(protocol.applied(tick, change_dict(tick, change)))
 
     async def _reader(self) -> None:
-        loop = asyncio.get_running_loop()
         try:
             while True:
                 raw = await self.ws.receive_text()
-                self._last_client_msg = loop.time()
+                self.live.heartbeat(time.monotonic())
                 size = len(raw.encode("utf-8"))
                 if size > self.settings.max_message_bytes:
                     limit = self.settings.max_message_bytes
@@ -83,6 +83,8 @@ class ClientHandlers:
                         )
                     )
                     continue
+                if not isinstance(msg, protocol.Ping):
+                    self.live.activity(time.monotonic())
                 if isinstance(msg, protocol.SetSpeed):
                     self.speed = msg.speed
                 elif isinstance(msg, protocol.Reset):

@@ -26,6 +26,7 @@ const STATUS_TEXT: Record<ConnStatus, string> = {
   open: 'live',
   busy: 'server busy',
   closed: 'offline',
+  idle: 'paused',
 };
 
 const label = (k: number) => (k === 0 ? '❚❚' : `${k}×`);

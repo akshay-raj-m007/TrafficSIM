@@ -10,8 +10,7 @@ import { SceneView } from './scene/SceneView';
 import { Banners } from './ui/Banners';
 import { Header, type View } from './ui/Header';
 import { downloadJson } from './ui/download';
-import { ChartsHost } from './ui/charts/ChartsHost';
-import { InspectorHost } from './ui/InspectorHost';
+import { Hosts } from './ui/Hosts';
 import { CompareView } from './ui/compare/CompareView';
 import { ScenarioPanel } from './ui/ScenarioPanel';
 import { restartDoc } from './ui/scenarioDraft';
@@ -178,14 +177,14 @@ export function App() {
       )}
       <main className="centre">
         <SceneView network={network} classes={hello?.classes ?? []} managerRef={sceneRef} />
-        <ChartsHost sock={sockRef} hello={hello} />
-        <InspectorHost sock={sockRef} hello={hello} scene={sceneRef} />
+        <Hosts sock={sockRef} hello={hello} scene={sceneRef} />
         <Banners
           building={building}
           serverError={serverError}
-          busy={status === 'busy' ? (statusDetail ?? '') : null}
           netError={netError}
           status={status}
+          detail={statusDetail}
+          onResume={() => sockRef.current?.connect()}
         />
       </main>
       <TelemetryPanel

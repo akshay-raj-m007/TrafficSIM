@@ -897,7 +897,8 @@ worker (live sessions and the session cap live in this process). Settings, all e
 | Variable | Hosted value | Why |
 |---|---|---|
 | `MAX_SESSIONS` | 2 | load test below |
-| `SESSION_IDLE_TIMEOUT_S` | 900 | frees a slot of a forgotten tab |
+| `SESSION_HEARTBEAT_TIMEOUT_S` | 30 | a dead connection frees its slot (see below) |
+| `SESSION_IDLE_TIMEOUT_S` | 600 | an open but unused session is paused and closed |
 | `COMPARE_MAX_RUNS` / `COMPARE_MAX_DURATION_S` | 3 / 300 | custom comparisons are small; the Compare tab's defaults follow these limits |
 | `COMPARE_MAX_JOBS` / `COMPARE_WORKERS` | 1 / 1 | one job at a time, one process (0.1 CPU) |
 | `COMPARE_CACHE_DIR` (Dockerfile) | `/tmp/trafficsim/compare` | the container's `/app` is not writable by the non-root user (the first container test crashed on it) |
@@ -905,6 +906,16 @@ worker (live sessions and the session cap live in this process). Settings, all e
 The **five built-in experiments and the validation results are precomputed and shipped** in the image: opening them costs
 no CPU. A custom comparison of 3 runs x 300 s took **890 s (about 15 minutes)** on the throttled free-tier container (measured), one job at a time; the Compare
 tab shows its progress. Choosing a stored experiment is instant.
+
+**Slots are released on any end of a session** (`server/liveness.py`, `tests/test_liveness.py`). The first hosted version
+showed "server busy" with one tab open: a browser that vanished without closing its socket (closed laptop, lost
+network) is invisible to the server behind Render's proxy, which keeps its side of the connection open, so the slot was
+held and the server kept writing into the void. Now: the page pings every 2 s and a session with no message at all for
+30 s is dead and freed; a send that cannot complete in 10 s ends the session; any error releases the slot; and a session
+with only pings (nobody using the page: no mouse, keys or touch, which the page reports at most every 20 s) for 10 minutes is
+paused, closed with "Paused ... click to resume" and a Resume button (it starts a new run). `/api/health` lists the active
+sessions with their ages and how sessions ended (`sessions_closed`: disconnect, dead, idle, error). The busy message
+says the free server allows 2 live simulations, to try again in a minute, and that Compare and Validation still work.
 
 **Sleep and wake-up.** The free instance sleeps after 15 minutes without traffic and needs about a minute to start
 (measured here: 31 s from container start to a healthy server at 0.1 CPU, plus Render's own start-up). While it is
