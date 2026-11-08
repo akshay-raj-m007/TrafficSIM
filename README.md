@@ -917,6 +917,12 @@ paused, closed with "Paused ... click to resume" and a Resume button (it starts 
 sessions with their ages and how sessions ended (`sessions_closed`: disconnect, dead, idle, error). The busy message
 says the free server allows 2 live simulations, to try again in a minute, and that Compare and Validation still work.
 
+**Keep-alive.** The free Render instance does not reliably wake after sleeping (a visitor's request hung for 17+ minutes
+with no page and no error; only a new deploy brought the app back), and in that case the app cannot show its own
+message because no page is served. So `.github/workflows/keepalive.yml` calls `/api/health` every 5 minutes (GitHub's
+scheduled jobs can run late, Render sleeps after 15) and the instance stays awake; one always-on service uses 744 of the
+750 free instance hours a month. If the site still hangs: Render dashboard, **Manual Deploy**, Deploy latest commit.
+
 **Sleep and wake-up.** The free instance sleeps after 15 minutes without traffic and needs about a minute to start
 (measured here: 31 s from container start to a healthy server at 0.1 CPU, plus Render's own start-up). While it is
 asleep Render shows its own loading page; once the app's page is open and the connection is not up within 4 seconds, the
