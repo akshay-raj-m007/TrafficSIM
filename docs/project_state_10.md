@@ -9,7 +9,8 @@ Continues `project_state_9.md`. Sun 8 Nov 2026. **Deadline: Mon 9 Nov 2026, 18:0
   `trafficsim/data/structures/` (0.72 MB). `tablecache.load` reads them before the writable cache; file names carry the
   input digest; `tests/test_structure_tables.py` guards staleness and reading without measuring.
 - First-time layouts (a 3.1 m width, a custom mix): `building` message with `estimate_s` and step progress; banner
-  "Preparing this layout for the first time, about N s (step k of 25)". Hosted `PREPARE_S_PER_STEP=6`.
+  "Preparing this layout for the first time, about N s (step k of 25)". Hosted `PREPARE_S_PER_STEP=4` (J1 has 14 steps).
+- Live after: 2 -> 4 lanes 1 s (before 69 s); unusual mix 50 s with the banner (before: the heartbeat dropped the client).
 - Found on the way: the 30 s heartbeat dropped a healthy client during a long build on 0.1 CPU (the loop was starved, the
   pings unread); `ws.py` now ignores a starved loop and re-checks (`test_a_blocked_server_loop...`).
 - Engine source changed (calibration progress hook, tablecache): validation and the five experiments were regenerated,

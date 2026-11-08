@@ -19,9 +19,9 @@ services:
       # A dead connection (browser gone without closing) frees its slot after 30 s without a ping;
       # an open but unused session (no mouse/keys, only pings) is paused and closed after 10 min.
       # First guess of the "preparing this layout" banner (seconds per measurement step on 0.1 CPU;
-      # measured: 154 s for the 25 steps of J1). Layouts in data/structures are shipped, not measured.
+      # measured live: 50 s for the 14 steps of J1). Layouts in data/structures are shipped, not measured.
       - key: PREPARE_S_PER_STEP
-        value: "6"
+        value: "4"
       - key: SESSION_HEARTBEAT_TIMEOUT_S
         value: "30"
       - key: SESSION_IDLE_TIMEOUT_S
