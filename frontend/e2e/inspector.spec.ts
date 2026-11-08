@@ -27,6 +27,7 @@ async function pickAVehicle(page: Page) {
 test('the inspector opens on a click, shows the server numbers, follows, and closes cleanly', async ({
   page,
 }) => {
+  test.setTimeout(420_000); // waits for a vehicle to leave the network: slow on a CI runner
   const problems: string[] = [];
   const messages: { gone: boolean; speed_mps?: number; lane?: string; vid?: number }[] = [];
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));

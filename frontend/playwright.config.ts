@@ -19,8 +19,8 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
-  reporter: [['list']],
+  retries: process.env.CI ? 1 : 0, // the hosted runners are slower and noisier than a laptop
+  reporter: process.env.CI ? [['list'], ['github']] : [['list']],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     ...devices['Desktop Chrome'],

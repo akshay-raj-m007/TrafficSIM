@@ -25,6 +25,7 @@ const inkPixels = (page: Page, testId: string) =>
 test('the results drawer draws the three charts from the server measurements, without errors', async ({
   page,
 }) => {
+  test.setTimeout(300_000); // 5 MFD points need 50 simulated seconds
   const problems: string[] = [];
   const received = { mfd: [] as unknown[][], queue: [] as unknown[][] };
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
