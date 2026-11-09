@@ -11,9 +11,10 @@ It is meant to be used as a small research workbench.
 - **Frontend:** Vite + React + Three.js. A true metric 3D view (1 unit = 1 m) with scenario
   controls and measured telemetry.
 
-> Status: **step 2b done**: vehicles are drawn in the 3D view with smooth motion, and the
-> right panel shows KPIs measured in the backend. Scenario controls come in step 3.
-> Hosted on Render (free tier): see "Deployment" below (2 live seats, a minute to wake up).
+> Status: **complete (submitted for the QUEST Lab application).** Live 3D simulation with scenario controls, live changes,
+> measured KPIs, charts, inspector, A/B comparison with paired statistics, a validation tab and shipped experiments.
+> Start with **[docs/OVERVIEW.md](docs/OVERVIEW.md)** (setup, architecture, how to read the code). Hosted on Render
+> (free tier): see "Deployment" below (2 live seats, a minute to wake up). Deep detail per topic follows in this file.
 
 ## Run locally
 
